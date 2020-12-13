@@ -1,0 +1,14 @@
+<html>
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+  </head>
+  <body>
+    <canvas id="canvas" width="1024" height="762"></canvas>
+    <script src="./rust-rogelike.js"></script>
+    <script>
+      window.addEventListener("load", async () => {
+        await wasm_bindgen("./rust-rogelike_bg.wasm");
+      });
+    </script>
+  </body>
+</html>

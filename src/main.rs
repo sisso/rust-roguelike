@@ -2,7 +2,6 @@ use log::*;
 use rltk::{Algorithm2D, BaseMap, GameState, RandomNumberGenerator, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
-use std::borrow::Borrow;
 use std::cmp::{max, min};
 
 const SHIP_MAP: &str = r"
@@ -235,7 +234,7 @@ fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
     let height = lines.len() as i32;
     let mut cells = vec![];
 
-    for (y, line) in lines.iter().enumerate() {
+    for (_y, line) in lines.iter().enumerate() {
         if line.len() != width as usize {
             return Err(ParseMapError::InvalidLineWidth(line.clone()));
         }
@@ -409,7 +408,7 @@ fn player_input(gs: &mut State, ctx: &mut Rltk) {
 }
 
 fn parse_map_objects(gs: &mut State, ast: ParseMapAst) -> Result<(), ParseMapError> {
-    let mut changes: Vec<Box<FnOnce(&mut State)>> = vec![];
+    let mut changes: Vec<(Position, ObjectsType)> = vec![];
 
     for (index, cell) in ast.cells.iter().enumerate() {
         let kind = gs
@@ -425,59 +424,55 @@ fn parse_map_objects(gs: &mut State, ast: ParseMapAst) -> Result<(), ParseMapErr
             None => continue,
         };
 
-        let p = {
+        let pos = {
             let map = gs.ecs.fetch::<GMap>();
             map.idx_xy(index)
         };
 
+        changes.push((pos, kind));
+    }
+
+    for (pos, kind) in changes {
         match kind {
             ObjectsType::Door { vertical } => {
-                changes.push(Box::new(move |gs| {
-                    let icon = if vertical { '|' } else { '-' };
-                    gs.ecs
-                        .create_entity()
-                        .with(Position { x: p.x, y: p.y })
-                        .with(Renderable {
-                            glyph: rltk::to_cp437(icon),
-                            fg: RGB::named(rltk::CYAN),
-                            bg: RGB::named(rltk::BLACK),
-                            priority: 0,
-                        })
-                        .build();
-                }));
+                let icon = if vertical { '|' } else { '-' };
+                gs.ecs
+                    .create_entity()
+                    .with(Position { x: pos.x, y: pos.y })
+                    .with(Renderable {
+                        glyph: rltk::to_cp437(icon),
+                        fg: RGB::named(rltk::CYAN),
+                        bg: RGB::named(rltk::BLACK),
+                        priority: 0,
+                    })
+                    .build();
             }
             ObjectsType::Cockpit => {
-                changes.push(Box::new(move |gs| {
-                    gs.ecs
-                        .create_entity()
-                        .with(Position { x: p.x, y: p.y })
-                        .with(Renderable {
-                            glyph: rltk::to_cp437('C'),
-                            fg: RGB::named(rltk::BLUE),
-                            bg: RGB::named(rltk::BLACK),
-                            priority: 0,
-                        })
-                        .build();
-                }));
+                gs.ecs
+                    .create_entity()
+                    .with(Position { x: pos.x, y: pos.y })
+                    .with(Renderable {
+                        glyph: rltk::to_cp437('C'),
+                        fg: RGB::named(rltk::BLUE),
+                        bg: RGB::named(rltk::BLACK),
+                        priority: 0,
+                    })
+                    .build();
             }
             ObjectsType::Engine => {
-                changes.push(Box::new(move |gs| {
-                    gs.ecs
-                        .create_entity()
-                        .with(Position { x: p.x, y: p.y })
-                        .with(Renderable {
-                            glyph: rltk::to_cp437('E'),
-                            fg: RGB::named(rltk::RED),
-                            bg: RGB::named(rltk::BLACK),
-                            priority: 0,
-                        })
-                        .build();
-                }));
+                gs.ecs
+                    .create_entity()
+                    .with(Position { x: pos.x, y: pos.y })
+                    .with(Renderable {
+                        glyph: rltk::to_cp437('E'),
+                        fg: RGB::named(rltk::RED),
+                        bg: RGB::named(rltk::BLACK),
+                        priority: 0,
+                    })
+                    .build();
             }
         }
     }
-
-    changes.into_iter().for_each(|c| c(gs));
 
     Ok(())
 }
@@ -497,20 +492,16 @@ impl GameState for State {
             _ => {}
         }
 
-        let visible = {
-            let storages = self.ecs.read_storage::<Viewshed>();
-            let entities = self.ecs.entities();
-            let views = (&storages, &entities).join().collect::<Vec<_>>();
-            let (v, _) = views.iter().next().unwrap();
-            v.visible_tiles.clone()
-        };
-
         {
-            let map = self.ecs.fetch::<GMap>();
-            draw_map(&visible, &map, ctx);
-        }
+            let viewshed = self.ecs.read_storage::<Viewshed>();
+            let avatars = self.ecs.read_storage::<Avatar>();
+            let views = (&viewshed, &avatars).join().collect::<Vec<_>>();
+            let (v, _) = views.iter().next().unwrap();
 
-        draw_objects(&visible, &self.ecs, ctx);
+            let map = self.ecs.fetch::<GMap>();
+            draw_map(&v.visible_tiles, &map, ctx);
+            draw_objects(&v.visible_tiles, &self.ecs, ctx);
+        }
 
         {
             let mouse_pos = ctx.mouse_pos();

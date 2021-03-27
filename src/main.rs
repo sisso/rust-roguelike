@@ -58,6 +58,9 @@ impl Dir {
     }
 }
 
+#[derive(Component, Debug)]
+struct Avatar {}
+
 #[derive(Component)]
 struct Renderable {
     glyph: rltk::FontCharType,
@@ -67,11 +70,8 @@ struct Renderable {
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 enum TileType {
-    Plain,
-    Forest,
-    Mountain,
-    Water,
-    City,
+    Floor,
+    Wall,
 }
 
 #[derive(Component, Debug, Clone)]
@@ -124,74 +124,32 @@ fn new_map() -> GMap {
                 tile: default_tile,
             });
         }
+
         cells
     }
 
-    fn apply_random(cells: &mut Vec<Cell>, rng: &mut RandomNumberGenerator) {
-        // total random
-        for cell in cells.iter_mut() {
-            let tile = match rng.range(0, 5) {
-                0 => TileType::Plain,
-                1 => TileType::Water,
-                2 => TileType::Forest,
-                3 => TileType::Mountain,
-                4 => TileType::City,
-                other => panic!(format!("invalid random range {}", other)),
-            };
-
-            cell.tile = tile;
+    fn apply_walls(map: &mut GMap) {
+        for x in 0..map.width {
+            map.cells[xy_idx(x, 0)].tile = TileType::Wall;
+            map.cells[xy_idx(x, map.height - 1)].tile = TileType::Wall;
         }
-    }
 
-    fn add_city(rng: &mut RandomNumberGenerator, map: &mut GMap, pos: Position, size: u16) {
-        let mut added = 0;
-        let mut cursor = pos;
-
-        map.cells[xy_idx(cursor.x, cursor.y)].tile = TileType::City;
-
-        for _ in 0..size {
-            let new_cursor = match rng.range(0, 4) {
-                0 => cursor.get_at(Dir::N),
-                1 => cursor.get_at(Dir::S),
-                2 => cursor.get_at(Dir::E),
-                3 => cursor.get_at(Dir::W),
-                _ => panic!("invalid random number"),
-            };
-
-            if map.is_valid_xy(new_cursor.x, new_cursor.y) {
-                let index = xy_idx(new_cursor.x, new_cursor.y);
-
-                cursor = new_cursor;
-                map.cells[index].tile = TileType::City;
-                added += 1;
-            }
-        }
-    }
-
-    fn add_random_cities(rng: &mut RandomNumberGenerator, map: &mut GMap, min: u16, max: u16) {
-        let amount = rng.range(min, max + 1);
-        for _ in 0..amount {
-            let pos = Position {
-                x: rng.range(0, map.width),
-                y: rng.range(0, map.height),
-            };
-
-            let size = rng.range(1, 8);
-
-            add_city(rng, map, pos, size);
+        for y in 0..map.height {
+            map.cells[xy_idx(0, y)].tile = TileType::Wall;
+            map.cells[xy_idx(map.width - 1, y)].tile = TileType::Wall;
         }
     }
 
     let total_cells = (MAP_W * MAP_H) as usize;
-    let mut rng = rltk::RandomNumberGenerator::new();
+    // let mut rng = rltk::RandomNumberGenerator::new();
 
     let mut gmap = GMap {
         width: MAP_W,
         height: MAP_H,
-        cells: create(total_cells, TileType::Plain),
+        cells: create(total_cells, TileType::Floor),
     };
 
-    add_random_cities(&mut rng, &mut gmap, 2, 8);
+    apply_walls(&mut gmap);
 
     gmap
 }
@@ -201,20 +159,11 @@ fn draw_map(map: &GMap, ctx: &mut Rltk) {
     let mut x = 0;
     for cell in map.cells.iter() {
         match cell.tile {
-            TileType::Plain => {
-                ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437('.'));
+            TileType::Floor => {
+                ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437(' '));
             }
-            TileType::Forest => {
-                ctx.set(x, y, rltk::GREEN, rltk::BLACK, rltk::to_cp437('F'));
-            }
-            TileType::Water => {
-                ctx.set(x, y, rltk::BLUE, rltk::BLACK, rltk::to_cp437('~'));
-            }
-            TileType::Mountain => {
-                ctx.set(x, y, rltk::WHITE, rltk::BLACK, rltk::to_cp437('M'));
-            }
-            TileType::City => {
-                ctx.set(x, y, rltk::GRAY, rltk::BLACK, rltk::to_cp437('#'));
+            TileType::Wall => {
+                ctx.set(x, y, rltk::GREEN, rltk::BLACK, rltk::to_cp437('#'));
             }
         }
 
@@ -227,10 +176,39 @@ fn draw_map(map: &GMap, ctx: &mut Rltk) {
     }
 }
 
+fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
+    let mut positions = ecs.write_storage::<Position>();
+    let mut players = ecs.write_storage::<Avatar>();
+    let map = ecs.fetch::<GMap>();
+
+    for (_player, pos) in (&mut players, &mut positions).join() {
+        let destination_idx = xy_idx(pos.x + delta_x, pos.y + delta_y);
+        if map.cells[destination_idx].tile != TileType::Wall {
+            pos.x = min(79, max(0, pos.x + delta_x));
+            pos.y = min(49, max(0, pos.y + delta_y));
+        }
+    }
+}
+
+fn player_input(gs: &mut State, ctx: &mut Rltk) {
+    // Player movement
+    match ctx.key {
+        None => {} // Nothing happened
+        Some(key) => match key {
+            VirtualKeyCode::Left => try_move_player(-1, 0, &mut gs.ecs),
+            VirtualKeyCode::Right => try_move_player(1, 0, &mut gs.ecs),
+            VirtualKeyCode::Up => try_move_player(0, -1, &mut gs.ecs),
+            VirtualKeyCode::Down => try_move_player(0, 1, &mut gs.ecs),
+            _ => {}
+        },
+    }
+}
+
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
+        player_input(self, ctx);
         self.run_systems();
 
         match &ctx.key {
@@ -275,8 +253,19 @@ fn main() -> rltk::BError {
     let mut gs = State { ecs: World::new() };
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
+    gs.ecs.register::<Avatar>();
 
     gs.ecs.insert(new_map());
+    gs.ecs
+        .create_entity()
+        .with(Position { x: 40, y: 25 })
+        .with(Renderable {
+            glyph: rltk::to_cp437('@'),
+            fg: RGB::named(rltk::YELLOW),
+            bg: RGB::named(rltk::BLACK),
+        })
+        .with(Avatar {})
+        .build();
 
     rltk::main_loop(context, gs)
 }

@@ -4,10 +4,58 @@ use specs::prelude::*;
 use specs_derive::*;
 use std::cmp::{max, min};
 
+const SHIP_MAP: &str = r"
+_______####________________
+_______EEE#________________
+_______##.#________________
+________#.#________________
+______###-####-#######_____
+______#.....#...#....!_____
+______#.@...|...#....!_____
+______#.....#...|....!_____
+______###-############_____
+________#.#________________
+_______##.#________________
+_______EEE#________________
+_______####________________";
+
 const SCREEN_W: i32 = 80;
 const SCREEN_H: i32 = 50;
 
 type Index = usize;
+
+#[derive(Component, Debug)]
+struct Cfg {
+    raw_map_tiles: Vec<(char, TileType)>,
+    raw_map_objects: Vec<(char, ObjectsType)>,
+}
+
+impl Cfg {
+    pub fn new() -> Self {
+        let raw_map_tiles: Vec<(char, TileType)> = vec![
+            ('_', TileType::Space),
+            ('.', TileType::Floor),
+            ('#', TileType::Wall),
+            ('E', TileType::Wall),
+            ('-', TileType::Floor),
+            ('|', TileType::Floor),
+            ('@', TileType::Floor),
+            ('!', TileType::Floor),
+        ];
+
+        let raw_map_objects: Vec<(char, ObjectsType)> = vec![
+            ('E', ObjectsType::Engine),
+            ('-', ObjectsType::Door { vertical: false }),
+            ('|', ObjectsType::Door { vertical: true }),
+            ('@', ObjectsType::Cockpit),
+            ('!', ObjectsType::Door { vertical: true }),
+        ];
+        Cfg {
+            raw_map_tiles,
+            raw_map_objects,
+        }
+    }
+}
 
 #[derive(Component, Clone, Debug, PartialEq)]
 struct Position {
@@ -66,6 +114,7 @@ struct Renderable {
     glyph: rltk::FontCharType,
     fg: RGB,
     bg: RGB,
+    priority: i32,
 }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -80,6 +129,13 @@ pub struct GMap {
     width: i32,
     height: i32,
     cells: Vec<Cell>,
+}
+
+#[derive(PartialEq, Copy, Clone, Debug)]
+enum ObjectsType {
+    Door { vertical: bool },
+    Engine,
+    Cockpit,
 }
 
 impl BaseMap for GMap {}
@@ -119,6 +175,7 @@ pub struct Cell {
 }
 
 struct State {
+    cfg: Cfg,
     ecs: World,
 }
 
@@ -180,8 +237,8 @@ fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
 }
 
 fn parse_map_tiles(
-    map: &ParseMapAst,
     legend: &Vec<(char, TileType)>,
+    map: &ParseMapAst,
 ) -> Result<GMap, ParseMapError> {
     let mut gmap = GMap {
         width: map.width,
@@ -203,38 +260,6 @@ fn parse_map_tiles(
     }
 
     Ok(gmap)
-}
-
-fn map_ship() -> GMap {
-    let raw = r"
-_______####________________
-_______EEE#________________
-_______##.#________________
-________#.#________________
-______###-####-#######_____
-______#.....#...#....!_____
-______#.@...|...#....!_____
-______#.....#...|....!_____
-______###-############_____
-________#.#________________
-_______##.#________________
-_______EEE#________________
-_______####________________"
-        .trim();
-
-    let legend = vec![
-        ('_', TileType::Space),
-        ('.', TileType::Floor),
-        ('#', TileType::Wall),
-        ('E', TileType::Wall),
-        ('-', TileType::Floor),
-        ('|', TileType::Floor),
-        ('@', TileType::Floor),
-        ('!', TileType::Floor),
-    ];
-
-    let ast = parse_map(raw).expect("fail to parse map");
-    parse_map_tiles(&ast, &legend).expect("fail to parse map")
 }
 
 fn map_empty() -> GMap {
@@ -343,6 +368,80 @@ fn player_input(gs: &mut State, ctx: &mut Rltk) {
     }
 }
 
+fn parse_map_objects(gs: &mut State, ast: ParseMapAst) -> Result<(), ParseMapError> {
+    let mut changes: Vec<Box<FnOnce(&mut State)>> = vec![];
+
+    for (index, cell) in ast.cells.iter().enumerate() {
+        let kind = gs
+            .cfg
+            .raw_map_objects
+            .iter()
+            .find(|(ch, tp)| ch == cell)
+            .map(|(_, kind)| kind)
+            .cloned();
+
+        let kind = match kind {
+            Some(k) => k,
+            None => continue,
+        };
+
+        let p = {
+            let map = gs.ecs.fetch::<GMap>();
+            map.idx_xy(index)
+        };
+
+        match kind {
+            ObjectsType::Door { vertical } => {
+                changes.push(Box::new(move |gs| {
+                    let icon = if vertical { '|' } else { '-' };
+                    gs.ecs
+                        .create_entity()
+                        .with(Position { x: p.x, y: p.y })
+                        .with(Renderable {
+                            glyph: rltk::to_cp437(icon),
+                            fg: RGB::named(rltk::CYAN),
+                            bg: RGB::named(rltk::BLACK),
+                            priority: 0,
+                        })
+                        .build();
+                }));
+            }
+            ObjectsType::Cockpit => {
+                changes.push(Box::new(move |gs| {
+                    gs.ecs
+                        .create_entity()
+                        .with(Position { x: p.x, y: p.y })
+                        .with(Renderable {
+                            glyph: rltk::to_cp437('C'),
+                            fg: RGB::named(rltk::BLUE),
+                            bg: RGB::named(rltk::BLACK),
+                            priority: 0,
+                        })
+                        .build();
+                }));
+            }
+            ObjectsType::Engine => {
+                changes.push(Box::new(move |gs| {
+                    gs.ecs
+                        .create_entity()
+                        .with(Position { x: p.x, y: p.y })
+                        .with(Renderable {
+                            glyph: rltk::to_cp437('E'),
+                            fg: RGB::named(rltk::RED),
+                            bg: RGB::named(rltk::BLACK),
+                            priority: 0,
+                        })
+                        .build();
+                }));
+            }
+        }
+    }
+
+    changes.into_iter().for_each(|c| c(gs));
+
+    Ok(())
+}
+
 impl GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
@@ -355,10 +454,7 @@ impl GameState for State {
                 debug!("generate a new map");
                 self.ecs.insert(map_empty());
             }
-            Some(key) => {
-                println!("{:?}", key);
-            }
-            None => {}
+            _ => {}
         }
 
         {
@@ -369,8 +465,9 @@ impl GameState for State {
         {
             let positions = self.ecs.read_storage::<Position>();
             let renderables = self.ecs.read_storage::<Renderable>();
-
-            for (pos, render) in (&positions, &renderables).join() {
+            let mut objects = (&positions, &renderables).join().collect::<Vec<_>>();
+            objects.sort_by(|&a, &b| a.1.priority.cmp(&b.1.priority));
+            for (pos, render) in objects {
                 ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
             }
 
@@ -392,12 +489,17 @@ fn main() -> rltk::BError {
     env_logger::builder().filter(None, LevelFilter::Info).init();
 
     let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
-    let mut gs = State { ecs: World::new() };
+    let mut gs = State {
+        cfg: Cfg::new(),
+        ecs: World::new(),
+    };
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Avatar>();
 
-    let map = map_ship();
+    let map_ast = parse_map(SHIP_MAP).expect("fail to load map");
+    let map = parse_map_tiles(&gs.cfg.raw_map_tiles, &&map_ast).expect("fail to load map tiles");
+
     let spawn_x = map.width / 2;
     let spawn_y = map.height / 2;
 
@@ -412,9 +514,12 @@ fn main() -> rltk::BError {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
+            priority: 1,
         })
         .with(Avatar {})
         .build();
+
+    parse_map_objects(&mut gs, map_ast).expect("fail to load map objects");
 
     rltk::main_loop(context, gs)
 }
@@ -446,7 +551,7 @@ mod test {
 
     #[test]
     fn test_parse_map_should_fail_for_invalid_maps() {
-        let legend = get_parse_map_default_legend();
+        let RAW_MAP_TILES = get_parse_map_default_legend();
         parse_map(
             r"
             ###
@@ -460,13 +565,13 @@ mod test {
     }
 
     fn get_parse_map_default_legend() -> Vec<(char, TileType)> {
-        let legend = vec![
+        let RAW_MAP_TILES = vec![
             ('_', TileType::Space),
             ('.', TileType::Floor),
             ('#', TileType::Wall),
             ('E', TileType::Wall),
         ];
 
-        legend
+        RAW_MAP_TILES
     }
 }

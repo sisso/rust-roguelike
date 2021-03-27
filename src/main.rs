@@ -86,7 +86,7 @@ impl BaseMap for GMap {}
 
 impl GMap {
     pub fn is_valid_xy(&self, x: i32, y: i32) -> bool {
-        self.width > x && x >= 0 && self.height > y && y >= 0
+        self.width as i32 > x && x >= 0 && self.height as i32 > y && y >= 0
     }
 
     pub fn is_valid(&self, index: Index) -> bool {
@@ -94,17 +94,24 @@ impl GMap {
     }
 
     fn xy_idx(&self, x: i32, y: i32) -> usize {
-        (y as usize * self.width as usize) + x as usize
+        xy_idx((self.width) as i32, x, y)
     }
 
     fn idx_xy(&self, index: Index) -> Position {
-        Position {
-            x: index as i32 % self.width,
-            y: index as i32 / self.width,
-        }
+        idx_xy((self.width) as i32, index)
     }
 }
 
+fn xy_idx(width: i32, x: i32, y: i32) -> usize {
+    ((y * width as i32) + x) as usize
+}
+
+fn idx_xy(width: i32, index: Index) -> Position {
+    Position {
+        x: index as i32 % width as i32,
+        y: index as i32 / width as i32,
+    }
+}
 #[derive(Component, Debug, Clone)]
 pub struct Cell {
     index: Index,
@@ -113,6 +120,13 @@ pub struct Cell {
 
 struct State {
     ecs: World,
+}
+
+#[derive(Debug)]
+struct ParseMapAst {
+    width: i32,
+    height: i32,
+    cells: Vec<char>,
 }
 
 #[derive(Debug)]
@@ -125,7 +139,7 @@ enum ParseMapError {
 /// All empty spaces are removed an can not be used
 /// If first line is empty, is removed,
 /// if last line is empty, is removed
-fn parse_map(map: &str, legend: &Vec<(char, TileType)>) -> Result<GMap, ParseMapError> {
+fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
     let mut lines: Vec<String> = map.split("\n").map(|line| line.replace(" ", "")).collect();
 
     if lines.is_empty() {
@@ -144,30 +158,48 @@ fn parse_map(map: &str, legend: &Vec<(char, TileType)>) -> Result<GMap, ParseMap
         lines.remove(lines.len() - 1);
     }
 
-    let width = lines[0].len();
-    let height = lines.len();
-    let mut gmap = GMap {
-        width: width as i32,
-        height: height as i32,
-        cells: vec![],
-    };
+    let width = lines[0].len() as i32;
+    let height = lines.len() as i32;
+    let mut cells = vec![];
 
     for (y, line) in lines.iter().enumerate() {
-        if line.len() != width {
+        if line.len() != width as usize {
             return Err(ParseMapError::InvalidLineWidth(line.clone()));
         }
 
-        for (x, ch) in line.chars().enumerate() {
-            let tile = match legend.iter().find(|(c, _)| c == &ch).map(|(_, tile)| tile) {
-                Some(t) => t,
-                None => return Err(ParseMapError::UnknownChar(ch)),
-            };
-
-            gmap.cells.push(Cell {
-                index: gmap.xy_idx(x as i32, y as i32),
-                tile: tile.clone(),
-            })
+        for ch in line.chars() {
+            cells.push(ch)
         }
+    }
+
+    Ok(ParseMapAst {
+        width,
+        height,
+        cells: cells,
+    })
+}
+
+fn parse_map_tiles(
+    map: &ParseMapAst,
+    legend: &Vec<(char, TileType)>,
+) -> Result<GMap, ParseMapError> {
+    let mut gmap = GMap {
+        width: map.width,
+        height: map.height,
+        cells: vec![],
+    };
+
+    for i in 0..(map.width as usize * map.height as usize) {
+        let ch = map.cells[i];
+        let tile = match legend.iter().find(|(c, _)| c == &ch).map(|(_, tile)| tile) {
+            Some(t) => t,
+            None => return Err(ParseMapError::UnknownChar(ch)),
+        };
+
+        gmap.cells.push(Cell {
+            index: i,
+            tile: tile.clone(),
+        })
     }
 
     Ok(gmap)
@@ -201,7 +233,8 @@ _______####________________"
         ('!', TileType::Floor),
     ];
 
-    parse_map(raw, &legend).expect("fail to parse map")
+    let ast = parse_map(raw).expect("fail to parse map");
+    parse_map_tiles(&ast, &legend).expect("fail to parse map")
 }
 
 fn map_empty() -> GMap {
@@ -219,14 +252,14 @@ fn map_empty() -> GMap {
     }
 
     fn apply_walls(map: &mut GMap) {
-        for x in 0..map.width {
+        for x in 0..(map.width as i32) {
             let i = map.xy_idx(x, 0);
             map.cells[i].tile = TileType::Wall;
             let i = map.xy_idx(x, map.height - 1);
             map.cells[i].tile = TileType::Wall;
         }
 
-        for y in 0..map.height {
+        for y in 0..(map.height as i32) {
             let i = map.xy_idx(0, y);
             map.cells[i].tile = TileType::Wall;
             let i = map.xy_idx(map.width - 1, y);
@@ -305,6 +338,7 @@ fn player_input(gs: &mut State, ctx: &mut Rltk) {
             VirtualKeyCode::Numpad1 => try_move_player(-1, 1, &mut gs.ecs),
             VirtualKeyCode::Numpad2 => try_move_player(0, 1, &mut gs.ecs),
             VirtualKeyCode::Numpad3 => try_move_player(1, 1, &mut gs.ecs),
+            _ => {}
         },
     }
 }
@@ -321,9 +355,10 @@ impl GameState for State {
                 debug!("generate a new map");
                 self.ecs.insert(map_empty());
             }
-            other => {
+            Some(key) => {
                 println!("{:?}", key);
             }
+            None => {}
         }
 
         {
@@ -390,21 +425,19 @@ mod test {
 
     #[test]
     fn test_idx_xy_and_xy_idx() {
-        let index = xy_idx(3, 5);
-        let coords = idx_xy(index);
+        let index = xy_idx(SCREEN_W, 3, 5);
+        let coords = idx_xy(SCREEN_W, index);
         assert_eq!(coords, Position { x: 3, y: 5 });
     }
 
     #[test]
     fn test_parse_map_should_find_the_map_dimension() {
-        let legend = get_parse_map_default_legend();
         let map = parse_map(
             r"
             #....#
             ______ 
             #....#
             ",
-            &legend,
         )
         .expect("fail to parse map");
         assert_eq!(map.width, 6);
@@ -421,7 +454,6 @@ mod test {
             #
             
         ",
-            &legend,
         )
         .err()
         .expect("map didnt fail");

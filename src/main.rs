@@ -92,6 +92,17 @@ impl GMap {
     pub fn is_valid(&self, index: Index) -> bool {
         index < self.cells.len()
     }
+
+    fn xy_idx(&self, x: i32, y: i32) -> usize {
+        (y as usize * self.width as usize) + x as usize
+    }
+
+    fn idx_xy(&self, index: Index) -> Position {
+        Position {
+            x: index as i32 % self.width,
+            y: index as i32 / self.width,
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone)]
@@ -102,17 +113,6 @@ pub struct Cell {
 
 struct State {
     ecs: World,
-}
-
-fn xy_idx(x: i32, y: i32) -> usize {
-    (y as usize * SCREEN_W as usize) + x as usize
-}
-
-fn idx_xy(index: Index) -> Position {
-    Position {
-        x: index as i32 % SCREEN_W,
-        y: index as i32 / SCREEN_W,
-    }
 }
 
 #[derive(Debug)]
@@ -146,7 +146,11 @@ fn parse_map(map: &str, legend: &Vec<(char, TileType)>) -> Result<GMap, ParseMap
 
     let width = lines[0].len();
     let height = lines.len();
-    let mut cells = vec![];
+    let mut gmap = GMap {
+        width: width as i32,
+        height: height as i32,
+        cells: vec![],
+    };
 
     for (y, line) in lines.iter().enumerate() {
         if line.len() != width {
@@ -159,18 +163,12 @@ fn parse_map(map: &str, legend: &Vec<(char, TileType)>) -> Result<GMap, ParseMap
                 None => return Err(ParseMapError::UnknownChar(ch)),
             };
 
-            cells.push(Cell {
-                index: xy_idx(x as i32, y as i32),
+            gmap.cells.push(Cell {
+                index: gmap.xy_idx(x as i32, y as i32),
                 tile: tile.clone(),
             })
         }
     }
-
-    let gmap = GMap {
-        width: width as i32,
-        height: height as i32,
-        cells: cells,
-    };
 
     Ok(gmap)
 }
@@ -182,9 +180,9 @@ _______EEE#________________
 _______##.#________________
 ________#.#________________
 ______###-####-#######_____
-______#.....#...#####!_____
+______#.....#...#....!_____
 ______#.@...|...#....!_____
-______#.....#...|.###!_____
+______#.....#...|....!_____
 ______###-############_____
 ________#.#________________
 _______##.#________________
@@ -222,13 +220,17 @@ fn map_empty() -> GMap {
 
     fn apply_walls(map: &mut GMap) {
         for x in 0..map.width {
-            map.cells[xy_idx(x, 0)].tile = TileType::Wall;
-            map.cells[xy_idx(x, map.height - 1)].tile = TileType::Wall;
+            let i = map.xy_idx(x, 0);
+            map.cells[i].tile = TileType::Wall;
+            let i = map.xy_idx(x, map.height - 1);
+            map.cells[i].tile = TileType::Wall;
         }
 
         for y in 0..map.height {
-            map.cells[xy_idx(0, y)].tile = TileType::Wall;
-            map.cells[xy_idx(map.width - 1, y)].tile = TileType::Wall;
+            let i = map.xy_idx(0, y);
+            map.cells[i].tile = TileType::Wall;
+            let i = map.xy_idx(map.width - 1, y);
+            map.cells[i].tile = TileType::Wall;
         }
     }
 
@@ -249,7 +251,7 @@ fn map_empty() -> GMap {
 fn draw_map(map: &GMap, ctx: &mut Rltk) {
     let mut y = 0;
     let mut x = 0;
-    for cell in map.cells.iter() {
+    for cell in &map.cells {
         match cell.tile {
             TileType::Floor => {
                 ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437('.'));
@@ -264,7 +266,7 @@ fn draw_map(map: &GMap, ctx: &mut Rltk) {
 
         // Move the coordinates
         x += 1;
-        if x >= SCREEN_W {
+        if x >= map.width {
             x = 0;
             y += 1;
         }
@@ -277,7 +279,7 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let map = ecs.fetch::<GMap>();
 
     for (_player, pos) in (&mut players, &mut positions).join() {
-        let destination_idx = xy_idx(pos.x + delta_x, pos.y + delta_y);
+        let destination_idx = map.xy_idx(pos.x + delta_x, pos.y + delta_y);
         if map.cells[destination_idx].tile != TileType::Wall {
             pos.x = min(map.width - 1, max(0, pos.x + delta_x));
             pos.y = min(map.height - 1, max(0, pos.y + delta_y));
@@ -294,7 +296,15 @@ fn player_input(gs: &mut State, ctx: &mut Rltk) {
             VirtualKeyCode::Right => try_move_player(1, 0, &mut gs.ecs),
             VirtualKeyCode::Up => try_move_player(0, -1, &mut gs.ecs),
             VirtualKeyCode::Down => try_move_player(0, 1, &mut gs.ecs),
-            _ => {}
+            VirtualKeyCode::Numpad7 => try_move_player(-1, -1, &mut gs.ecs),
+            VirtualKeyCode::Numpad8 => try_move_player(0, -1, &mut gs.ecs),
+            VirtualKeyCode::Numpad9 => try_move_player(1, -1, &mut gs.ecs),
+            VirtualKeyCode::Numpad4 => try_move_player(-1, 0, &mut gs.ecs),
+            VirtualKeyCode::Numpad5 => try_move_player(0, 0, &mut gs.ecs),
+            VirtualKeyCode::Numpad6 => try_move_player(1, 0, &mut gs.ecs),
+            VirtualKeyCode::Numpad1 => try_move_player(-1, 1, &mut gs.ecs),
+            VirtualKeyCode::Numpad2 => try_move_player(0, 1, &mut gs.ecs),
+            VirtualKeyCode::Numpad3 => try_move_player(1, 1, &mut gs.ecs),
         },
     }
 }
@@ -311,7 +321,9 @@ impl GameState for State {
                 debug!("generate a new map");
                 self.ecs.insert(map_empty());
             }
-            _ => {}
+            other => {
+                println!("{:?}", key);
+            }
         }
 
         {

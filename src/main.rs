@@ -1,7 +1,8 @@
 use log::*;
-use rltk::{BaseMap, GameState, RandomNumberGenerator, Rltk, VirtualKeyCode, RGB};
+use rltk::{Algorithm2D, BaseMap, GameState, RandomNumberGenerator, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
+use std::borrow::Borrow;
 use std::cmp::{max, min};
 
 const SHIP_MAP: &str = r"
@@ -58,9 +59,15 @@ impl Cfg {
 }
 
 #[derive(Component, Clone, Debug, PartialEq)]
-struct Position {
-    x: i32,
-    y: i32,
+pub struct Position {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Component)]
+pub struct Viewshed {
+    pub visible_tiles: Vec<rltk::Point>,
+    pub range: i32,
 }
 
 impl Position {
@@ -124,13 +131,6 @@ enum TileType {
     Space,
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct GMap {
-    width: i32,
-    height: i32,
-    cells: Vec<Cell>,
-}
-
 #[derive(PartialEq, Copy, Clone, Debug)]
 enum ObjectsType {
     Door { vertical: bool },
@@ -138,8 +138,24 @@ enum ObjectsType {
     Cockpit,
 }
 
-impl BaseMap for GMap {}
+#[derive(Component, Debug, Clone)]
+pub struct GMap {
+    width: i32,
+    height: i32,
+    cells: Vec<Cell>,
+}
 
+impl Algorithm2D for GMap {
+    fn dimensions(&self) -> rltk::Point {
+        rltk::Point::new(self.width, self.height)
+    }
+}
+
+impl BaseMap for GMap {
+    fn is_opaque(&self, idx: usize) -> bool {
+        self.cells[idx].tile == TileType::Wall
+    }
+}
 impl GMap {
     pub fn is_valid_xy(&self, x: i32, y: i32) -> bool {
         self.width as i32 > x && x >= 0 && self.height as i32 > y && y >= 0
@@ -306,20 +322,28 @@ fn map_empty() -> GMap {
     gmap
 }
 
-fn draw_map(map: &GMap, ctx: &mut Rltk) {
+fn draw_map(visible_cells: &Vec<rltk::Point>, map: &GMap, ctx: &mut Rltk) {
     let mut y = 0;
     let mut x = 0;
     for cell in &map.cells {
-        match cell.tile {
-            TileType::Floor => {
-                ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437('.'));
+        if visible_cells
+            .iter()
+            .find(|p| p.x == x && p.y == y)
+            .is_some()
+        {
+            match cell.tile {
+                TileType::Floor => {
+                    ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437('.'));
+                }
+                TileType::Wall => {
+                    ctx.set(x, y, rltk::GREEN, rltk::BLACK, rltk::to_cp437('#'));
+                }
+                TileType::Space => {
+                    ctx.set(x, y, rltk::BLACK, rltk::BLACK, rltk::to_cp437(' '));
+                }
             }
-            TileType::Wall => {
-                ctx.set(x, y, rltk::GREEN, rltk::BLACK, rltk::to_cp437('#'));
-            }
-            TileType::Space => {
-                ctx.set(x, y, rltk::BLACK, rltk::BLACK, rltk::to_cp437(' '));
-            }
+        } else {
+            ctx.set(x, y, rltk::BLACK, rltk::GRAY, rltk::to_cp437(' '));
         }
 
         // Move the coordinates
@@ -327,6 +351,22 @@ fn draw_map(map: &GMap, ctx: &mut Rltk) {
         if x >= map.width {
             x = 0;
             y += 1;
+        }
+    }
+}
+
+fn draw_objects(visible_cells: &Vec<rltk::Point>, ecs: &World, ctx: &mut Rltk) {
+    let positions = ecs.read_storage::<Position>();
+    let renderables = ecs.read_storage::<Renderable>();
+    let mut objects = (&positions, &renderables).join().collect::<Vec<_>>();
+    objects.sort_by(|&a, &b| a.1.priority.cmp(&b.1.priority));
+    for (pos, render) in objects {
+        if visible_cells
+            .iter()
+            .find(|p| p.x == pos.x && p.y == pos.y)
+            .is_some()
+        {
+            ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
         }
     }
 }
@@ -457,20 +497,22 @@ impl GameState for State {
             _ => {}
         }
 
+        let visible = {
+            let storages = self.ecs.read_storage::<Viewshed>();
+            let entities = self.ecs.entities();
+            let views = (&storages, &entities).join().collect::<Vec<_>>();
+            let (v, _) = views.iter().next().unwrap();
+            v.visible_tiles.clone()
+        };
+
         {
             let map = self.ecs.fetch::<GMap>();
-            draw_map(&map, ctx);
+            draw_map(&visible, &map, ctx);
         }
 
-        {
-            let positions = self.ecs.read_storage::<Position>();
-            let renderables = self.ecs.read_storage::<Renderable>();
-            let mut objects = (&positions, &renderables).join().collect::<Vec<_>>();
-            objects.sort_by(|&a, &b| a.1.priority.cmp(&b.1.priority));
-            for (pos, render) in objects {
-                ctx.set(pos.x, pos.y, render.fg, render.bg, render.glyph);
-            }
+        draw_objects(&visible, &self.ecs, ctx);
 
+        {
             let mouse_pos = ctx.mouse_pos();
             ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
         }
@@ -479,7 +521,30 @@ impl GameState for State {
 
 impl State {
     fn run_systems(&mut self) {
+        let mut vis = VisibilitySystem {};
+        vis.run_now(&self.ecs);
         self.ecs.maintain();
+    }
+}
+
+pub struct VisibilitySystem {}
+
+impl<'a> System<'a> for VisibilitySystem {
+    type SystemData = (
+        ReadExpect<'a, GMap>,
+        WriteStorage<'a, Viewshed>,
+        WriteStorage<'a, Position>,
+    );
+
+    fn run(&mut self, (map, mut viewshed, pos): Self::SystemData) {
+        for (viewshed, pos) in (&mut viewshed, &pos).join() {
+            viewshed.visible_tiles.clear();
+            viewshed.visible_tiles =
+                rltk::field_of_view(rltk::Point::new(pos.x, pos.y), viewshed.range, &*map);
+            viewshed
+                .visible_tiles
+                .retain(|p| p.x >= 0 && p.x < map.width && p.y >= 0 && p.y < map.height);
+        }
     }
 }
 
@@ -496,6 +561,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Avatar>();
+    gs.ecs.register::<Viewshed>();
 
     let map_ast = parse_map(SHIP_MAP).expect("fail to load map");
     let map = parse_map_tiles(&gs.cfg.raw_map_tiles, &&map_ast).expect("fail to load map tiles");
@@ -517,6 +583,10 @@ fn main() -> rltk::BError {
             priority: 1,
         })
         .with(Avatar {})
+        .with(Viewshed {
+            visible_tiles: Vec::new(),
+            range: 8,
+        })
         .build();
 
     parse_map_objects(&mut gs, map_ast).expect("fail to load map objects");

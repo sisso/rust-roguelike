@@ -1,11 +1,11 @@
 use log::*;
-use rltk::{a_star_search, BaseMap, GameState, RandomNumberGenerator, Rltk, VirtualKeyCode, RGB};
+use rltk::{BaseMap, GameState, RandomNumberGenerator, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 use std::cmp::{max, min};
 
-const MAP_W: i32 = 80;
-const MAP_H: i32 = 50;
+const SCREEN_W: i32 = 80;
+const SCREEN_H: i32 = 50;
 
 type Index = usize;
 
@@ -72,6 +72,7 @@ struct Renderable {
 enum TileType {
     Floor,
     Wall,
+    Space,
 }
 
 #[derive(Component, Debug, Clone)]
@@ -89,7 +90,7 @@ impl GMap {
     }
 
     pub fn is_valid(&self, index: Index) -> bool {
-        index >= 0 && index < self.cells.len()
+        index < self.cells.len()
     }
 }
 
@@ -104,17 +105,108 @@ struct State {
 }
 
 fn xy_idx(x: i32, y: i32) -> usize {
-    (y as usize * MAP_W as usize) + x as usize
+    (y as usize * SCREEN_W as usize) + x as usize
 }
 
 fn idx_xy(index: Index) -> Position {
     Position {
-        x: index as i32 % MAP_W,
-        y: index as i32 / MAP_W,
+        x: index as i32 % SCREEN_W,
+        y: index as i32 / SCREEN_W,
     }
 }
 
-fn new_map() -> GMap {
+#[derive(Debug)]
+enum ParseMapError {
+    UnknownChar(char),
+    FewLines,
+    InvalidLineWidth(String),
+}
+
+/// All empty spaces are removed an can not be used
+/// If first line is empty, is removed,
+/// if last line is empty, is removed
+fn parse_map(map: &str, legend: &Vec<(char, TileType)>) -> Result<GMap, ParseMapError> {
+    let mut lines: Vec<String> = map.split("\n").map(|line| line.replace(" ", "")).collect();
+
+    if lines.is_empty() {
+        return Err(ParseMapError::FewLines);
+    }
+
+    if lines[0].is_empty() {
+        lines.remove(0);
+    }
+
+    if lines.is_empty() {
+        return Err(ParseMapError::FewLines);
+    }
+
+    if lines[lines.len() - 1].is_empty() {
+        lines.remove(lines.len() - 1);
+    }
+
+    let width = lines[0].len();
+    let height = lines.len();
+    let mut cells = vec![];
+
+    for (y, line) in lines.iter().enumerate() {
+        if line.len() != width {
+            return Err(ParseMapError::InvalidLineWidth(line.clone()));
+        }
+
+        for (x, ch) in line.chars().enumerate() {
+            let tile = match legend.iter().find(|(c, _)| c == &ch).map(|(_, tile)| tile) {
+                Some(t) => t,
+                None => return Err(ParseMapError::UnknownChar(ch)),
+            };
+
+            cells.push(Cell {
+                index: xy_idx(x as i32, y as i32),
+                tile: tile.clone(),
+            })
+        }
+    }
+
+    let gmap = GMap {
+        width: width as i32,
+        height: height as i32,
+        cells: cells,
+    };
+
+    Ok(gmap)
+}
+
+fn map_ship() -> GMap {
+    let raw = r"
+_______####________________
+_______EEE#________________
+_______##.#________________
+________#.#________________
+______###-####-#######_____
+______#.....#...#####!_____
+______#.@...|...#....!_____
+______#.....#...|.###!_____
+______###-############_____
+________#.#________________
+_______##.#________________
+_______EEE#________________
+_______####________________"
+        .trim();
+
+    let legend = vec![
+        ('_', TileType::Space),
+        ('.', TileType::Floor),
+        ('#', TileType::Wall),
+        ('E', TileType::Wall),
+        ('-', TileType::Floor),
+        ('|', TileType::Floor),
+        ('@', TileType::Floor),
+        ('!', TileType::Floor),
+    ];
+
+    parse_map(raw, &legend).expect("fail to parse map")
+}
+
+fn map_empty() -> GMap {
     fn create(total_cells: usize, default_tile: TileType) -> Vec<Cell> {
         let mut cells = vec![];
         // total random
@@ -140,12 +232,12 @@ fn new_map() -> GMap {
         }
     }
 
-    let total_cells = (MAP_W * MAP_H) as usize;
+    let total_cells = (SCREEN_W * SCREEN_H) as usize;
     // let mut rng = rltk::RandomNumberGenerator::new();
 
     let mut gmap = GMap {
-        width: MAP_W,
-        height: MAP_H,
+        width: SCREEN_W,
+        height: SCREEN_H,
         cells: create(total_cells, TileType::Floor),
     };
 
@@ -160,16 +252,19 @@ fn draw_map(map: &GMap, ctx: &mut Rltk) {
     for cell in map.cells.iter() {
         match cell.tile {
             TileType::Floor => {
-                ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437(' '));
+                ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437('.'));
             }
             TileType::Wall => {
                 ctx.set(x, y, rltk::GREEN, rltk::BLACK, rltk::to_cp437('#'));
+            }
+            TileType::Space => {
+                ctx.set(x, y, rltk::BLACK, rltk::BLACK, rltk::to_cp437(' '));
             }
         }
 
         // Move the coordinates
         x += 1;
-        if x >= MAP_W {
+        if x >= SCREEN_W {
             x = 0;
             y += 1;
         }
@@ -184,8 +279,8 @@ fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     for (_player, pos) in (&mut players, &mut positions).join() {
         let destination_idx = xy_idx(pos.x + delta_x, pos.y + delta_y);
         if map.cells[destination_idx].tile != TileType::Wall {
-            pos.x = min(79, max(0, pos.x + delta_x));
-            pos.y = min(49, max(0, pos.y + delta_y));
+            pos.x = min(map.width - 1, max(0, pos.x + delta_x));
+            pos.y = min(map.height - 1, max(0, pos.y + delta_y));
         }
     }
 }
@@ -214,7 +309,7 @@ impl GameState for State {
         match &ctx.key {
             Some(VirtualKeyCode::Return) => {
                 debug!("generate a new map");
-                self.ecs.insert(new_map());
+                self.ecs.insert(map_empty());
             }
             _ => {}
         }
@@ -255,10 +350,17 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Avatar>();
 
-    gs.ecs.insert(new_map());
+    let map = map_ship();
+    let spawn_x = map.width / 2;
+    let spawn_y = map.height / 2;
+
+    gs.ecs.insert(map);
     gs.ecs
         .create_entity()
-        .with(Position { x: 40, y: 25 })
+        .with(Position {
+            x: spawn_x,
+            y: spawn_y,
+        })
         .with(Renderable {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
@@ -270,9 +372,57 @@ fn main() -> rltk::BError {
     rltk::main_loop(context, gs)
 }
 
-#[test]
-fn test_idx_xy_and_xy_idx() {
-    let index = xy_idx(3, 5);
-    let coords = idx_xy(index);
-    assert_eq!(coords, Position { x: 3, y: 5 });
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_idx_xy_and_xy_idx() {
+        let index = xy_idx(3, 5);
+        let coords = idx_xy(index);
+        assert_eq!(coords, Position { x: 3, y: 5 });
+    }
+
+    #[test]
+    fn test_parse_map_should_find_the_map_dimension() {
+        let legend = get_parse_map_default_legend();
+        let map = parse_map(
+            r"
+            #....#
+            ______ 
+            #....#
+            ",
+            &legend,
+        )
+        .expect("fail to parse map");
+        assert_eq!(map.width, 6);
+        assert_eq!(map.height, 3);
+    }
+
+    #[test]
+    fn test_parse_map_should_fail_for_invalid_maps() {
+        let legend = get_parse_map_default_legend();
+        parse_map(
+            r"
+            ###
+            # #
+            #
+            
+        ",
+            &legend,
+        )
+        .err()
+        .expect("map didnt fail");
+    }
+
+    fn get_parse_map_default_legend() -> Vec<(char, TileType)> {
+        let legend = vec![
+            ('_', TileType::Space),
+            ('.', TileType::Floor),
+            ('#', TileType::Wall),
+            ('E', TileType::Wall),
+        ];
+
+        legend
+    }
 }

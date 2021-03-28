@@ -3,8 +3,12 @@ use rltk::{Algorithm2D, BaseMap, GameState, RandomNumberGenerator, Rltk, Virtual
 use specs::prelude::*;
 use specs_derive::*;
 use std::cmp::{max, min};
+use std::collections::HashSet;
 
 const SHIP_MAP: &str = r"
+___________________________
+___________________________
+___________________________
 _______####________________
 _______EEE#________________
 _______##.#________________
@@ -17,7 +21,11 @@ ______###-############_____
 ________#.#________________
 _______##.#________________
 _______EEE#________________
-_______####________________";
+_______####________________
+___________________________
+___________________________
+___________________________
+";
 
 const SCREEN_W: i32 = 80;
 const SCREEN_H: i32 = 50;
@@ -66,6 +74,7 @@ pub struct Position {
 #[derive(Component)]
 pub struct Viewshed {
     pub visible_tiles: Vec<rltk::Point>,
+    pub know_tiles: HashSet<rltk::Point>,
     pub range: i32,
 }
 
@@ -190,7 +199,6 @@ pub struct Cell {
 }
 
 struct State {
-    cfg: Cfg,
     ecs: World,
 }
 
@@ -321,29 +329,41 @@ fn map_empty() -> GMap {
     gmap
 }
 
-fn draw_map(visible_cells: &Vec<rltk::Point>, map: &GMap, ctx: &mut Rltk) {
+fn draw_map(
+    visible_cells: &Vec<rltk::Point>,
+    know_cells: &HashSet<rltk::Point>,
+    map: &GMap,
+    ctx: &mut Rltk,
+) {
     let mut y = 0;
     let mut x = 0;
+
     for cell in &map.cells {
+        // calculate real tile
+        let (mut fg, mut bg, mut ch) = match cell.tile {
+            TileType::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
+            TileType::Wall => (rltk::GREEN, rltk::BLACK, '#'),
+            TileType::Space => (rltk::BLACK, rltk::BLACK, ' '),
+        };
+
+        // replace non visible tiles
         if visible_cells
             .iter()
             .find(|p| p.x == x && p.y == y)
-            .is_some()
+            .is_none()
         {
-            match cell.tile {
-                TileType::Floor => {
-                    ctx.set(x, y, rltk::LIGHT_GREEN, rltk::BLACK, rltk::to_cp437('.'));
-                }
-                TileType::Wall => {
-                    ctx.set(x, y, rltk::GREEN, rltk::BLACK, rltk::to_cp437('#'));
-                }
-                TileType::Space => {
-                    ctx.set(x, y, rltk::BLACK, rltk::BLACK, rltk::to_cp437(' '));
-                }
+            if know_cells.contains(&rltk::Point { x, y }) {
+                // if is know
+                fg = rltk::GRAY;
+            } else {
+                // unknown
+                fg = rltk::BLACK;
+                bg = rltk::BLACK;
+                ch = ' ';
             }
-        } else {
-            ctx.set(x, y, rltk::BLACK, rltk::GRAY, rltk::to_cp437(' '));
         }
+
+        ctx.set(x, y, fg, bg, ch as rltk::FontCharType);
 
         // Move the coordinates
         x += 1;
@@ -409,29 +429,29 @@ fn player_input(gs: &mut State, ctx: &mut Rltk) {
 
 fn parse_map_objects(gs: &mut State, ast: ParseMapAst) -> Result<(), ParseMapError> {
     let mut changes: Vec<(Position, ObjectsType)> = vec![];
+    {
+        let cfg = gs.ecs.fetch::<Cfg>();
+        for (index, cell) in ast.cells.iter().enumerate() {
+            let kind = cfg
+                .raw_map_objects
+                .iter()
+                .find(|(ch, tp)| ch == cell)
+                .map(|(_, kind)| kind)
+                .cloned();
 
-    for (index, cell) in ast.cells.iter().enumerate() {
-        let kind = gs
-            .cfg
-            .raw_map_objects
-            .iter()
-            .find(|(ch, tp)| ch == cell)
-            .map(|(_, kind)| kind)
-            .cloned();
+            let kind = match kind {
+                Some(k) => k,
+                None => continue,
+            };
 
-        let kind = match kind {
-            Some(k) => k,
-            None => continue,
-        };
+            let pos = {
+                let map = gs.ecs.fetch::<GMap>();
+                map.idx_xy(index)
+            };
 
-        let pos = {
-            let map = gs.ecs.fetch::<GMap>();
-            map.idx_xy(index)
-        };
-
-        changes.push((pos, kind));
+            changes.push((pos, kind));
+        }
     }
-
     for (pos, kind) in changes {
         match kind {
             ObjectsType::Door { vertical } => {
@@ -493,13 +513,15 @@ impl GameState for State {
         }
 
         {
+            // merge all visible and know tiles from player
             let viewshed = self.ecs.read_storage::<Viewshed>();
             let avatars = self.ecs.read_storage::<Avatar>();
             let views = (&viewshed, &avatars).join().collect::<Vec<_>>();
             let (v, _) = views.iter().next().unwrap();
 
+            // draw
             let map = self.ecs.fetch::<GMap>();
-            draw_map(&v.visible_tiles, &map, ctx);
+            draw_map(&v.visible_tiles, &v.know_tiles, &map, ctx);
             draw_objects(&v.visible_tiles, &self.ecs, ctx);
         }
 
@@ -535,6 +557,10 @@ impl<'a> System<'a> for VisibilitySystem {
             viewshed
                 .visible_tiles
                 .retain(|p| p.x >= 0 && p.x < map.width && p.y >= 0 && p.y < map.height);
+
+            for pos in &viewshed.visible_tiles {
+                viewshed.know_tiles.insert(*pos);
+            }
         }
     }
 }
@@ -542,25 +568,25 @@ impl<'a> System<'a> for VisibilitySystem {
 fn main() -> rltk::BError {
     use rltk::RltkBuilder;
 
+    let cfg = Cfg::new();
     env_logger::builder().filter(None, LevelFilter::Info).init();
 
     let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
-    let mut gs = State {
-        cfg: Cfg::new(),
-        ecs: World::new(),
-    };
+    let mut gs = State { ecs: World::new() };
+    gs.ecs.register::<Cfg>();
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Viewshed>();
 
     let map_ast = parse_map(SHIP_MAP).expect("fail to load map");
-    let map = parse_map_tiles(&gs.cfg.raw_map_tiles, &&map_ast).expect("fail to load map tiles");
+    let map = parse_map_tiles(&cfg.raw_map_tiles, &&map_ast).expect("fail to load map tiles");
 
     let spawn_x = map.width / 2;
     let spawn_y = map.height / 2;
 
     gs.ecs.insert(map);
+    gs.ecs.insert(cfg);
     gs.ecs
         .create_entity()
         .with(Position {
@@ -575,8 +601,9 @@ fn main() -> rltk::BError {
         })
         .with(Avatar {})
         .with(Viewshed {
-            visible_tiles: Vec::new(),
-            range: 8,
+            visible_tiles: vec![],
+            know_tiles: HashSet::new(),
+            range: 16,
         })
         .build();
 

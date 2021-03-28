@@ -1,4 +1,5 @@
 use super::models::*;
+use rltk::Point;
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -29,48 +30,17 @@ impl rltk::BaseMap for GMap {
 }
 
 impl GMap {
-    pub fn is_valid_xy(&self, x: i32, y: i32) -> bool {
-        self.width as i32 > x && x >= 0 && self.height as i32 > y && y >= 0
+    pub fn get_cell(&self, index: Index) -> &Cell {
+        &self.cells[index]
     }
 
-    pub fn is_valid(&self, index: Index) -> bool {
-        index < self.cells.len()
-    }
-
-    pub fn xy_idx(&self, x: i32, y: i32) -> usize {
-        xy_idx((self.width) as i32, x, y)
-    }
-
-    pub fn idx_xy(&self, index: Index) -> Position {
-        idx_xy((self.width) as i32, index)
+    pub fn get_cell_mut(&mut self, index: Index) -> &mut Cell {
+        &mut self.cells[index]
     }
 }
 
-fn xy_idx(width: i32, x: i32, y: i32) -> usize {
-    ((y * width as i32) + x) as usize
-}
-
-fn idx_xy(width: i32, index: Index) -> Position {
-    Position {
-        x: index as i32 % width as i32,
-        y: index as i32 / width as i32,
-    }
-}
 #[derive(Component, Debug, Clone)]
 pub struct Cell {
     pub index: Index,
     pub tile: TileType,
-}
-
-#[cfg(test)]
-mod test {
-    use super::super::cfg;
-    use super::*;
-
-    #[test]
-    fn test_idx_xy_and_xy_idx() {
-        let index = xy_idx(cfg::SCREEN_W, 3, 5);
-        let coords = idx_xy(cfg::SCREEN_W, index);
-        assert_eq!(coords, Position { x: 3, y: 5 });
-    }
 }

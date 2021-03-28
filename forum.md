@@ -1,4 +1,18 @@
+# Actions and Commands
+
+- action system check any object near of a avatar and builld
+  a list of possible interactions
+  
+- interactions are displayed in the interface ,
+  
+
 # Map
+
+## Centralized
+
+
+
+## Multilayer
 
 The "real" map is a composition of many different maps. For instance, 
 if a ship is landed in a terrain, this terrain has other ship landed

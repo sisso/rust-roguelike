@@ -115,8 +115,7 @@ fn main() -> rltk::BError {
     gs.ecs
         .create_entity()
         .with(Position {
-            x: spawn_x,
-            y: spawn_y,
+            point: (spawn_x, spawn_y).into(),
         })
         .with(Renderable {
             glyph: rltk::to_cp437('@'),

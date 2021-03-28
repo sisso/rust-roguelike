@@ -1,7 +1,7 @@
 use crate::gmap::{Cell, GMap, TileType};
 use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
-use rltk::RGB;
+use rltk::{Algorithm2D, RGB};
 use specs::prelude::*;
 
 pub fn parse_map_tiles(
@@ -46,16 +46,16 @@ pub fn map_empty(width: i32, height: i32) -> GMap {
 
     fn apply_walls(map: &mut GMap) {
         for x in 0..(map.width as i32) {
-            let i = map.xy_idx(x, 0);
+            let i = map.point2d_to_index((x, 0).into());
             map.cells[i].tile = TileType::Wall;
-            let i = map.xy_idx(x, map.height - 1);
+            let i = map.point2d_to_index((x, map.height - 1).into());
             map.cells[i].tile = TileType::Wall;
         }
 
         for y in 0..(map.height as i32) {
-            let i = map.xy_idx(0, y);
+            let i = map.point2d_to_index((0, y).into());
             map.cells[i].tile = TileType::Wall;
-            let i = map.xy_idx(map.width - 1, y);
+            let i = map.point2d_to_index((map.width - 1, y).into());
             map.cells[i].tile = TileType::Wall;
         }
     }
@@ -150,10 +150,10 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
 
             let pos = {
                 let map = ecs.fetch::<GMap>();
-                map.idx_xy(index)
+                map.index_to_point2d(index)
             };
 
-            changes.push((pos, kind));
+            changes.push((Position { point: pos }, kind));
         }
     }
     for (pos, kind) in changes {
@@ -161,7 +161,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
             ObjectsType::Door { vertical } => {
                 let icon = if vertical { '|' } else { '-' };
                 ecs.create_entity()
-                    .with(Position { x: pos.x, y: pos.y })
+                    .with(pos)
                     .with(Renderable {
                         glyph: rltk::to_cp437(icon),
                         fg: RGB::named(rltk::CYAN),
@@ -173,7 +173,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
             }
             ObjectsType::Cockpit => {
                 ecs.create_entity()
-                    .with(Position { x: pos.x, y: pos.y })
+                    .with(pos)
                     .with(Renderable {
                         glyph: rltk::to_cp437('C'),
                         fg: RGB::named(rltk::BLUE),
@@ -185,7 +185,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
             }
             ObjectsType::Engine => {
                 ecs.create_entity()
-                    .with(Position { x: pos.x, y: pos.y })
+                    .with(pos)
                     .with(Renderable {
                         glyph: rltk::to_cp437('E'),
                         fg: RGB::named(rltk::RED),

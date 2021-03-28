@@ -2,7 +2,7 @@ use crate::cfg;
 use crate::gmap::{GMap, TileType};
 use crate::models::{Avatar, ObjectsType, Position};
 use crate::State;
-use rltk::{Rltk, RGB};
+use rltk::{Algorithm2D, Rltk, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 use std::collections::HashSet;
@@ -73,6 +73,8 @@ pub fn draw_objects(visible_cells: &Vec<rltk::Point>, ecs: &World, ctx: &mut Rlt
     let mut objects = (&positions, &renderables).join().collect::<Vec<_>>();
     objects.sort_by(|&a, &b| a.1.priority.cmp(&b.1.priority));
     for (pos, render) in objects {
+        let pos = &pos.point;
+
         if visible_cells
             .iter()
             .find(|p| p.x == pos.x && p.y == pos.y)
@@ -91,11 +93,11 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     for (avatar, position) in (avatars, positions).join() {
         let tile = map
             .cells
-            .get(map.xy_idx(position.x, position.y))
+            .get(map.point2d_to_index(position.point))
             .unwrap()
             .tile;
 
-        let objects = find_objects_at(&state.ecs, position.x, position.y);
+        let objects = find_objects_at(&state.ecs, position.point.x, position.point.y);
         draw_gui_bottom_box(ctx, tile, &objects);
     }
 }
@@ -107,6 +109,7 @@ fn find_objects_at(ecs: &World, x: i32, y: i32) -> Vec<(Entity, ObjectsType)> {
 
     let mut result = vec![];
     for (e, o, p) in (entities, objects, positions).join() {
+        let p = p.point;
         if p.x == x && p.y == y {
             result.push((e.clone(), o.clone()));
         }

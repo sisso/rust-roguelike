@@ -8,23 +8,22 @@ pub struct Avatar {}
 
 #[derive(Component, Clone, Debug, PartialEq)]
 pub struct Position {
-    pub x: i32,
-    pub y: i32,
+    pub point: rltk::Point,
 }
 
 impl Position {
-    fn get_at(&self, dir: Dir) -> Position {
-        let mut p = self.clone();
-
-        match dir {
-            Dir::N => p.y -= 1,
-            Dir::S => p.y += 1,
-            Dir::W => p.x -= 1,
-            Dir::E => p.x += 1,
-        }
-
-        p
-    }
+    // fn get_at(&self, dir: Dir) -> HasPos {
+    //     let mut p = self.clone();
+    //
+    //     match dir {
+    //         Dir::N => p.y -= 1,
+    //         Dir::S => p.y += 1,
+    //         Dir::W => p.x -= 1,
+    //         Dir::E => p.x += 1,
+    //     }
+    //
+    //     p
+    // }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]

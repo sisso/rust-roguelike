@@ -4,7 +4,6 @@ use crate::view::Renderable;
 use rltk::RGB;
 use specs::prelude::*;
 
-
 pub fn parse_map_tiles(
     legend: &Vec<(char, TileType)>,
     map: &ParseMapAst,
@@ -169,6 +168,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     })
+                    .with(kind)
                     .build();
             }
             ObjectsType::Cockpit => {
@@ -180,6 +180,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     })
+                    .with(kind)
                     .build();
             }
             ObjectsType::Engine => {
@@ -191,6 +192,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     })
+                    .with(kind)
                     .build();
             }
         }
@@ -201,6 +203,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
 
 #[cfg(test)]
 mod test {
+    use super::super::cfg;
     use super::*;
 
     #[test]
@@ -212,7 +215,7 @@ mod test {
 
     #[test]
     fn test_parse_map_should_find_the_map_dimension() {
-        let map = loader::parse_map(
+        let map = parse_map(
             r"
             #....#
             ______ 
@@ -227,7 +230,7 @@ mod test {
     #[test]
     fn test_parse_map_should_fail_for_invalid_maps() {
         let RAW_MAP_TILES = get_parse_map_default_legend();
-        loader::parse_map(
+        parse_map(
             r"
             ###
             # #

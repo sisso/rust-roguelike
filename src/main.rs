@@ -6,7 +6,7 @@ pub mod models;
 pub mod systems;
 pub mod view;
 
-use crate::gmap::{GMap};
+use crate::gmap::GMap;
 use crate::models::*;
 use crate::systems::visibility_system::VisibilitySystem;
 use crate::view::{Renderable, Viewshed};
@@ -14,11 +14,10 @@ use log::*;
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
-
 use std::collections::HashSet;
 
-struct State {
-    ecs: World,
+pub struct State {
+    pub ecs: World,
 }
 fn player_input(gs: &mut State, ctx: &mut Rltk) {
     // Player movement
@@ -72,6 +71,8 @@ impl rltk::GameState for State {
             view::draw_objects(&v.visible_tiles, &self.ecs, ctx);
         }
 
+        view::draw_gui(self, ctx);
+
         {
             let mouse_pos = ctx.mouse_pos();
             ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
@@ -100,6 +101,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Viewshed>();
+    gs.ecs.register::<ObjectsType>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =

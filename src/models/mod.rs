@@ -55,7 +55,7 @@ impl Dir {
     }
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(Component, PartialEq, Copy, Clone, Debug)]
 pub enum ObjectsType {
     Door { vertical: bool },
     Engine,

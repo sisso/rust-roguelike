@@ -6,15 +6,15 @@ pub mod models;
 pub mod systems;
 pub mod view;
 
-use crate::gmap::{GMap, TileType};
+use crate::gmap::{GMap};
 use crate::models::*;
 use crate::systems::visibility_system::VisibilitySystem;
 use crate::view::{Renderable, Viewshed};
 use log::*;
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
-use specs_derive::*;
-use std::cmp::{max, min};
+
+
 use std::collections::HashSet;
 
 struct State {

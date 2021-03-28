@@ -3,7 +3,7 @@ use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
 use rltk::RGB;
 use specs::prelude::*;
-use specs_derive::*;
+
 
 pub fn parse_map_tiles(
     legend: &Vec<(char, TileType)>,
@@ -140,7 +140,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
             let kind = cfg
                 .raw_map_objects
                 .iter()
-                .find(|(ch, tp)| ch == cell)
+                .find(|(ch, _tp)| ch == cell)
                 .map(|(_, kind)| kind)
                 .cloned();
 

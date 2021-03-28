@@ -2,7 +2,7 @@ use crate::gmap::GMap;
 use crate::models::Position;
 use crate::view::Viewshed;
 use specs::prelude::*;
-use specs_derive::*;
+
 
 pub struct VisibilitySystem {}
 

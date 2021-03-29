@@ -11,7 +11,7 @@ use crate::models::*;
 use crate::systems::visibility_system::VisibilitySystem;
 use crate::view::{Renderable, Viewshed};
 use log::*;
-use rltk::{Rltk, VirtualKeyCode, RGB};
+use rltk::{Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 use std::collections::HashSet;
@@ -67,8 +67,9 @@ impl rltk::GameState for State {
 
             // draw
             let map = self.ecs.fetch::<GMap>();
-            view::draw_map(&v.visible_tiles, &v.know_tiles, &map, ctx);
-            view::draw_objects(&v.visible_tiles, &self.ecs, ctx);
+            let center = Point::new(cfg::SCREEN_W / 2 - 40, cfg::SCREEN_H / 2 - 30);
+            view::draw_map(center, &v.visible_tiles, &v.know_tiles, &map, ctx);
+            view::draw_objects(center, &v.visible_tiles, &self.ecs, ctx);
         }
 
         view::draw_gui(self, ctx);

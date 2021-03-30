@@ -36,11 +36,12 @@ pub fn draw_map(
         for j in 0..sh {
             let x = center.x - sw / 2 + i;
             let y = center.y - sh / 2 + j;
+
             let tile = if map.in_bounds((x, y).into()) {
                 let index = map.point2d_to_index((x, y).into());
                 map.cells[index].tile
             } else {
-                TileType::Space
+                TileType::OutOfMap
             };
 
             // calculate real tile
@@ -48,6 +49,7 @@ pub fn draw_map(
                 TileType::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
                 TileType::Wall => (rltk::GREEN, rltk::BLACK, '#'),
                 TileType::Space => (rltk::BLACK, rltk::BLACK, ' '),
+                TileType::OutOfMap => (rltk::BLACK, rltk::GRAY, ' '),
             };
 
             // replace non visible tiles
@@ -67,7 +69,7 @@ pub fn draw_map(
                 }
             }
 
-            ctx.set(x, y, fg, bg, ch as rltk::FontCharType);
+            ctx.set(i, j, fg, bg, ch as rltk::FontCharType);
         }
     }
 }
@@ -93,7 +95,13 @@ pub fn draw_objects(center: Point, visible_cells: &Vec<rltk::Point>, ecs: &World
                 .find(|p| p.x == point.x && p.y == point.y)
                 .is_some()
             {
-                ctx.set(point.x, point.y, render.fg, render.bg, render.glyph);
+                ctx.set(
+                    point.x - start_x,
+                    point.y - start_y,
+                    render.fg,
+                    render.bg,
+                    render.glyph,
+                );
             }
         }
     }
@@ -155,6 +163,7 @@ fn draw_gui_bottom_box(
         TileType::Floor => "floor",
         TileType::Wall => "?",
         TileType::Space => "space",
+        TileType::OutOfMap => "oom",
     };
     ctx.print_color(inner_box_x, inner_box_y, rltk::GRAY, rltk::BLACK, tile_str);
 

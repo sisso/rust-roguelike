@@ -8,6 +8,7 @@ pub enum TileType {
     Floor,
     Wall,
     Space,
+    OutOfMap,
 }
 
 #[derive(Component, Debug, Clone)]

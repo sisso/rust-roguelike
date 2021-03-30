@@ -62,12 +62,14 @@ impl rltk::GameState for State {
             // merge all visible and know tiles from player
             let viewshed = self.ecs.read_storage::<Viewshed>();
             let avatars = self.ecs.read_storage::<Avatar>();
-            let views = (&viewshed, &avatars).join().collect::<Vec<_>>();
-            let (v, _) = views.iter().next().unwrap();
+            let positions = self.ecs.read_storage::<Position>();
+            let views = (&viewshed, &avatars, &positions).join().collect::<Vec<_>>();
+            let (v, _, pos) = views.iter().next().unwrap();
 
             // draw
             let map = self.ecs.fetch::<GMap>();
-            let center = Point::new(cfg::SCREEN_W / 2 - 40, cfg::SCREEN_H / 2 - 30);
+            // let center = Point::new(cfg::SCREEN_W / 2 - 40, cfg::SCREEN_H / 2 - 30);
+            let center = pos.point;
             view::draw_map(center, &v.visible_tiles, &v.know_tiles, &map, ctx);
             view::draw_objects(center, &v.visible_tiles, &self.ecs, ctx);
         }

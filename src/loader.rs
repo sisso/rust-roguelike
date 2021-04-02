@@ -207,13 +207,6 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_idx_xy_and_xy_idx() {
-        let index = xy_idx(cfg::SCREEN_W, 3, 5);
-        let coords = idx_xy(cfg::SCREEN_W, index);
-        assert_eq!(coords, Position { x: 3, y: 5 });
-    }
-
-    #[test]
     fn test_parse_map_should_find_the_map_dimension() {
         let map = parse_map(
             r"

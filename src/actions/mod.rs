@@ -2,9 +2,7 @@ use crate::gmap::{GMap, TileType};
 use crate::models::{Avatar, Position};
 use rltk::{Algorithm2D, Point};
 use specs::prelude::*;
-use std::borrow::Borrow;
 use std::cmp::{max, min};
-use std::ops::{Add, Deref};
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();

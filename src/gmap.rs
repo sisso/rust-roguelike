@@ -1,5 +1,4 @@
 use super::models::*;
-use rltk::Point;
 use specs::prelude::*;
 use specs_derive::*;
 

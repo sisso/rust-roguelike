@@ -11,7 +11,7 @@ use crate::models::*;
 use crate::systems::visibility_system::VisibilitySystem;
 use crate::view::{Camera, Renderable, Viewshed};
 use log::*;
-use rltk::{Point, Rltk, VirtualKeyCode, RGB};
+use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 use std::collections::HashSet;
@@ -71,7 +71,8 @@ impl rltk::GameState for State {
             let views = (&viewshed, &avatars, &positions).join().collect::<Vec<_>>();
             let (v, _, pos) = views.iter().next().unwrap();
 
-            let camera = Camera::fromCenter(pos.point);
+            // let camera = Camera::fromCenter(pos.point);
+            let camera = Camera::new();
 
             // draw
             let map = self.ecs.fetch::<GMap>();
@@ -112,8 +113,13 @@ fn main() -> rltk::BError {
     gs.ecs.register::<ObjectsType>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
-    let map =
-        loader::parse_map_tiles(&cfg.raw_map_tiles, &&map_ast).expect("fail to load map tiles");
+    let map = GMap::Composed {
+        maps: vec![
+            loader::parse_map_tiles(0, 0, &cfg.raw_map_tiles, &&map_ast)
+                .expect("fail to load map tiles"),
+            loader::map_empty(cfg::SCREEN_W, cfg::SCREEN_H),
+        ],
+    };
 
     let spawn_point = map.center();
 

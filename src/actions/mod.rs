@@ -15,8 +15,7 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
             return;
         }
 
-        let destination_idx = map.point2d_to_index(new_pos);
-        if map.get_cell(destination_idx) != TileType::Wall {
+        if map.get_cell(new_pos) != Some(TileType::Wall) {
             has_pos.point = new_pos;
         }
     }

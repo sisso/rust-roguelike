@@ -5,6 +5,8 @@ use rltk::{Algorithm2D, RGB};
 use specs::prelude::*;
 
 pub fn parse_map_tiles(
+    x: i32,
+    y: i32,
     legend: &Vec<(char, TileType)>,
     map: &ParseMapAst,
 ) -> Result<GMap, ParseMapError> {
@@ -21,6 +23,8 @@ pub fn parse_map_tiles(
     }
 
     let mut gmap = GMap::Fixed {
+        x,
+        y,
         width: map.width,
         height: map.height,
         cells: cells,
@@ -62,6 +66,8 @@ pub fn map_empty(width: i32, height: i32) -> GMap {
     apply_walls(width, height, &mut cells);
 
     let mut gmap = GMap::Fixed {
+        x: 0,
+        y: 0,
         width: width,
         height: height,
         cells: cells,
@@ -127,7 +133,13 @@ pub fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
     })
 }
 
-pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseMapError> {
+// TODO: loader should be map translation aware
+pub fn parse_map_objects(
+    ecs: &mut World,
+    ast: ParseMapAst,
+    x: i32,
+    y: i32,
+) -> Result<(), ParseMapError> {
     let mut changes: Vec<(Position, ObjectsType)> = vec![];
     {
         let cfg = ecs.fetch::<super::cfg::Cfg>();
@@ -199,7 +211,6 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
 
 #[cfg(test)]
 mod test {
-    use super::super::cfg;
     use super::*;
 
     #[test]

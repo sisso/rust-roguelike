@@ -30,6 +30,7 @@ pub struct Camera {
     pub h: i32,
 }
 
+#[derive(Debug)]
 pub struct CameraCell {
     pub screen_point: Point,
     pub point: Point,
@@ -121,33 +122,30 @@ pub fn draw_map(
     ctx: &mut Rltk,
 ) {
     for cell in camera.list_cells() {
-        let tile = if map.in_bounds(cell.point) {
-            let index = map.point2d_to_index(cell.point);
-            map.get_cell(index)
-        } else {
-            TileType::OutOfMap
-        };
+        let tile = map.get_cell(cell.point).unwrap_or(TileType::Empty);
 
         // calculate real tile
         let (mut fg, mut bg, mut ch) = match tile {
             TileType::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
             TileType::Wall => (rltk::GREEN, rltk::BLACK, '#'),
             TileType::Space => (rltk::BLACK, rltk::BLACK, ' '),
-            TileType::OutOfMap => (rltk::BLACK, rltk::GRAY, ' '),
+            TileType::Empty => (rltk::BLACK, rltk::GRAY, ' '),
         };
 
-        // replace non visible tiles
-        if visible_cells.iter().find(|p| **p == cell.point).is_none() {
-            if know_cells.contains(&cell.point) {
-                // if is know
-                fg = rltk::GRAY;
-            } else {
-                // unknown
-                fg = rltk::BLACK;
-                bg = rltk::BLACK;
-                ch = ' ';
-            }
-        }
+        // println!("{:?} {:?}", cell, tile);
+
+        // // replace non visible tiles
+        // if visible_cells.iter().find(|p| **p == cell.point).is_none() {
+        //     if know_cells.contains(&cell.point) {
+        //         // if is know
+        //         fg = rltk::GRAY;
+        //     } else {
+        //         // unknown
+        //         fg = rltk::BLACK;
+        //         bg = rltk::BLACK;
+        //         ch = ' ';
+        //     }
+        // }
 
         ctx.set(
             cell.screen_point.x,
@@ -175,19 +173,19 @@ pub fn draw_objects(
         let screen_point = camera.global_to_screen(*point);
 
         if camera.is_global_in(*point) {
-            if visible_cells
-                .iter()
-                .find(|p| p.x == point.x && p.y == point.y)
-                .is_some()
-            {
-                ctx.set(
-                    screen_point.x,
-                    screen_point.y,
-                    render.fg,
-                    render.bg,
-                    render.glyph,
-                );
-            }
+            // if visible_cells
+            //     .iter()
+            //     .find(|p| p.x == point.x && p.y == point.y)
+            //     .is_some()
+            // {
+            ctx.set(
+                screen_point.x,
+                screen_point.y,
+                render.fg,
+                render.bg,
+                render.glyph,
+            );
+            // }
         }
     }
 }
@@ -198,7 +196,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let map = &state.ecs.fetch::<GMap>();
 
     for (avatar, position) in (avatars, positions).join() {
-        let tile = map.get_cell(map.point2d_to_index(position.point));
+        let tile = map.get_cell(position.point).unwrap();
 
         let objects = find_objects_at(&state.ecs, position.point.x, position.point.y);
         draw_gui_bottom_box(ctx, tile, &objects);
@@ -244,7 +242,7 @@ fn draw_gui_bottom_box(
         TileType::Floor => "floor",
         TileType::Wall => "?",
         TileType::Space => "space",
-        TileType::OutOfMap => "oom",
+        TileType::Empty => "oom",
     };
     ctx.print_color(inner_box_x, inner_box_y, rltk::GRAY, rltk::BLACK, tile_str);
 

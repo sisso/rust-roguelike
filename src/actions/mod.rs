@@ -11,7 +11,7 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     for (_player, has_pos) in (&mut players, &mut positions).join() {
         let new_pos = Point::new(has_pos.point.x + delta_x, has_pos.point.y + delta_y);
 
-        if !map.in_bounds(new_pos) {
+        if !map.is_valid(new_pos) {
             return;
         }
 

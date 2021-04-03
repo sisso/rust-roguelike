@@ -144,7 +144,7 @@ fn main() -> rltk::BError {
         })
         .build();
 
-    loader::parse_map_objects(&mut gs.ecs, map_ast).expect("fail to load map objects");
+    loader::parse_map_objects(&mut gs.ecs, map_ast, 0, 0).expect("fail to load map objects");
 
     rltk::main_loop(context, gs)
 }

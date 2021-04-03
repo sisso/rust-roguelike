@@ -35,8 +35,22 @@ impl rltk::Algorithm2D for GMap {
 impl rltk::BaseMap for GMap {
     fn is_opaque(&self, idx: usize) -> bool {
         match self {
-            GMap::Fixed { cells, .. } => cells[idx] == TileType::Wall,
-            _ => unimplemented!(),
+            GMap::Fixed {
+                cells, x, y, width, ..
+            } => {
+                let mut pos = index_to_point(*width, idx);
+                pos.x - x;
+                pos.y - y;
+                cells[idx] == TileType::Wall
+            }
+            GMap::Composed { maps } => {
+                let pos = index_to_point(self.rect().width(), idx);
+
+                maps.iter()
+                    .find(|map| map.is_valid(pos))
+                    .unwrap()
+                    .is_valid(pos)
+            }
         }
     }
 }
@@ -114,6 +128,10 @@ impl GMap {
 
 pub fn point2d_to_index(width: i32, x: i32, y: i32) -> usize {
     (x + y * width) as usize
+}
+
+pub fn index_to_point(width: i32, i: usize) -> Point {
+    Point::new(i as i32 % width, i as i32 / width)
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use crate::gmap::{point2d_to_index, GMap, TileType};
+use crate::gmap::{index_to_point, point2d_to_index, GMap, TileType};
 use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
 use rltk::{Algorithm2D, RGB};
@@ -156,10 +156,9 @@ pub fn parse_map_objects(
                 None => continue,
             };
 
-            let pos = {
-                let map = ecs.fetch::<GMap>();
-                map.index_to_point2d(index)
-            };
+            let mut pos = index_to_point(ast.width, index);
+            pos.x += x;
+            pos.y += y;
 
             changes.push((Position { point: pos }, kind));
         }

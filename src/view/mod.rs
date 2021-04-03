@@ -45,6 +45,18 @@ impl Camera {
         }
     }
 
+    pub fn fromCenter(p: Point) -> Self {
+        let w = cfg::SCREEN_W;
+        let h = cfg::SCREEN_H;
+
+        Camera {
+            x: p.x - w / 2,
+            y: p.y - h / 2,
+            w: w,
+            h: h,
+        }
+    }
+
     pub fn globla_rect(&self) -> Rect {
         Rect::with_size(self.x, self.y, self.w, self.h)
     }

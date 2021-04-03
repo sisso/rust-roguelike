@@ -18,7 +18,6 @@ use std::collections::HashSet;
 
 pub struct State {
     pub ecs: World,
-    pub camera: Camera,
 }
 
 fn player_input(gs: &mut State, ctx: &mut Rltk) {
@@ -39,10 +38,10 @@ fn player_input(gs: &mut State, ctx: &mut Rltk) {
             VirtualKeyCode::Numpad1 => actions::try_move_player(-1, 1, &mut gs.ecs),
             VirtualKeyCode::Numpad2 => actions::try_move_player(0, 1, &mut gs.ecs),
             VirtualKeyCode::Numpad3 => actions::try_move_player(1, 1, &mut gs.ecs),
-            VirtualKeyCode::W => gs.camera.y -= 1,
-            VirtualKeyCode::A => gs.camera.x -= 1,
-            VirtualKeyCode::D => gs.camera.x += 1,
-            VirtualKeyCode::S => gs.camera.y += 1,
+            // VirtualKeyCode::W => gs.camera.y -= 1,
+            // VirtualKeyCode::A => gs.camera.x -= 1,
+            // VirtualKeyCode::D => gs.camera.x += 1,
+            // VirtualKeyCode::S => gs.camera.y += 1,
             _ => {}
         },
     }
@@ -72,19 +71,10 @@ impl rltk::GameState for State {
             let views = (&viewshed, &avatars, &positions).join().collect::<Vec<_>>();
             let (v, _, pos) = views.iter().next().unwrap();
 
+            let camera = Camera::fromCenter(pos.point);
+
             // draw
             let map = self.ecs.fetch::<GMap>();
-            // let center = Point::new(cfg::SCREEN_W / 2 - 40, cfg::SCREEN_H / 2 - 30);
-            let camera = Camera {
-                x: pos.point.x - cfg::SCREEN_W / 2,
-                y: pos.point.y - cfg::SCREEN_H / 2,
-                w: cfg::SCREEN_W,
-                h: cfg::SCREEN_H,
-            };
-            // let camera = Camera {
-            //     area: Rect::with_size(1, 0, cfg::SCREEN_W, cfg::SCREEN_H),
-            // };
-            let camera = self.camera.clone();
             view::draw_map(&camera, &v.visible_tiles, &v.know_tiles, &map, ctx);
             view::draw_objects(&camera, &v.visible_tiles, &self.ecs, ctx);
         }
@@ -113,10 +103,7 @@ fn main() -> rltk::BError {
     env_logger::builder().filter(None, LevelFilter::Info).init();
 
     let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
-    let mut gs = State {
-        ecs: World::new(),
-        camera: Camera::new(),
-    };
+    let mut gs = State { ecs: World::new() };
     gs.ecs.register::<cfg::Cfg>();
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();

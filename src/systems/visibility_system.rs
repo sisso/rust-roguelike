@@ -1,6 +1,7 @@
 use crate::gmap::GMap;
 use crate::models::Position;
 use crate::view::Viewshed;
+use rltk::Algorithm2D;
 use specs::prelude::*;
 
 pub struct VisibilitySystem {}
@@ -20,9 +21,7 @@ impl<'a> System<'a> for VisibilitySystem {
                 viewshed.range,
                 &*map,
             );
-            viewshed
-                .visible_tiles
-                .retain(|p| p.x >= 0 && p.x < map.width && p.y >= 0 && p.y < map.height);
+            viewshed.visible_tiles.retain(|p| map.in_bounds(*p));
 
             for pos in &viewshed.visible_tiles {
                 viewshed.know_tiles.insert(*pos);

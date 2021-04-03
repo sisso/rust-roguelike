@@ -123,7 +123,7 @@ pub fn draw_map(
     for cell in camera.list_cells() {
         let tile = if map.in_bounds(cell.point) {
             let index = map.point2d_to_index(cell.point);
-            map.cells[index].tile
+            map.get_cell(index)
         } else {
             TileType::OutOfMap
         };
@@ -198,11 +198,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let map = &state.ecs.fetch::<GMap>();
 
     for (avatar, position) in (avatars, positions).join() {
-        let tile = map
-            .cells
-            .get(map.point2d_to_index(position.point))
-            .unwrap()
-            .tile;
+        let tile = map.get_cell(map.point2d_to_index(position.point));
 
         let objects = find_objects_at(&state.ecs, position.point.x, position.point.y);
         draw_gui_bottom_box(ctx, tile, &objects);

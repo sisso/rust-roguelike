@@ -11,7 +11,7 @@ use crate::models::*;
 use crate::systems::visibility_system::VisibilitySystem;
 use crate::view::{Camera, Renderable, Viewshed};
 use log::*;
-use rltk::{Point, Rect, Rltk, VirtualKeyCode, RGB};
+use rltk::{Point, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 use std::collections::HashSet;
@@ -115,15 +115,14 @@ fn main() -> rltk::BError {
     let map =
         loader::parse_map_tiles(&cfg.raw_map_tiles, &&map_ast).expect("fail to load map tiles");
 
-    let spawn_x = map.width / 2;
-    let spawn_y = map.height / 2;
+    let spawn_point = map.center();
 
     gs.ecs.insert(map);
     gs.ecs.insert(cfg);
     gs.ecs
         .create_entity()
         .with(Position {
-            point: (spawn_x, spawn_y).into(),
+            point: (spawn_point.x, spawn_point.y).into(),
         })
         .with(Renderable {
             glyph: rltk::to_cp437('@'),

@@ -1,4 +1,4 @@
-use crate::gmap::{Cell, GMap, TileType};
+use crate::gmap::{point2d_to_index, GMap, TileType};
 use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
 use rltk::{Algorithm2D, RGB};
@@ -8,11 +8,7 @@ pub fn parse_map_tiles(
     legend: &Vec<(char, TileType)>,
     map: &ParseMapAst,
 ) -> Result<GMap, ParseMapError> {
-    let mut gmap = GMap {
-        width: map.width,
-        height: map.height,
-        cells: vec![],
-    };
+    let mut cells = vec![];
 
     for i in 0..(map.width as usize * map.height as usize) {
         let ch = map.cells[i];
@@ -21,55 +17,55 @@ pub fn parse_map_tiles(
             None => return Err(ParseMapError::UnknownChar(ch)),
         };
 
-        gmap.cells.push(Cell {
-            index: i,
-            tile: tile.clone(),
-        })
+        cells.push(*tile);
     }
+
+    let mut gmap = GMap::Fixed {
+        width: map.width,
+        height: map.height,
+        cells: cells,
+    };
 
     Ok(gmap)
 }
 
 pub fn map_empty(width: i32, height: i32) -> GMap {
-    fn create(total_cells: usize, default_tile: TileType) -> Vec<Cell> {
+    fn create(total_cells: usize, default_tile: TileType) -> Vec<TileType> {
         let mut cells = vec![];
         // total random
         for index in 0..total_cells {
-            cells.push(Cell {
-                index,
-                tile: default_tile,
-            });
+            cells.push(default_tile);
         }
 
         cells
     }
 
-    fn apply_walls(map: &mut GMap) {
-        for x in 0..(map.width as i32) {
-            let i = map.point2d_to_index((x, 0).into());
-            map.cells[i].tile = TileType::Wall;
-            let i = map.point2d_to_index((x, map.height - 1).into());
-            map.cells[i].tile = TileType::Wall;
+    fn apply_walls(width: i32, height: i32, cells: &mut Vec<TileType>) {
+        for x in 0..(width as i32) {
+            let i = point2d_to_index(width, x, 0);
+            cells[i] = TileType::Wall;
+            let i = point2d_to_index(width, x, height - 1);
+            cells[i] = TileType::Wall;
         }
 
-        for y in 0..(map.height as i32) {
-            let i = map.point2d_to_index((0, y).into());
-            map.cells[i].tile = TileType::Wall;
-            let i = map.point2d_to_index((map.width - 1, y).into());
-            map.cells[i].tile = TileType::Wall;
+        for y in 0..(height as i32) {
+            let i = point2d_to_index(width, 0, y);
+            cells[i] = TileType::Wall;
+            let i = point2d_to_index(width, width - 1, y);
+            cells[i] = TileType::Wall;
         }
     }
 
     let total_cells = (width * height) as usize;
     // let mut rng = rltk::RandomNumberGenerator::new();
+    let mut cells = create(total_cells, TileType::Floor);
+    apply_walls(width, height, &mut cells);
 
-    let mut gmap = GMap {
+    let mut gmap = GMap::Fixed {
         width: width,
         height: height,
-        cells: create(total_cells, TileType::Floor),
+        cells: cells,
     };
-
-    apply_walls(&mut gmap);
 
     gmap
 }

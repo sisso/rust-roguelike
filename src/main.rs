@@ -9,7 +9,7 @@ pub mod view;
 use crate::gmap::GMap;
 use crate::models::*;
 use crate::systems::visibility_system::VisibilitySystem;
-use crate::view::{Camera, Renderable, Viewshed};
+use crate::view::{camera::Camera, Renderable, Viewshed};
 use log::*;
 use rltk::{Point, Rect, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;

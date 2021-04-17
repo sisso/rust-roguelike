@@ -4,16 +4,19 @@ pub mod gmap;
 pub mod loader;
 pub mod models;
 pub mod systems;
+mod utils;
 pub mod view;
 
 use crate::gmap::GMap;
 use crate::models::*;
 use crate::systems::visibility_system::VisibilitySystem;
-use crate::view::{camera::Camera, Renderable, Viewshed};
+use crate::view::{camera::Camera, view_input, Renderable, Viewshed};
 use log::*;
 use rltk::{Point, Rect, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
+use crate::actions::avatar_actions_system::AvatarActionSystem;
+use crate::actions::{get_available_actions, AvatarActions};
 use std::collections::HashSet;
 
 pub struct State {
@@ -51,17 +54,13 @@ impl rltk::GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
+        // can not use because input are multable
+        // for avatar in (&self.ecs.read_storage::<Avatar>()).join() {
+        // let actions = get_available_actions(avatar, &objects);
         player_input(self, ctx);
+        view_input(self, ctx, vec![]);
+        // }
         self.run_systems();
-
-        match &ctx.key {
-            Some(VirtualKeyCode::Return) => {
-                debug!("generate a new map");
-                self.ecs
-                    .insert(loader::map_empty(cfg::SCREEN_W, cfg::SCREEN_H));
-            }
-            _ => {}
-        }
 
         {
             // merge all visible and know tiles from player
@@ -92,6 +91,10 @@ impl State {
     fn run_systems(&mut self) {
         let mut vis = VisibilitySystem {};
         vis.run_now(&self.ecs);
+
+        let mut acs = AvatarActionSystem {};
+        acs.run_now(&self.ecs);
+
         self.ecs.maintain();
     }
 }
@@ -110,6 +113,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Viewshed>();
     gs.ecs.register::<ObjectsType>();
+    gs.ecs.register::<AvatarActions>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =
@@ -137,6 +141,7 @@ fn main() -> rltk::BError {
             know_tiles: HashSet::new(),
             range: 16,
         })
+        .with(AvatarActions { actions: vec![] })
         .build();
 
     loader::parse_map_objects(&mut gs.ecs, map_ast).expect("fail to load map objects");

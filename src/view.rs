@@ -1,11 +1,13 @@
 pub mod camera;
 
+use crate::actions::{get_available_actions, Action, AvatarActions};
 use crate::cfg;
 use crate::gmap::{GMap, TileType};
 use crate::models::{Avatar, ObjectsType, Position};
+use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::State;
-use rltk::{Algorithm2D, Point, Rect, Rltk, RGB};
+use rltk::{Algorithm2D, Point, Rect, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 use std::collections::HashSet;
@@ -23,6 +25,13 @@ pub struct Renderable {
     pub fg: RGB,
     pub bg: RGB,
     pub priority: i32,
+}
+
+pub fn view_input(gs: &mut State, ctx: &mut Rltk, actions: Vec<ViewAction>) {
+    match ctx.key {
+        Some(VirtualKeyCode::I) => {}
+        _ => {}
+    }
 }
 
 pub fn draw_map(
@@ -105,41 +114,71 @@ pub fn draw_objects(
 }
 
 pub fn draw_gui(state: &State, ctx: &mut Rltk) {
+    let entities = &state.ecs.entities();
+    let objects = &state.ecs.read_storage::<ObjectsType>();
     let avatars = &state.ecs.read_storage::<Avatar>();
     let positions = &state.ecs.read_storage::<Position>();
+    let actions_st = &state.ecs.read_storage::<AvatarActions>();
     let map = &state.ecs.fetch::<GMap>();
 
-    for (avatar, position) in (avatars, positions).join() {
+    for (avatar, position, actions) in (avatars, positions, actions_st).join() {
         let tile = map
             .cells
             .get(map.point2d_to_index(position.point))
             .unwrap()
             .tile;
 
-        let objects = find_objects_at(&state.ecs, position.point.x, position.point.y);
-        draw_gui_bottom_box(ctx, tile, &objects);
+        let objects_at = find_objects_at(
+            entities,
+            objects,
+            positions,
+            position.point.x,
+            position.point.y,
+        );
+
+        draw_gui_bottom_box(
+            ctx,
+            tile,
+            &objects_at,
+            &map_actions_to_keys(&actions.actions)
+                .iter()
+                .map(ViewAction::to_tuple)
+                .collect::<Vec<_>>(),
+        );
     }
 }
 
-fn find_objects_at(ecs: &World, x: i32, y: i32) -> Vec<(Entity, ObjectsType)> {
-    let objects = &ecs.read_storage::<ObjectsType>();
-    let entities = &ecs.entities();
-    let positions = &ecs.read_storage::<Position>();
+pub struct ViewAction {
+    action: Action,
+    ch: char,
+    label: &'static str,
+}
 
-    let mut result = vec![];
-    for (e, o, p) in (entities, objects, positions).join() {
-        let p = p.point;
-        if p.x == x && p.y == y {
-            result.push((e.clone(), o.clone()));
-        }
+impl ViewAction {
+    fn to_tuple(&self) -> (char, &'static str) {
+        (self.ch, self.label)
     }
-    result
+}
+
+fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
+    actions
+        .iter()
+        .enumerate()
+        .map(|(i, action)| match action {
+            Action::CheckCockpit => ViewAction {
+                action: action.clone(),
+                ch: 'i',
+                label: "check cockpit",
+            },
+        })
+        .collect()
 }
 
 fn draw_gui_bottom_box(
     ctx: &mut Rltk,
     current_tile: TileType,
     objects: &Vec<(Entity, ObjectsType)>,
+    actions: &Vec<(char, &str)>,
 ) {
     let box_h = 6;
     let box_x = 0;
@@ -174,6 +213,17 @@ fn draw_gui_bottom_box(
 
         ctx.print_color(inner_box_x, j, rltk::GRAY, rltk::BLACK, obj_str);
         j += 1;
+    }
+
+    {
+        let x = inner_box_x;
+        let mut y = inner_box_y + 2;
+        for (chr, action) in actions {
+            ctx.print_color(x, y, rltk::RED, rltk::BLACK, chr);
+            ctx.print_color(x + 1, y, rltk::GRAY, rltk::BLACK, " - ");
+            ctx.print_color(x + 4, y, rltk::GRAY, rltk::BLACK, action);
+            y += 1;
+        }
     }
 }
 

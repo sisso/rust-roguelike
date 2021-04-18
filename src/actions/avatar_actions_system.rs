@@ -1,17 +1,17 @@
-use crate::actions::{get_available_actions, AvatarActions};
+use crate::actions::{get_available_actions, EntityActions};
 use crate::gmap::GMap;
 use crate::models::{Avatar, ObjectsType, Position};
 use crate::utils::find_objects_at;
 use crate::view::Viewshed;
 use specs::prelude::*;
 
-pub struct AvatarActionSystem {}
+pub struct FindAvatarActionsSystem {}
 
-impl<'a> System<'a> for AvatarActionSystem {
+impl<'a> System<'a> for FindAvatarActionsSystem {
     type SystemData = (
         Entities<'a>,
         ReadStorage<'a, Avatar>,
-        WriteStorage<'a, AvatarActions>,
+        WriteStorage<'a, EntityActions>,
         ReadStorage<'a, ObjectsType>,
         ReadStorage<'a, Position>,
     );

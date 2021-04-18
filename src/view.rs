@@ -1,12 +1,14 @@
 pub mod camera;
+pub mod cockpit_window;
+pub mod window;
 
-use crate::actions::{get_available_actions, Action, AvatarActions};
-use crate::cfg;
+use crate::actions::{get_available_actions, Action, EntityActions};
 use crate::gmap::{GMap, TileType};
 use crate::models::{Avatar, ObjectsType, Position};
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::State;
+use crate::{actions, cfg};
 use rltk::{Algorithm2D, Point, Rect, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
@@ -27,14 +29,77 @@ pub struct Renderable {
     pub priority: i32,
 }
 
-pub fn view_input(gs: &mut State, ctx: &mut Rltk, actions: Vec<ViewAction>) {
+pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
     match ctx.key {
-        Some(VirtualKeyCode::I) => {}
-        _ => {}
+        None => {} // Nothing happened
+        Some(key) => match key {
+            VirtualKeyCode::Left => actions::try_move_player(-1, 0, &mut gs.ecs),
+            VirtualKeyCode::Right => actions::try_move_player(1, 0, &mut gs.ecs),
+            VirtualKeyCode::Up => actions::try_move_player(0, -1, &mut gs.ecs),
+            VirtualKeyCode::Down => actions::try_move_player(0, 1, &mut gs.ecs),
+            VirtualKeyCode::Numpad7 => actions::try_move_player(-1, -1, &mut gs.ecs),
+            VirtualKeyCode::Numpad8 => actions::try_move_player(0, -1, &mut gs.ecs),
+            VirtualKeyCode::Numpad9 => actions::try_move_player(1, -1, &mut gs.ecs),
+            VirtualKeyCode::Numpad4 => actions::try_move_player(-1, 0, &mut gs.ecs),
+            VirtualKeyCode::Numpad5 => actions::try_move_player(0, 0, &mut gs.ecs),
+            VirtualKeyCode::Numpad6 => actions::try_move_player(1, 0, &mut gs.ecs),
+            VirtualKeyCode::Numpad1 => actions::try_move_player(-1, 1, &mut gs.ecs),
+            VirtualKeyCode::Numpad2 => actions::try_move_player(0, 1, &mut gs.ecs),
+            VirtualKeyCode::Numpad3 => actions::try_move_player(1, 1, &mut gs.ecs),
+            VirtualKeyCode::I => actions::try_interact(&mut gs.ecs),
+            // VirtualKeyCode::W => gs.camera.y -= 1,
+            // VirtualKeyCode::A => gs.camera.x -= 1,
+            // VirtualKeyCode::D => gs.camera.x += 1,
+            // VirtualKeyCode::S => gs.camera.y += 1,
+            _ => {}
+        },
     }
 }
 
-pub fn draw_map(
+// pub fn view_input(state: &mut State, ctx: &mut Rltk) {
+//     let chkey = match ctx.key {
+//         Some(VirtualKeyCode::I) => 'i',
+//         _ => return,
+//     };
+//
+//     let avatars = &state.ecs.read_storage::<Avatar>();
+//     let positions = &state.ecs.read_storage::<Position>();
+//     let actions_st = &mut state.ecs.write_storage::<EntityActions>();
+//
+//     for (avatar, position, actions) in (avatars, positions, actions_st).join() {
+//         let view_actions = map_actions_to_keys(&actions.actions);
+//
+//         match view_actions.iter().find(|va| va.ch == chkey) {
+//             Some(va) => {
+//                 actions.current = Some(va.action.clone());
+//             }
+//             _ => {}
+//         }
+//     }
+// }
+
+pub fn draw_mouse(state: &mut State, ctx: &mut Rltk) {
+    let mouse_pos = ctx.mouse_pos();
+    ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
+}
+
+pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
+    // merge all visible and know tiles from player
+    let viewshed = state.ecs.read_storage::<Viewshed>();
+    let avatars = state.ecs.read_storage::<Avatar>();
+    let positions = state.ecs.read_storage::<Position>();
+    let views = (&viewshed, &avatars, &positions).join().collect::<Vec<_>>();
+    let (v, _, pos) = views.iter().next().unwrap();
+
+    let camera = Camera::fromCenter(pos.point);
+
+    // draw
+    let map = state.ecs.fetch::<GMap>();
+    draw_map(&camera, &v.visible_tiles, &v.know_tiles, &map, ctx);
+    draw_objects(&camera, &v.visible_tiles, &state.ecs, ctx);
+}
+
+fn draw_map(
     camera: &Camera,
     visible_cells: &Vec<rltk::Point>,
     know_cells: &HashSet<rltk::Point>,
@@ -80,12 +145,7 @@ pub fn draw_map(
     }
 }
 
-pub fn draw_objects(
-    camera: &Camera,
-    visible_cells: &Vec<rltk::Point>,
-    ecs: &World,
-    ctx: &mut Rltk,
-) {
+fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, ctx: &mut Rltk) {
     let positions = ecs.read_storage::<Position>();
     let renderables = ecs.read_storage::<Renderable>();
     let mut objects = (&positions, &renderables).join().collect::<Vec<_>>();
@@ -118,7 +178,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let objects = &state.ecs.read_storage::<ObjectsType>();
     let avatars = &state.ecs.read_storage::<Avatar>();
     let positions = &state.ecs.read_storage::<Position>();
-    let actions_st = &state.ecs.read_storage::<AvatarActions>();
+    let actions_st = &state.ecs.read_storage::<EntityActions>();
     let map = &state.ecs.fetch::<GMap>();
 
     for (avatar, position, actions) in (avatars, positions, actions_st).join() {
@@ -158,18 +218,25 @@ impl ViewAction {
     fn to_tuple(&self) -> (char, &'static str) {
         (self.ch, self.label)
     }
+
+    fn map_to_keys(action: &Action) -> (char, &'static str) {
+        match action {
+            Action::CheckCockpit => ('i', "check cockpit"),
+        }
+    }
 }
 
 fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
     actions
         .iter()
         .enumerate()
-        .map(|(i, action)| match action {
-            Action::CheckCockpit => ViewAction {
+        .map(|(i, action)| {
+            let (c, s) = ViewAction::map_to_keys(action);
+            ViewAction {
                 action: action.clone(),
-                ch: 'i',
-                label: "check cockpit",
-            },
+                ch: c,
+                label: s,
+            }
         })
         .collect()
 }

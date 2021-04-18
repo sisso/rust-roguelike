@@ -1,102 +1,67 @@
-mod actions;
+use std::collections::HashSet;
+
+use log::*;
+use rltk::{Rltk, RGB};
+use specs::prelude::*;
+
+use crate::actions::actions_system::ActionsSystem;
+use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
+use crate::actions::EntityActions;
+use crate::models::*;
+use crate::view::window::Window;
+use crate::view::{Renderable, Viewshed};
+use crate::visibility_system::VisibilitySystem;
+
+pub mod actions;
 pub mod cfg;
+pub mod events;
 pub mod gmap;
 pub mod loader;
 pub mod models;
-pub mod systems;
-mod utils;
+pub mod ship;
+pub mod utils;
 pub mod view;
-
-use crate::gmap::GMap;
-use crate::models::*;
-use crate::systems::visibility_system::VisibilitySystem;
-use crate::view::{camera::Camera, view_input, Renderable, Viewshed};
-use log::*;
-use rltk::{Point, Rect, Rltk, VirtualKeyCode, RGB};
-use specs::prelude::*;
-
-use crate::actions::avatar_actions_system::AvatarActionSystem;
-use crate::actions::{get_available_actions, AvatarActions};
-use std::collections::HashSet;
+pub mod visibility_system;
 
 pub struct State {
     pub ecs: World,
-}
-
-fn player_input(gs: &mut State, ctx: &mut Rltk) {
-    // Player movement
-    match ctx.key {
-        None => {} // Nothing happened
-        Some(key) => match key {
-            VirtualKeyCode::Left => actions::try_move_player(-1, 0, &mut gs.ecs),
-            VirtualKeyCode::Right => actions::try_move_player(1, 0, &mut gs.ecs),
-            VirtualKeyCode::Up => actions::try_move_player(0, -1, &mut gs.ecs),
-            VirtualKeyCode::Down => actions::try_move_player(0, 1, &mut gs.ecs),
-            VirtualKeyCode::Numpad7 => actions::try_move_player(-1, -1, &mut gs.ecs),
-            VirtualKeyCode::Numpad8 => actions::try_move_player(0, -1, &mut gs.ecs),
-            VirtualKeyCode::Numpad9 => actions::try_move_player(1, -1, &mut gs.ecs),
-            VirtualKeyCode::Numpad4 => actions::try_move_player(-1, 0, &mut gs.ecs),
-            VirtualKeyCode::Numpad5 => actions::try_move_player(0, 0, &mut gs.ecs),
-            VirtualKeyCode::Numpad6 => actions::try_move_player(1, 0, &mut gs.ecs),
-            VirtualKeyCode::Numpad1 => actions::try_move_player(-1, 1, &mut gs.ecs),
-            VirtualKeyCode::Numpad2 => actions::try_move_player(0, 1, &mut gs.ecs),
-            VirtualKeyCode::Numpad3 => actions::try_move_player(1, 1, &mut gs.ecs),
-            // VirtualKeyCode::W => gs.camera.y -= 1,
-            // VirtualKeyCode::A => gs.camera.x -= 1,
-            // VirtualKeyCode::D => gs.camera.x += 1,
-            // VirtualKeyCode::S => gs.camera.y += 1,
-            _ => {}
-        },
-    }
 }
 
 impl rltk::GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
-        // can not use because input are multable
-        // for avatar in (&self.ecs.read_storage::<Avatar>()).join() {
-        // let actions = get_available_actions(avatar, &objects);
-        player_input(self, ctx);
-        view_input(self, ctx, vec![]);
-        // }
-        self.run_systems();
+        let window = *self.ecs.fetch::<Window>();
 
-        {
-            // merge all visible and know tiles from player
-            let viewshed = self.ecs.read_storage::<Viewshed>();
-            let avatars = self.ecs.read_storage::<Avatar>();
-            let positions = self.ecs.read_storage::<Position>();
-            let views = (&viewshed, &avatars, &positions).join().collect::<Vec<_>>();
-            let (v, _, pos) = views.iter().next().unwrap();
+        match window {
+            Window::World => {
+                view::player_input(self, ctx);
+                run_systems(self, ctx);
+                view::draw_map_and_objects(self, ctx);
+                view::draw_gui(self, ctx);
+            }
 
-            let camera = Camera::fromCenter(pos.point);
-
-            // draw
-            let map = self.ecs.fetch::<GMap>();
-            view::draw_map(&camera, &v.visible_tiles, &v.know_tiles, &map, ctx);
-            view::draw_objects(&camera, &v.visible_tiles, &self.ecs, ctx);
-        }
-
-        view::draw_gui(self, ctx);
-
-        {
-            let mouse_pos = ctx.mouse_pos();
-            ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
+            Window::Cockpit => {
+                view::cockpit_window::input(self, ctx);
+                run_systems(self, ctx);
+                view::draw_map_and_objects(self, ctx);
+                view::cockpit_window::draw(self, ctx);
+            }
         }
     }
 }
 
-impl State {
-    fn run_systems(&mut self) {
-        let mut vis = VisibilitySystem {};
-        vis.run_now(&self.ecs);
+pub fn run_systems(st: &mut State, ctx: &mut Rltk) {
+    let mut s = VisibilitySystem {};
+    s.run_now(&st.ecs);
 
-        let mut acs = AvatarActionSystem {};
-        acs.run_now(&self.ecs);
+    let mut s = FindAvatarActionsSystem {};
+    s.run_now(&st.ecs);
 
-        self.ecs.maintain();
-    }
+    let mut s = ActionsSystem {};
+    s.run_now(&st.ecs);
+
+    st.ecs.maintain();
 }
 
 fn main() -> rltk::BError {
@@ -113,7 +78,8 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Viewshed>();
     gs.ecs.register::<ObjectsType>();
-    gs.ecs.register::<AvatarActions>();
+    gs.ecs.register::<EntityActions>();
+    gs.ecs.register::<Window>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =
@@ -122,6 +88,7 @@ fn main() -> rltk::BError {
     let spawn_x = map.width / 2;
     let spawn_y = map.height / 2;
 
+    gs.ecs.insert(Window::World);
     gs.ecs.insert(map);
     gs.ecs.insert(cfg);
     gs.ecs
@@ -141,7 +108,10 @@ fn main() -> rltk::BError {
             know_tiles: HashSet::new(),
             range: 16,
         })
-        .with(AvatarActions { actions: vec![] })
+        .with(EntityActions {
+            actions: vec![],
+            current: None,
+        })
         .build();
 
     loader::parse_map_objects(&mut gs.ecs, map_ast).expect("fail to load map objects");

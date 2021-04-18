@@ -2,14 +2,14 @@ pub mod camera;
 pub mod cockpit_window;
 pub mod window;
 
-use crate::actions::{get_available_actions, Action, EntityActions};
+use crate::actions::{Action, EntityActions};
 use crate::gmap::{GMap, TileType};
 use crate::models::{Avatar, ObjectsType, Position};
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::State;
 use crate::{actions, cfg};
-use rltk::{Algorithm2D, Point, Rect, Rltk, VirtualKeyCode, RGB};
+use rltk::{Algorithm2D, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 use std::collections::HashSet;
@@ -78,7 +78,7 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
 //     }
 // }
 
-pub fn draw_mouse(state: &mut State, ctx: &mut Rltk) {
+pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
     let mouse_pos = ctx.mouse_pos();
     ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
 }
@@ -181,7 +181,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let actions_st = &state.ecs.read_storage::<EntityActions>();
     let map = &state.ecs.fetch::<GMap>();
 
-    for (avatar, position, actions) in (avatars, positions, actions_st).join() {
+    for (_avatar, position, actions) in (avatars, positions, actions_st).join() {
         let tile = map
             .cells
             .get(map.point2d_to_index(position.point))
@@ -230,7 +230,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
     actions
         .iter()
         .enumerate()
-        .map(|(i, action)| {
+        .map(|(_i, action)| {
             let (c, s) = ViewAction::map_to_keys(action);
             ViewAction {
                 action: action.clone(),

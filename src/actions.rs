@@ -63,7 +63,7 @@ pub fn try_interact(ecs: &mut World) {
             let at_list =
                 find_objects_at(&entities, &objects, &positions, pos.point.x, pos.point.y);
 
-            for (e, t) in at_list {
+            for (_e, t) in at_list {
                 match t {
                     ObjectsType::Cockpit => {
                         apply.push(move |ecs: &mut World| {
@@ -83,7 +83,7 @@ pub fn try_interact(ecs: &mut World) {
 }
 
 pub fn get_available_actions(
-    avatar: &Avatar,
+    _avatar: &Avatar,
     objects_at_cell: &Vec<(Entity, ObjectsType)>,
 ) -> Vec<Action> {
     let mut actions = vec![];

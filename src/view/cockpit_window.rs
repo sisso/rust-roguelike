@@ -1,8 +1,8 @@
 use crate::view::window::Window;
 use crate::{cfg, State};
 use rltk::{Rltk, VirtualKeyCode, RGB};
-use specs::prelude::*;
-use specs_derive::*;
+
+
 
 pub fn input(gs: &mut State, ctx: &mut Rltk) {
     match ctx.key {
@@ -13,7 +13,7 @@ pub fn input(gs: &mut State, ctx: &mut Rltk) {
     }
 }
 
-pub fn draw(state: &State, ctx: &mut Rltk) {
+pub fn draw(_state: &State, ctx: &mut Rltk) {
     let border = 4;
 
     ctx.draw_box(

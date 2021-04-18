@@ -1,8 +1,8 @@
 use crate::actions::{get_available_actions, EntityActions};
-use crate::gmap::GMap;
+
 use crate::models::{Avatar, ObjectsType, Position};
 use crate::utils::find_objects_at;
-use crate::view::Viewshed;
+
 use specs::prelude::*;
 
 pub struct FindAvatarActionsSystem {}

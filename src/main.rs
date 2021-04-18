@@ -51,7 +51,7 @@ impl rltk::GameState for State {
     }
 }
 
-pub fn run_systems(st: &mut State, ctx: &mut Rltk) {
+pub fn run_systems(st: &mut State, _ctx: &mut Rltk) {
     let mut s = VisibilitySystem {};
     s.run_now(&st.ecs);
 

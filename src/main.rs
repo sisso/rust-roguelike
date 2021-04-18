@@ -8,6 +8,7 @@ use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::actions::EntityActions;
 use crate::models::*;
+use crate::ship::Ship;
 use crate::view::window::Window;
 use crate::view::{Renderable, Viewshed};
 use crate::visibility_system::VisibilitySystem;
@@ -80,6 +81,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<ObjectsType>();
     gs.ecs.register::<EntityActions>();
     gs.ecs.register::<Window>();
+    gs.ecs.register::<Ship>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =
@@ -91,6 +93,7 @@ fn main() -> rltk::BError {
     gs.ecs.insert(Window::World);
     gs.ecs.insert(map);
     gs.ecs.insert(cfg);
+    gs.ecs.create_entity().with(Ship {}).build();
     gs.ecs
         .create_entity()
         .with(Position {

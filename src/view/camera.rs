@@ -29,7 +29,7 @@ impl Camera {
         }
     }
 
-    pub fn fromCenter(p: Point) -> Self {
+    pub fn from_center(p: Point) -> Self {
         let w = cfg::SCREEN_W;
         let h = cfg::SCREEN_H;
 
@@ -41,12 +41,12 @@ impl Camera {
         }
     }
 
-    pub fn globla_rect(&self) -> Rect {
+    pub fn global_rect(&self) -> Rect {
         Rect::with_size(self.x, self.y, self.w, self.h)
     }
 
     pub fn global_center(&self) -> Point {
-        self.globla_rect().center()
+        self.global_rect().center()
     }
 
     pub fn global_to_screen(&self, p: Point) -> Point {
@@ -58,7 +58,7 @@ impl Camera {
     }
 
     pub fn is_global_in(&self, p: Point) -> bool {
-        self.globla_rect().point_in_rect(p)
+        self.global_rect().point_in_rect(p)
     }
 
     pub fn list_cells<'a>(&'a self) -> impl Iterator<Item = CameraCell> + 'a {

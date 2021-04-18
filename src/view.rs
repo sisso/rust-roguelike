@@ -91,7 +91,7 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
     let views = (&viewshed, &avatars, &positions).join().collect::<Vec<_>>();
     let (v, _, pos) = views.iter().next().unwrap();
 
-    let camera = Camera::fromCenter(pos.point);
+    let camera = Camera::from_center(pos.point);
 
     // draw
     let map = state.ecs.fetch::<GMap>();
@@ -208,8 +208,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     }
 }
 
-pub struct ViewAction {
-    action: Action,
+struct ViewAction {
     ch: char,
     label: &'static str,
 }
@@ -232,11 +231,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
         .enumerate()
         .map(|(_i, action)| {
             let (c, s) = ViewAction::map_to_keys(action);
-            ViewAction {
-                action: action.clone(),
-                ch: c,
-                label: s,
-            }
+            ViewAction { ch: c, label: s }
         })
         .collect()
 }
@@ -297,6 +292,7 @@ fn draw_gui_bottom_box(
 #[cfg(test)]
 mod test {
     use super::*;
+    use rltk::Point;
 
     /*
           0 1 2 3 4 5 ...

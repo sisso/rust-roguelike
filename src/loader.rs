@@ -135,6 +135,7 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
     let mut changes: Vec<(Position, ObjectsType)> = vec![];
     {
         let cfg = ecs.fetch::<super::cfg::Cfg>();
+        let map = ecs.fetch::<GMap>();
         for (index, cell) in ast.cells.iter().enumerate() {
             let kind = cfg
                 .raw_map_objects
@@ -148,14 +149,12 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
                 None => continue,
             };
 
-            let pos = {
-                let map = ecs.fetch::<GMap>();
-                map.index_to_point2d(index)
-            };
+            let pos = map.index_to_point2d(index);
 
             changes.push((Position { point: pos }, kind));
         }
     }
+
     for (pos, kind) in changes {
         match kind {
             ObjectsType::Door { vertical } => {
@@ -203,7 +202,6 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
 
 #[cfg(test)]
 mod test {
-    use super::super::cfg;
     use super::*;
 
     #[test]
@@ -222,7 +220,6 @@ mod test {
 
     #[test]
     fn test_parse_map_should_fail_for_invalid_maps() {
-        let RAW_MAP_TILES = get_parse_map_default_legend();
         parse_map(
             r"
             ###
@@ -233,16 +230,5 @@ mod test {
         )
         .err()
         .expect("map didnt fail");
-    }
-
-    fn get_parse_map_default_legend() -> Vec<(char, TileType)> {
-        let RAW_MAP_TILES = vec![
-            ('_', TileType::Space),
-            ('.', TileType::Floor),
-            ('#', TileType::Wall),
-            ('E', TileType::Wall),
-        ];
-
-        RAW_MAP_TILES
     }
 }

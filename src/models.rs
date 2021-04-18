@@ -1,7 +1,10 @@
 use specs::prelude::*;
 use specs_derive::*;
+use rltk::Point;
+use crate::gmap::TileType;
 
 pub type Index = usize;
+pub type P2 = Point
 
 #[derive(Component, Debug)]
 pub struct Avatar {}
@@ -59,4 +62,44 @@ pub enum ObjectsType {
     Door { vertical: bool },
     Engine,
     Cockpit,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Galaxy {}
+
+#[derive(Component, Debug, Clone)]
+pub struct Sector {
+    bodies: Vec<Entity>
+}
+
+#[derive(Component, Debug, Clone)]
+pub enum SectorBody {
+    Planet {
+        pos: P2,
+    },
+    Station {
+        pos: P2,
+    },
+    Jump {
+        pos: P2,
+        target: Entity
+    }
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Surface {
+    width: u32,
+    height: u32,
+    tiles: Vec<TileType>
+}
+
+pub enum Location {
+    // flying through the sector
+    Sector { sector: Entity, pos: P2 },
+    // orbiting a body
+    Orbit { sector: Entity, body: Entity },
+    // at surface, in big map scale (ship is a dot)
+    BodySurface { body: Entity, pos: P2 },
+    // at surface, low scale map (ship is full model)
+    BodySurfacePlace { body: Entity, surface_pos: p2, place: P2 }
 }

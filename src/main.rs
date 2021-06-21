@@ -13,6 +13,7 @@ use crate::view::window::Window;
 use crate::view::{Renderable, Viewshed};
 use crate::visibility_system::VisibilitySystem;
 
+mod GridMap;
 pub mod actions;
 pub mod cfg;
 pub mod events;

@@ -21,10 +21,7 @@ pub fn parse_map_tiles(
             None => return Err(ParseMapError::UnknownChar(ch)),
         };
 
-        gmap.cells.push(Cell {
-            index: i,
-            tile: tile.clone(),
-        })
+        gmap.cells.push(Cell { tile: tile.clone() })
     }
 
     Ok(gmap)
@@ -34,11 +31,8 @@ pub fn map_empty(width: i32, height: i32) -> GMap {
     fn create(total_cells: usize, default_tile: TileType) -> Vec<Cell> {
         let mut cells = vec![];
         // total random
-        for index in 0..total_cells {
-            cells.push(Cell {
-                index,
-                tile: default_tile,
-            });
+        for _ in 0..total_cells {
+            cells.push(Cell { tile: default_tile });
         }
 
         cells

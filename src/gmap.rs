@@ -10,6 +10,12 @@ pub enum TileType {
     OutOfMap,
 }
 
+impl TileType {
+    pub fn is_opaque(&self) -> bool {
+        *self == TileType::Wall
+    }
+}
+
 #[derive(Component, Debug, Clone)]
 pub struct GMap {
     pub width: i32,
@@ -25,7 +31,7 @@ impl rltk::Algorithm2D for GMap {
 
 impl rltk::BaseMap for GMap {
     fn is_opaque(&self, idx: usize) -> bool {
-        self.cells[idx].tile == TileType::Wall
+        self.cells[idx].tile.is_opaque()
     }
 }
 
@@ -41,6 +47,5 @@ impl GMap {
 
 #[derive(Component, Debug, Clone)]
 pub struct Cell {
-    pub index: Index,
     pub tile: TileType,
 }

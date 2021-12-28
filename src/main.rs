@@ -16,6 +16,7 @@ use crate::visibility_system::VisibilitySystem;
 mod GridMap;
 pub mod actions;
 pub mod cfg;
+pub mod cockpit;
 pub mod events;
 pub mod gmap;
 pub mod loader;
@@ -77,12 +78,14 @@ fn main() -> rltk::BError {
     gs.ecs.register::<cfg::Cfg>();
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
-    gs.ecs.register::<Avatar>();
+    gs.ecs.register::<Player>();
     gs.ecs.register::<Viewshed>();
     gs.ecs.register::<ObjectsType>();
     gs.ecs.register::<EntityActions>();
     gs.ecs.register::<Window>();
     gs.ecs.register::<Ship>();
+    gs.ecs.register::<Avatar>();
+    gs.ecs.register::<Player>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =
@@ -95,8 +98,10 @@ fn main() -> rltk::BError {
     gs.ecs.insert(map);
     gs.ecs.insert(cfg);
     gs.ecs.create_entity().with(Ship {}).build();
-    gs.ecs
+    let avatar_entity = gs
+        .ecs
         .create_entity()
+        .with(Avatar {})
         .with(Position {
             point: (spawn_x, spawn_y).into(),
         })
@@ -106,7 +111,6 @@ fn main() -> rltk::BError {
             bg: RGB::named(rltk::BLACK),
             priority: 1,
         })
-        .with(Avatar {})
         .with(Viewshed {
             visible_tiles: vec![],
             know_tiles: HashSet::new(),
@@ -117,6 +121,8 @@ fn main() -> rltk::BError {
             current: None,
         })
         .build();
+
+    gs.ecs.insert(Player::new(avatar_entity));
 
     loader::parse_map_objects(&mut gs.ecs, map_ast).expect("fail to load map objects");
 

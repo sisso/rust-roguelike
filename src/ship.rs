@@ -1,4 +1,4 @@
-use crate::models::Avatar;
+use crate::models::Player;
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -13,7 +13,7 @@ pub struct Ship {
     // state: ShipState,
 }
 
-pub fn enter_cockpit(_avatar: &mut Avatar) {
+pub fn enter_cockpit(_avatar: &mut Player) {
     // change avatar state to be on control o ship from the
     // cockpit
 }

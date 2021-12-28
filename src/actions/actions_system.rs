@@ -1,6 +1,6 @@
 use crate::actions::{Action, EntityActions};
 
-use crate::models::{Avatar, ObjectsType, Position};
+use crate::models::{ObjectsType, Player, Position};
 use crate::ship;
 use crate::utils::find_objects_at;
 
@@ -11,7 +11,7 @@ pub struct ActionsSystem {}
 impl<'a> System<'a> for ActionsSystem {
     type SystemData = (
         Entities<'a>,
-        WriteStorage<'a, Avatar>,
+        WriteStorage<'a, Player>,
         WriteStorage<'a, EntityActions>,
         ReadStorage<'a, ObjectsType>,
         ReadStorage<'a, Position>,

@@ -1,5 +1,5 @@
 use crate::gmap::{GMap, TileType};
-use crate::models::{Avatar, ObjectsType, Position};
+use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::window::Window;
 use rltk::{Algorithm2D, Point};
@@ -32,10 +32,10 @@ impl EntityActions {
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
-    let mut avatars = ecs.write_storage::<Avatar>();
+    let avatar = ecs.fetch::<Player>();
     let map = ecs.fetch::<GMap>();
 
-    for (_player, has_pos) in (&mut avatars, &mut positions).join() {
+    for (_player, has_pos) in (&avatar.get_avatarset(), &mut positions).join() {
         let new_pos = Point::new(has_pos.point.x + delta_x, has_pos.point.y + delta_y);
 
         if !map.in_bounds(new_pos) {
@@ -50,16 +50,17 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     }
 }
 
+// TOOD: merge with get_available_actions
 pub fn try_interact(ecs: &mut World) {
     let mut apply = vec![];
 
     {
         let entities = ecs.entities();
         let positions = ecs.read_storage::<Position>();
-        let avatars = ecs.read_storage::<Avatar>();
+        let avatar = ecs.fetch::<Player>();
         let objects = ecs.read_storage::<ObjectsType>();
 
-        'outer: for (_, pos) in (&avatars, &positions).join() {
+        'outer: for (_, pos) in (&avatar.get_avatarset(), &positions).join() {
             let at_list =
                 find_objects_at(&entities, &objects, &positions, pos.point.x, pos.point.y);
 
@@ -82,10 +83,7 @@ pub fn try_interact(ecs: &mut World) {
     }
 }
 
-pub fn get_available_actions(
-    _avatar: &Avatar,
-    objects_at_cell: &Vec<(Entity, ObjectsType)>,
-) -> Vec<Action> {
+pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsType)>) -> Vec<Action> {
     let mut actions = vec![];
 
     for (_, kind) in objects_at_cell {

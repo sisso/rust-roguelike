@@ -9,6 +9,27 @@ pub type P2 = Point;
 #[derive(Component, Debug)]
 pub struct Avatar {}
 
+#[derive(Component, Debug)]
+pub struct Player {
+    pub avatar: Entity,
+    pub avatar_queue: Vec<Entity>,
+}
+
+impl Player {
+    pub fn new(current: Entity) -> Self {
+        Player {
+            avatar: current,
+            avatar_queue: Default::default(),
+        }
+    }
+
+    pub fn get_avatarset(&self) -> BitSet {
+        let mut bs = BitSet::new();
+        bs.add(self.avatar.id());
+        bs
+    }
+}
+
 #[derive(Component, Clone, Debug, PartialEq)]
 pub struct Position {
     pub point: rltk::Point,

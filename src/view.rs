@@ -4,7 +4,7 @@ pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::gmap::{GMap, TileType};
-use crate::models::{Avatar, ObjectsType, Position};
+use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::State;
@@ -86,9 +86,11 @@ pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
 pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
     // merge all visible and know tiles from player
     let viewshed = state.ecs.read_storage::<Viewshed>();
-    let avatars = state.ecs.read_storage::<Avatar>();
+    let avatars = state.ecs.fetch::<Player>();
     let positions = state.ecs.read_storage::<Position>();
-    let views = (&viewshed, &avatars, &positions).join().collect::<Vec<_>>();
+    let views = (&viewshed, &avatars.get_avatarset(), &positions)
+        .join()
+        .collect::<Vec<_>>();
     let (v, _, pos) = views.iter().next().unwrap();
 
     let camera = Camera::from_center(pos.point);
@@ -176,7 +178,7 @@ fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, 
 pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let entities = &state.ecs.entities();
     let objects = &state.ecs.read_storage::<ObjectsType>();
-    let avatars = &state.ecs.read_storage::<Avatar>();
+    let avatars = &state.ecs.read_storage::<Player>();
     let positions = &state.ecs.read_storage::<Position>();
     let actions_st = &state.ecs.read_storage::<EntityActions>();
     let map = &state.ecs.fetch::<GMap>();

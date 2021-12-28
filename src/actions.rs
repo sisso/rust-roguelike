@@ -35,7 +35,7 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let avatar = ecs.fetch::<Player>();
     let map = ecs.fetch::<GMap>();
 
-    for (_player, has_pos) in (&avatar.get_avatarset(), &mut positions).join() {
+    for (_player, has_pos) in (avatar.get_avatarset(), &mut positions).join() {
         let new_pos = Point::new(has_pos.point.x + delta_x, has_pos.point.y + delta_y);
 
         if !map.in_bounds(new_pos) {
@@ -60,7 +60,7 @@ pub fn try_interact(ecs: &mut World) {
         let avatar = ecs.fetch::<Player>();
         let objects = ecs.read_storage::<ObjectsType>();
 
-        'outer: for (_, pos) in (&avatar.get_avatarset(), &positions).join() {
+        'outer: for (_, pos) in (avatar.get_avatarset(), &positions).join() {
             let at_list =
                 find_objects_at(&entities, &objects, &positions, pos.point.x, pos.point.y);
 

@@ -8,5 +8,5 @@ pub enum Command {
 }
 
 pub fn list_commands(state: &State) -> Vec<Command> {
-    todo!()
+    Vec::new()
 }

@@ -11,22 +11,25 @@ pub struct Avatar {}
 
 #[derive(Component, Debug)]
 pub struct Player {
-    pub avatar: Entity,
-    pub avatar_queue: Vec<Entity>,
+    avatar: Entity,
+    avatar_queue: Vec<Entity>,
+    bscurrent: BitSet,
 }
 
 impl Player {
     pub fn new(current: Entity) -> Self {
+        let mut bsc = BitSet::new();
+        bsc.add(current.id());
+
         Player {
             avatar: current,
             avatar_queue: Default::default(),
+            bscurrent: bsc,
         }
     }
 
-    pub fn get_avatarset(&self) -> BitSet {
-        let mut bs = BitSet::new();
-        bs.add(self.avatar.id());
-        bs
+    pub fn get_avatarset(&self) -> &BitSet {
+        &self.bscurrent
     }
 }
 

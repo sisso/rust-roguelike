@@ -88,7 +88,7 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
     let viewshed = state.ecs.read_storage::<Viewshed>();
     let avatars = state.ecs.fetch::<Player>();
     let positions = state.ecs.read_storage::<Position>();
-    let views = (&viewshed, &avatars.get_avatarset(), &positions)
+    let views = (&viewshed, avatars.get_avatarset(), &positions)
         .join()
         .collect::<Vec<_>>();
     let (v, _, pos) = views.iter().next().unwrap();

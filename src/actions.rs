@@ -5,6 +5,7 @@ use crate::view::window::Window;
 use rltk::{Algorithm2D, Point};
 use specs::prelude::*;
 use specs_derive::*;
+use std::borrow::Borrow;
 use std::cmp::{max, min};
 
 pub mod actions_system;
@@ -32,11 +33,12 @@ impl EntityActions {
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
+    let grids = ecs.read_storage::<GMap>();
     let avatar = ecs.fetch::<Player>();
-    let map = ecs.fetch::<GMap>();
 
-    for (_player, has_pos) in (avatar.get_avatarset(), &mut positions).join() {
-        let new_pos = Point::new(has_pos.point.x + delta_x, has_pos.point.y + delta_y);
+    for (_player, pos) in (avatar.get_avatarset(), &mut positions).join() {
+        let new_pos = Point::new(pos.point.x + delta_x, pos.point.y + delta_y);
+        let map = grids.borrow().get(pos.grid_id).unwrap();
 
         if !map.in_bounds(new_pos) {
             return;
@@ -44,8 +46,8 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
 
         let destination_idx = map.point2d_to_index(new_pos);
         if map.get_cell(destination_idx).tile != TileType::Wall {
-            has_pos.point.x = min(map.width - 1, max(0, has_pos.point.x + delta_x));
-            has_pos.point.y = min(map.height - 1, max(0, has_pos.point.y + delta_y));
+            pos.point.x = min(map.width - 1, max(0, pos.point.x + delta_x));
+            pos.point.y = min(map.height - 1, max(0, pos.point.y + delta_y));
         }
     }
 }

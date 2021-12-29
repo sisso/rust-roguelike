@@ -1,16 +1,16 @@
 use crate::gmap::{Cell, TileType};
 use crate::models::P2;
 
-struct GridMap {
+struct NGridMap {
     width: usize,
     height: usize,
     cells: Vec<Option<Cell>>,
-    children: Vec<(P2, GridMap)>,
+    children: Vec<(P2, NGridMap)>,
 }
 
-impl Default for GridMap {
+impl Default for NGridMap {
     fn default() -> Self {
-        GridMap {
+        NGridMap {
             width: 0,
             height: 0,
             cells: vec![],
@@ -19,13 +19,13 @@ impl Default for GridMap {
     }
 }
 
-impl rltk::Algorithm2D for GridMap {
+impl rltk::Algorithm2D for NGridMap {
     fn dimensions(&self) -> rltk::Point {
         rltk::Point::new(self.width, self.height)
     }
 }
 
-impl rltk::BaseMap for GridMap {
+impl rltk::BaseMap for NGridMap {
     fn is_opaque(&self, idx: usize) -> bool {
         self.cells[idx]
             .as_ref()
@@ -37,13 +37,13 @@ impl rltk::BaseMap for GridMap {
 #[cfg(test)]
 mod test {
     use crate::gmap::{Cell, TileType};
-    use crate::GridMap::GridMap;
+    use crate::ngridmap::NGridMap;
     use rltk::Algorithm2D;
     use rltk::BaseMap;
     use rltk::Point;
 
-    fn new_basic() -> GridMap {
-        let mut gm = GridMap::default();
+    fn new_basic() -> NGridMap {
+        let mut gm = NGridMap::default();
         gm.width = 2;
         gm.height = 2;
         gm.cells = vec![
@@ -63,7 +63,7 @@ mod test {
 
     #[test]
     fn test_dimension_empty() {
-        let gm = GridMap::default();
+        let gm = NGridMap::default();
         let p = gm.dimensions();
         assert_eq!(Point::new(0, 0), p);
     }

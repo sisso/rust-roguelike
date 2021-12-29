@@ -4,7 +4,6 @@ use crate::{cfg, State};
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
-use std::ops::Sub;
 
 // pub fn input(gs: &mut State, ctx: &mut Rltk) {
 //     match ctx.key {

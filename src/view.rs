@@ -96,7 +96,8 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
     let camera = Camera::from_center(pos.point);
 
     // draw
-    let map = state.ecs.fetch::<GMap>();
+    let grids = &state.ecs.read_storage::<GMap>();
+    let map = grids.get(pos.grid_id).unwrap();
     draw_map(&camera, &v.visible_tiles, &v.know_tiles, &map, ctx);
     draw_objects(&camera, &v.visible_tiles, &state.ecs, ctx);
 }
@@ -181,9 +182,11 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let avatars = &state.ecs.read_storage::<Player>();
     let positions = &state.ecs.read_storage::<Position>();
     let actions_st = &state.ecs.read_storage::<EntityActions>();
-    let map = &state.ecs.fetch::<GMap>();
 
     for (_avatar, position, actions) in (avatars, positions, actions_st).join() {
+        let grids = &state.ecs.read_storage::<GMap>();
+        let map = grids.get(position.grid_id).unwrap();
+
         let tile = map
             .cells
             .get(map.point2d_to_index(position.point))

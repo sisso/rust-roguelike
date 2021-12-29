@@ -1,6 +1,7 @@
-use crate::gmap::{Cell, GMap, TileType};
+use crate::gmap::{Cell, TileType};
 use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
+use crate::GMap;
 use rltk::{Algorithm2D, RGB};
 use specs::prelude::*;
 
@@ -125,11 +126,16 @@ pub fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
     })
 }
 
-pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseMapError> {
+pub fn parse_map_objects(
+    ecs: &mut World,
+    grid_id: Entity,
+    ast: ParseMapAst,
+) -> Result<(), ParseMapError> {
     let mut changes: Vec<(Position, ObjectsType)> = vec![];
     {
         let cfg = ecs.fetch::<super::cfg::Cfg>();
-        let map = ecs.fetch::<GMap>();
+        let grids = &ecs.read_storage::<GMap>();
+        let map = grids.get(grid_id).unwrap();
         for (index, cell) in ast.cells.iter().enumerate() {
             let kind = cfg
                 .raw_map_objects
@@ -145,7 +151,13 @@ pub fn parse_map_objects(ecs: &mut World, ast: ParseMapAst) -> Result<(), ParseM
 
             let pos = map.index_to_point2d(index);
 
-            changes.push((Position { point: pos }, kind));
+            changes.push((
+                Position {
+                    grid_id: grid_id,
+                    point: pos,
+                },
+                kind,
+            ));
         }
     }
 

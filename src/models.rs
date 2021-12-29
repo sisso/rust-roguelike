@@ -35,6 +35,7 @@ impl Player {
 
 #[derive(Component, Clone, Debug, PartialEq)]
 pub struct Position {
+    pub grid_id: Entity,
     pub point: rltk::Point,
 }
 

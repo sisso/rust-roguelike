@@ -4,7 +4,6 @@ use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 
 use specs::prelude::*;
-use specs::shred::Fetch;
 
 pub struct FindAvatarActionsSystem {}
 

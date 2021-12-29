@@ -7,6 +7,7 @@ use specs::prelude::*;
 use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::actions::EntityActions;
+use crate::gmap::GMap;
 use crate::models::*;
 use crate::ship::{Ship, ShipState};
 use crate::view::cockpit_window::CockpitWindowState;
@@ -14,7 +15,6 @@ use crate::view::window::Window;
 use crate::view::{Renderable, Viewshed};
 use crate::visibility_system::VisibilitySystem;
 
-mod GridMap;
 pub mod actions;
 pub mod cfg;
 pub mod cockpit;
@@ -22,6 +22,7 @@ pub mod events;
 pub mod gmap;
 pub mod loader;
 pub mod models;
+mod ngridmap;
 pub mod ship;
 pub mod utils;
 pub mod view;
@@ -87,6 +88,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Player>();
     gs.ecs.register::<CockpitWindowState>();
+    gs.ecs.register::<GMap>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =
@@ -96,9 +98,9 @@ fn main() -> rltk::BError {
     let spawn_y = map.height / 2;
 
     gs.ecs.insert(Window::World);
-    gs.ecs.insert(map);
     gs.ecs.insert(cfg);
     gs.ecs.insert(CockpitWindowState::default());
+    let grid_id = gs.ecs.create_entity().with(map).build();
     gs.ecs
         .create_entity()
         .with(Ship {
@@ -110,6 +112,7 @@ fn main() -> rltk::BError {
         .create_entity()
         .with(Avatar {})
         .with(Position {
+            grid_id,
             point: (spawn_x, spawn_y).into(),
         })
         .with(Renderable {
@@ -131,7 +134,7 @@ fn main() -> rltk::BError {
 
     gs.ecs.insert(Player::new(avatar_entity));
 
-    loader::parse_map_objects(&mut gs.ecs, map_ast).expect("fail to load map objects");
+    loader::parse_map_objects(&mut gs.ecs, grid_id, map_ast).expect("fail to load map objects");
 
     rltk::main_loop(context, gs)
 }

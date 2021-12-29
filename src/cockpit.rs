@@ -1,5 +1,6 @@
 use crate::State;
 
+#[derive(Clone, Debug)]
 pub enum Command {
     Status,
     Land,
@@ -8,5 +9,5 @@ pub enum Command {
 }
 
 pub fn list_commands(state: &State) -> Vec<Command> {
-    Vec::new()
+    vec![Command::Status, Command::Land]
 }

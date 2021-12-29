@@ -10,7 +10,7 @@ pub enum ShipState {
 
 #[derive(Component, Debug)]
 pub struct Ship {
-    // state: ShipState,
+    pub state: ShipState,
 }
 
 pub fn enter_cockpit(_avatar: &mut Player) {

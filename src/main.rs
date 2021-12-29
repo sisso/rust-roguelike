@@ -8,7 +8,8 @@ use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::actions::EntityActions;
 use crate::models::*;
-use crate::ship::Ship;
+use crate::ship::{Ship, ShipState};
+use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
 use crate::view::{Renderable, Viewshed};
 use crate::visibility_system::VisibilitySystem;
@@ -45,7 +46,6 @@ impl rltk::GameState for State {
             }
 
             Window::Cockpit => {
-                view::cockpit_window::input(self, ctx);
                 run_systems(self, ctx);
                 view::draw_map_and_objects(self, ctx);
                 view::cockpit_window::draw(self, ctx);
@@ -86,6 +86,7 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Ship>();
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Player>();
+    gs.ecs.register::<CockpitWindowState>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =
@@ -97,7 +98,13 @@ fn main() -> rltk::BError {
     gs.ecs.insert(Window::World);
     gs.ecs.insert(map);
     gs.ecs.insert(cfg);
-    gs.ecs.create_entity().with(Ship {}).build();
+    gs.ecs.insert(CockpitWindowState::default());
+    gs.ecs
+        .create_entity()
+        .with(Ship {
+            state: ShipState::Space,
+        })
+        .build();
     let avatar_entity = gs
         .ecs
         .create_entity()

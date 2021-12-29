@@ -1,9 +1,10 @@
 use crate::cockpit::Command;
 use crate::view::window::Window;
-use crate::{cfg, State};
+use crate::{cfg, GMap, Player, Position, Ship, ShipState, State};
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
+use std::borrow::Borrow;
 
 // pub fn input(gs: &mut State, ctx: &mut Rltk) {
 //     match ctx.key {
@@ -112,6 +113,23 @@ pub fn draw_status(state: &mut State, ctx: &mut Rltk) {
 
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "The cockpit Status page");
     y += 2;
+
+    let player = state.ecs.fetch::<Player>();
+    let pos_storage = state.ecs.read_storage::<Position>();
+    let pos = pos_storage.borrow().get(player.get_avatar()).unwrap();
+    let ship_storage = state.ecs.read_storage::<Ship>();
+    let ship = ship_storage.borrow().get(pos.grid_id).unwrap();
+
+    match ship.state {
+        ShipState::Space => {
+            ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship is in space");
+            y += 1;
+        }
+        ShipState::Landed => {
+            ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship landed");
+            y += 1;
+        }
+    }
 
     match ctx.key {
         Some(VirtualKeyCode::Escape) => {

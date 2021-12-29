@@ -28,6 +28,10 @@ impl Player {
         }
     }
 
+    pub fn get_avatar(&self) -> Entity {
+        return self.avatar;
+    }
+
     pub fn get_avatarset(&self) -> &BitSet {
         &self.bscurrent
     }

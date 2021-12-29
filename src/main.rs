@@ -100,12 +100,13 @@ fn main() -> rltk::BError {
     gs.ecs.insert(Window::World);
     gs.ecs.insert(cfg);
     gs.ecs.insert(CockpitWindowState::default());
-    let grid_id = gs.ecs.create_entity().with(map).build();
-    gs.ecs
+    let grid_id = gs
+        .ecs
         .create_entity()
         .with(Ship {
             state: ShipState::Space,
         })
+        .with(map)
         .build();
     let avatar_entity = gs
         .ecs

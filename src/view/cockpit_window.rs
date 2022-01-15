@@ -1,6 +1,6 @@
 use crate::cockpit::Command;
 use crate::view::window::Window;
-use crate::{cfg, GMap, Player, Position, Ship, ShipState, State};
+use crate::{cfg, GMap, Label, Player, Position, Ship, ShipState, State};
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
@@ -47,6 +47,8 @@ pub fn draw(state: &mut State, ctx: &mut Rltk) {
 }
 
 pub fn draw_main(state: &mut State, ctx: &mut Rltk) {
+    let labels = state.ecs.read_storage::<Label>();
+
     let border = 4;
 
     ctx.draw_box(
@@ -67,11 +69,16 @@ pub fn draw_main(state: &mut State, ctx: &mut Rltk) {
     let commands = super::super::cockpit::list_commands(&state.ecs);
     for (i, command) in commands.iter().enumerate() {
         let command_str = match command {
-            Command::Status => "status",
-            Command::Land => "land",
-            Command::FlyTo => "fly to",
-            Command::Launch => "launch",
+            Command::Status => "status".to_string(),
+            Command::Land => "land".to_string(),
+            Command::FlyTo { target_id } => {
+                let label = labels.get(*target_id);
+                let name = label.map(|i| i.name.as_str()).unwrap_or("unknown");
+                format!("fly to {}", name)
+            }
+            Command::Launch => "launch".to_string(),
         };
+
         ctx.print_color(
             x,
             y,
@@ -81,6 +88,7 @@ pub fn draw_main(state: &mut State, ctx: &mut Rltk) {
         );
         y += 1;
     }
+    std::mem::drop(labels);
 
     match ctx.key {
         Some(VirtualKeyCode::Key0) => try_do_command(state, ctx, commands.get(0).cloned()),

@@ -9,6 +9,11 @@ pub type P2 = Point;
 #[derive(Component, Debug)]
 pub struct Avatar {}
 
+#[derive(Component, Debug, Clone)]
+pub struct Label {
+    pub name: String,
+}
+
 #[derive(Component, Debug)]
 pub struct Player {
     avatar: Entity,
@@ -98,7 +103,7 @@ pub struct Galaxy {}
 
 #[derive(Component, Debug, Clone)]
 pub struct Sector {
-    bodies: Vec<Entity>,
+    pub bodies: Vec<Entity>,
 }
 
 impl Default for Sector {
@@ -109,9 +114,9 @@ impl Default for Sector {
 
 #[derive(Component, Debug, Clone)]
 pub enum SectorBody {
-    Planet { pos: P2 },
-    Station { pos: P2 },
-    Jump { pos: P2, target: Entity },
+    Planet,
+    Station,
+    Jump { target_pos: P2, target: Entity },
 }
 
 #[derive(Debug, Clone, Copy)]

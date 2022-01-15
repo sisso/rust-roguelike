@@ -24,6 +24,7 @@ pub mod gmap;
 pub mod loader;
 pub mod models;
 pub mod ngridmap;
+pub mod sectors;
 pub mod ship;
 pub mod utils;
 pub mod view;
@@ -31,49 +32,6 @@ pub mod visibility_system;
 
 pub struct State {
     pub ecs: World,
-}
-
-// pub struct EcsRef<'a, T: Component> {
-//     pub rep_ref: &'a ReadStorage<'a, T>,
-//     pub value: &'a T,
-// }
-//
-// pub fn get_avatar_position(world: &World) -> &Position {
-//     let player = world.fetch::<Player>();
-//     let avatar_id = player.borrow().get_avatar();
-//     let storage = world.read_storage::<Position>().borrow();
-//     storage.get(avatar_id).expect("avatar has no position")
-// }
-
-impl State {
-    pub fn get_player_avatar(&self) -> Entity {
-        let player = self.ecs.fetch::<Player>();
-        player.borrow().get_avatar()
-    }
-
-    // pub fn get_avatar_position<'a>(&'a self) -> EcsRef<'a, Position> {
-    //     let avatar_id = self.get_player_avatar();
-    //     let storage = self.ecs.read_storage::<Position>().borrow();
-    //     let val = storage.get(avatar_id).expect("avatar has no position");
-    //     EcsRef {
-    //         rep_ref: storage,
-    //         value: val,
-    //     }
-    // }
-
-    pub fn get_avatar_position(&self) -> Position {
-        let avatar_id = self.get_player_avatar();
-        let storage = self.ecs.read_storage::<Position>();
-        storage
-            .get(avatar_id)
-            .expect("avatar has no position")
-            .clone()
-    }
-
-    pub fn get_player_ship(&self) -> Option<Ship> {
-        let pos = self.get_avatar_position();
-        self.ecs.read_storage::<Ship>().get(pos.grid_id).cloned()
-    }
 }
 
 impl rltk::GameState for State {
@@ -136,6 +94,8 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Location>();
     gs.ecs.register::<Surface>();
     gs.ecs.register::<Sector>();
+    gs.ecs.register::<Label>();
+    gs.ecs.register::<SectorBody>();
 
     let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let map =
@@ -153,9 +113,13 @@ fn main() -> rltk::BError {
     let planet_id = gs
         .ecs
         .create_entity()
+        .with(SectorBody::Planet)
         .with(Location::Sector {
             sector: sector_id,
             pos: P2::new(5, 0),
+        })
+        .with(Label {
+            name: "Planet X".to_string(),
         })
         .with(Surface {
             width: 2,
@@ -175,7 +139,10 @@ fn main() -> rltk::BError {
         .with(Ship {
             state: ShipState::Space,
         })
-        .with(Location::Orbit { body: planet_id })
+        .with(Location::Sector {
+            sector: sector_id,
+            pos: P2::new(0, 0),
+        })
         .with(map)
         .build();
     let avatar_entity = gs
@@ -206,6 +173,8 @@ fn main() -> rltk::BError {
     gs.ecs.insert(Player::new(avatar_entity));
 
     loader::parse_map_objects(&mut gs.ecs, grid_id, map_ast).expect("fail to load map objects");
+
+    sectors::update_objects_list(&mut gs.ecs);
 
     rltk::main_loop(context, gs)
 }

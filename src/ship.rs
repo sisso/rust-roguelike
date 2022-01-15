@@ -8,7 +8,7 @@ pub enum ShipState {
     Landed,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct Ship {
     pub state: ShipState,
 }

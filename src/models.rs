@@ -101,6 +101,12 @@ pub struct Sector {
     bodies: Vec<Entity>,
 }
 
+impl Default for Sector {
+    fn default() -> Self {
+        Sector { bodies: vec![] }
+    }
+}
+
 #[derive(Component, Debug, Clone)]
 pub enum SectorBody {
     Planet { pos: P2 },
@@ -108,13 +114,19 @@ pub enum SectorBody {
     Jump { pos: P2, target: Entity },
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct Surface {
-    width: u32,
-    height: u32,
-    tiles: Vec<TileType>,
+#[derive(Debug, Clone, Copy)]
+pub enum SurfaceTileKind {
+    Plain,
 }
 
+#[derive(Component, Debug, Clone)]
+pub struct Surface {
+    pub width: u32,
+    pub height: u32,
+    pub tiles: Vec<SurfaceTileKind>,
+}
+
+#[derive(Component, Debug, Clone)]
 pub enum Location {
     // flying through the sector
     Sector {
@@ -123,18 +135,19 @@ pub enum Location {
     },
     // orbiting a body
     Orbit {
-        sector: Entity,
         body: Entity,
     },
     // at surface, in big map scale (ship is a dot)
     BodySurface {
         body: Entity,
-        pos: P2,
+        place_coords: P2,
     },
     // at surface, low scale map (ship is full model)
     BodySurfacePlace {
         body: Entity,
+        // place in big scale map
+        place_coords: P2,
+        // pos in surface
         surface_pos: P2,
-        place: P2,
     },
 }

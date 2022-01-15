@@ -64,7 +64,7 @@ pub fn draw_main(state: &mut State, ctx: &mut Rltk) {
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "The cockpit");
     y += 2;
 
-    let commands = super::super::cockpit::list_commands(state);
+    let commands = super::super::cockpit::list_commands(&state.ecs);
     for (i, command) in commands.iter().enumerate() {
         let command_str = match command {
             Command::Status => "status",

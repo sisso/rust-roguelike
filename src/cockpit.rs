@@ -1,4 +1,4 @@
-use crate::{ship, Location, Player, Position, Sector, Ship, State, P2};
+use crate::{ship, Location, Sector, Ship, State};
 use log::{info, warn};
 use specs::prelude::*;
 
@@ -34,10 +34,7 @@ pub fn list_commands(ecs: &World, ship_id: Entity) -> Vec<Command> {
     let mut commands = vec![];
 
     match location {
-        Location::Sector {
-            sector_id: sector_id,
-            ..
-        } => {
+        Location::Sector { sector_id, .. } => {
             let sector = sectors.get(*sector_id).unwrap();
             for body_id in &sector.bodies {
                 if *body_id == ship_id {

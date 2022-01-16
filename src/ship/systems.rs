@@ -61,7 +61,10 @@ impl<'a> System<'a> for FlyToSystem {
                                 },
                             );
                         }
-                        Some(Location::Sector { pos, sector }) => {
+                        Some(Location::Sector {
+                            pos,
+                            sector_id: sector,
+                        }) => {
                             let mut delta_x = clamp(target_pos.x - pos.x, -1, 1);
                             let mut delta_y = clamp(target_pos.y - pos.y, -1, 1);
                             info!("moving {:?} by {},{}", pos, delta_x, delta_y);

@@ -1,6 +1,8 @@
 use crate::view::window::Window;
-use crate::{cfg, cockpit, ship, GMap, Label, Location, Player, Position, Ship, State};
-use log::info;
+use crate::{
+    cfg, cockpit, ship, GMap, Label, Location, Player, Position, Sector, SectorBody, Ship, State,
+};
+use log::{info, warn};
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
@@ -61,8 +63,6 @@ pub fn draw(state: &mut State, ctx: &mut Rltk) {
 }
 
 fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
-    let labels = state.ecs.read_storage::<Label>();
-
     let border = 4;
 
     ctx.draw_box(
@@ -80,6 +80,9 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "The cockpit");
     y += 2;
 
+    y = draw_sector_map(state, ctx, x, y, info.ship_id);
+
+    let labels = state.ecs.read_storage::<Label>();
     let commands = super::super::cockpit::list_commands(&state.ecs, info.ship_id);
     for (i, command) in commands.iter().enumerate() {
         let command_str = match command {
@@ -218,9 +221,71 @@ fn try_do_command(
                 .get_mut(ship_id)
                 .unwrap()
                 .current_command = ship_command;
-            state.ecs.fetch_mut::<CockpitWindowState>().sub_window = SubWindow::Status;
+            state.ecs.fetch_mut::<CockpitWindowState>().sub_window = SubWindow::Main;
             Ok(())
         }
         _ => Err("unknown command".to_string()),
     }
+}
+
+/// return ne y value
+fn draw_sector_map(state: &mut State, ctx: &mut Rltk, x: i32, y: i32, ship_id: Entity) -> i32 {
+    let entities = state.ecs.entities();
+    let sectors = state.ecs.read_storage::<Sector>();
+    let locations = state.ecs.read_storage::<Location>();
+    let labels = state.ecs.read_storage::<Label>();
+
+    // get ship location
+    let (ship_pos, ship_sector_id) = match locations.get(ship_id) {
+        Some(Location::Sector {
+            pos,
+            sector_id: sector_id,
+        }) => (pos.clone(), *sector_id),
+        _ => {
+            return y;
+        }
+    };
+
+    // draw frame
+    let mut fg = rltk::GRAY;
+    let bg = rltk::GRAY;
+    for ix in 0..cfg::SECTOR_SIZE {
+        for iy in 0..cfg::SECTOR_SIZE {
+            ctx.set(x + ix, y + iy, fg, bg, ' ' as rltk::FontCharType);
+        }
+    }
+
+    // draw objects
+    let sector = sectors.get(ship_sector_id).unwrap();
+
+    let mut bodies_bitset = BitSet::default();
+    sector.bodies.iter().for_each(|i| {
+        let _ = bodies_bitset.add(i.id());
+    });
+
+    for (e, loc, lab) in (&entities, &locations, &labels).join() {
+        let (pos, _) = match crate::locations::resolve_sector_pos(&locations, e) {
+            Some(value) => value,
+            _ => continue,
+        };
+
+        let index_x = pos.x + cfg::SECTOR_SIZE / 2;
+        let index_y = pos.y + cfg::SECTOR_SIZE / 2;
+
+        if index_x < 0 || index_y < 0 || index_x >= cfg::SECTOR_SIZE || index_y >= cfg::SECTOR_SIZE
+        {
+            warn!(
+                "entity {:?} position {:?} with index {:?} is outside of sector map",
+                e,
+                pos,
+                (index_x, index_y)
+            );
+            continue;
+        }
+
+        fg = rltk::GREEN;
+        ctx.set(x + index_x, y + index_y, fg, bg, '*' as rltk::FontCharType);
+    }
+
+    y + 1 + cfg::SECTOR_SIZE
 }

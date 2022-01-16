@@ -19,7 +19,8 @@ pub fn list_commands(ecs: &World, ship_id: Entity) -> Vec<Command> {
 
     match location {
         Location::Sector {
-            sector: sector_id, ..
+            sector_id: sector_id,
+            ..
         } => {
             let sector = sectors.get(*sector_id).unwrap();
             for body_id in &sector.bodies {

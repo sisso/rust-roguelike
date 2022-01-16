@@ -1,4 +1,5 @@
 use crate::{Location, Sector};
+use log::debug;
 use specs::prelude::*;
 
 pub fn update_objects_list(ecs: &mut World) {
@@ -9,12 +10,19 @@ pub fn update_objects_list(ecs: &mut World) {
     for (obj_id, location) in (&objects, &locations).join() {
         match location {
             Location::Sector {
-                sector: sector_id, ..
+                sector_id: sector_id,
+                ..
             } => {
                 let sector = sectors.get_mut(*sector_id).unwrap();
+                debug!(
+                    "adding {:?} at {:?} to sector {:?}",
+                    obj_id, location, sector_id
+                );
                 sector.bodies.push(obj_id)
             }
-            _ => {}
+            _ => {
+                debug!("skipping {:?} at {:?}", obj_id, location);
+            }
         }
     }
 }

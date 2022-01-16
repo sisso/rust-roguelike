@@ -21,6 +21,7 @@ pub mod cockpit;
 pub mod events;
 pub mod gmap;
 pub mod loader;
+pub mod locations;
 pub mod models;
 pub mod ngridmap;
 pub mod sectors;
@@ -117,7 +118,7 @@ fn main() -> rltk::BError {
         .create_entity()
         .with(SectorBody::Planet)
         .with(Location::Sector {
-            sector: sector_id,
+            sector_id: sector_id,
             pos: P2::new(5, 0),
         })
         .with(Label {
@@ -135,15 +136,18 @@ fn main() -> rltk::BError {
         })
         .build();
 
-    let grid_id = gs
+    let ship_id = gs
         .ecs
         .create_entity()
+        .with(Label {
+            name: "ship".to_string(),
+        })
         .with(Ship {
             current_command: ship::Command::Idle,
             move_calm_down: 0,
         })
         .with(Location::Sector {
-            sector: sector_id,
+            sector_id: sector_id,
             pos: P2::new(0, 0),
         })
         .with(map)
@@ -152,8 +156,11 @@ fn main() -> rltk::BError {
         .ecs
         .create_entity()
         .with(Avatar {})
+        .with(Label {
+            name: "player".to_string(),
+        })
         .with(Position {
-            grid_id,
+            grid_id: ship_id,
             point: (spawn_x, spawn_y).into(),
         })
         .with(Renderable {
@@ -175,7 +182,7 @@ fn main() -> rltk::BError {
 
     gs.ecs.insert(Player::new(avatar_entity));
 
-    loader::parse_map_objects(&mut gs.ecs, grid_id, map_ast).expect("fail to load map objects");
+    loader::parse_map_objects(&mut gs.ecs, ship_id, map_ast).expect("fail to load map objects");
 
     sectors::update_objects_list(&mut gs.ecs);
 

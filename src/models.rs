@@ -117,6 +117,7 @@ pub enum SectorBody {
     Planet,
     Station,
     Jump { target_pos: P2, target: Entity },
+    Ship,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -135,7 +136,7 @@ pub struct Surface {
 pub enum Location {
     // flying through the sector
     Sector {
-        sector: Entity,
+        sector_id: Entity,
         pos: P2,
     },
     // orbiting a body
@@ -144,12 +145,12 @@ pub enum Location {
     },
     // at surface, in big map scale (ship is a dot)
     BodySurface {
-        body: Entity,
+        body_id: Entity,
         place_coords: P2,
     },
     // at surface, low scale map (ship is full model)
     BodySurfacePlace {
-        body: Entity,
+        body_id: Entity,
         // place in big scale map
         place_coords: P2,
         // pos in surface

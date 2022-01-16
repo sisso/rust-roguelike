@@ -16,7 +16,7 @@ pub struct Label {
 
 #[derive(Component, Debug)]
 pub struct Player {
-    avatar: Entity,
+    avatar_id: Entity,
     avatar_queue: Vec<Entity>,
     bscurrent: BitSet,
 }
@@ -27,14 +27,14 @@ impl Player {
         bsc.add(current.id());
 
         Player {
-            avatar: current,
+            avatar_id: current,
             avatar_queue: Default::default(),
             bscurrent: bsc,
         }
     }
 
-    pub fn get_avatar(&self) -> Entity {
-        return self.avatar;
+    pub fn get_avatar_id(&self) -> Entity {
+        return self.avatar_id;
     }
 
     pub fn get_avatarset(&self) -> &BitSet {
@@ -140,7 +140,7 @@ pub enum Location {
     },
     // orbiting a body
     Orbit {
-        body: Entity,
+        target_id: Entity,
     },
     // at surface, in big map scale (ship is a dot)
     BodySurface {

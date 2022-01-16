@@ -1,8 +1,7 @@
-use std::borrow::Borrow;
 use std::collections::HashSet;
 
 use log::*;
-use rltk::{Point, Rltk, RGB};
+use rltk::{Rltk, RGB};
 use specs::prelude::*;
 
 use crate::actions::actions_system::ActionsSystem;
@@ -10,7 +9,7 @@ use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::actions::EntityActions;
 use crate::gmap::GMap;
 use crate::models::*;
-use crate::ship::{Ship, ShipState};
+use crate::ship::Ship;
 use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
 use crate::view::{Renderable, Viewshed};
@@ -67,6 +66,9 @@ pub fn run_systems(st: &mut State, _ctx: &mut Rltk) {
     let mut s = ActionsSystem {};
     s.run_now(&st.ecs);
 
+    let mut s = ship::systems::FlyToSystem {};
+    s.run_now(&st.ecs);
+
     st.ecs.maintain();
 }
 
@@ -110,7 +112,7 @@ fn main() -> rltk::BError {
 
     let sector_id = gs.ecs.create_entity().with(Sector::default()).build();
 
-    let planet_id = gs
+    let _planet_id = gs
         .ecs
         .create_entity()
         .with(SectorBody::Planet)
@@ -137,7 +139,8 @@ fn main() -> rltk::BError {
         .ecs
         .create_entity()
         .with(Ship {
-            state: ShipState::Space,
+            current_command: ship::Command::Idle,
+            move_calm_down: 0,
         })
         .with(Location::Sector {
             sector: sector_id,

@@ -1,4 +1,5 @@
-use crate::{Location, Player, Position, Sector, Ship, State, P2};
+use crate::{ship, Location, Player, Position, Sector, Ship, State, P2};
+use log::{info, warn};
 use specs::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -6,6 +7,22 @@ pub enum Command {
     Land,
     FlyTo { target_id: Entity },
     Launch,
+}
+
+pub fn do_command(ecs: &mut World, ship_id: Entity, command: &Command) {
+    match command {
+        Command::FlyTo { target_id } => {
+            let ship_command = ship::Command::FlyTo {
+                target_id: *target_id,
+            };
+            info!("update ship {:?} command to {:?}", ship_id, ship_command);
+            ecs.write_storage::<Ship>()
+                .get_mut(ship_id)
+                .unwrap()
+                .current_command = ship_command;
+        }
+        other => warn!("unexpected command {:?}", other),
+    }
 }
 
 pub fn list_commands(ecs: &World, ship_id: Entity) -> Vec<Command> {

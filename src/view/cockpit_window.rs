@@ -184,23 +184,10 @@ fn try_do_command(
     ship_id: Entity,
     command: Option<&cockpit::Command>,
 ) -> Result<(), String> {
-    match command {
-        Some(cockpit::Command::FlyTo { target_id }) => {
-            let ship_command = ship::Command::FlyTo {
-                target_id: *target_id,
-            };
-            info!("update ship {:?} command to {:?}", ship_id, ship_command);
-            state
-                .ecs
-                .write_storage::<Ship>()
-                .get_mut(ship_id)
-                .unwrap()
-                .current_command = ship_command;
-            state.ecs.fetch_mut::<CockpitWindowState>().sub_window = SubWindow::Main;
-            Ok(())
-        }
-        _ => Err("unknown command".to_string()),
+    if let Some(command) = command {
+        cockpit::do_command(&mut state.ecs, ship_id, command);
     }
+    Ok(())
 }
 
 /// return ne y value

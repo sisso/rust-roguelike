@@ -3,7 +3,6 @@ use specs::prelude::*;
 
 #[derive(Clone, Debug)]
 pub enum Command {
-    Status,
     Land,
     FlyTo { target_id: Entity },
     Launch,
@@ -15,7 +14,7 @@ pub fn list_commands(ecs: &World, ship_id: Entity) -> Vec<Command> {
 
     let location = locations.get(ship_id).expect("ship has no location");
 
-    let mut commands = vec![Command::Status];
+    let mut commands = vec![];
 
     match location {
         Location::Sector {

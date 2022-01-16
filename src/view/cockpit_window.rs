@@ -30,7 +30,6 @@ impl LocalInfo {
 #[derive(Clone, Copy, Debug)]
 pub enum SubWindow {
     Main,
-    Status,
 }
 
 #[derive(Component, Debug)]
@@ -58,7 +57,6 @@ pub fn draw(state: &mut State, ctx: &mut Rltk) {
 
     match sub_window {
         SubWindow::Main => draw_main(state, ctx, info),
-        SubWindow::Status => draw_status(state, ctx, info),
     }
 }
 
@@ -80,13 +78,14 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "The cockpit");
     y += 2;
 
+    y = draw_status(state, ctx, &info, x, y);
+
     y = draw_sector_map(state, ctx, x, y, info.ship_id);
 
     let labels = state.ecs.read_storage::<Label>();
     let commands = super::super::cockpit::list_commands(&state.ecs, info.ship_id);
     for (i, command) in commands.iter().enumerate() {
         let command_str = match command {
-            cockpit::Command::Status => "status".to_string(),
             cockpit::Command::Land => "land".to_string(),
             cockpit::Command::FlyTo { target_id } => {
                 let label = labels.get(*target_id);
@@ -138,29 +137,14 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     }
 }
 
-fn draw_status(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
-    let border = 4;
-
-    ctx.draw_box(
-        border,
-        border,
-        cfg::SCREEN_W - border * 2,
-        cfg::SCREEN_H - border * 2,
-        RGB::named(rltk::WHITE),
-        RGB::named(rltk::BLACK),
-    );
-
-    let mut x = border + 2;
-    let mut y = border + 2;
-
-    ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "The cockpit Status page");
-    y += 2;
-
+fn draw_status(state: &mut State, ctx: &mut Rltk, info: &LocalInfo, x: i32, mut y: i32) -> i32 {
     let ship_storage = state.ecs.read_storage::<Ship>();
     let location_storage = state.ecs.read_storage::<Location>();
 
     let ship = ship_storage.get(info.ship_id);
     let location = location_storage.get(info.ship_id);
+
+    y += 1;
 
     match (location, &ship.map(|i| i.current_command)) {
         (Some(Location::Sector { pos, .. }), Some(ship::Command::FlyTo { .. })) => {
@@ -191,12 +175,7 @@ fn draw_status(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
         }
     }
 
-    match ctx.key {
-        Some(VirtualKeyCode::Escape) => {
-            state.ecs.fetch_mut::<CockpitWindowState>().sub_window = SubWindow::Main;
-        }
-        _ => {}
-    }
+    y
 }
 
 fn try_do_command(
@@ -206,10 +185,6 @@ fn try_do_command(
     command: Option<&cockpit::Command>,
 ) -> Result<(), String> {
     match command {
-        Some(cockpit::Command::Status) => {
-            state.ecs.fetch_mut::<CockpitWindowState>().sub_window = SubWindow::Status;
-            Ok(())
-        }
         Some(cockpit::Command::FlyTo { target_id }) => {
             let ship_command = ship::Command::FlyTo {
                 target_id: *target_id,
@@ -283,7 +258,12 @@ fn draw_sector_map(state: &mut State, ctx: &mut Rltk, x: i32, y: i32, ship_id: E
             continue;
         }
 
-        fg = rltk::GREEN;
+        if e == ship_id {
+            fg = rltk::BLUE;
+        } else {
+            fg = rltk::GREEN;
+        }
+
         ctx.set(x + index_x, y + index_y, fg, bg, '*' as rltk::FontCharType);
     }
 

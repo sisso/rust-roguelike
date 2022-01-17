@@ -1,7 +1,7 @@
 use crate::view::window::Window;
 use crate::{
-    cfg, ship, GMap, Label, Location, Player, Position, Sector, SectorBody, Ship, State, Surface,
-    P2,
+    cfg, ship, Dir, GMap, Label, Location, Player, Position, Sector, SectorBody, Ship, State,
+    Surface, P2,
 };
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
@@ -41,7 +41,7 @@ impl LocalInfo {
 #[derive(Clone, Copy, Debug)]
 pub enum SubWindow {
     Main,
-    Land,
+    Land { selected: P2 },
 }
 
 /// list of commands that a cockpit can show
@@ -50,13 +50,6 @@ enum MenuOption {
     Land,
     FlyTo { target_id: Entity },
     Launch,
-}
-
-/// list of commands of land menu
-#[derive(Clone, Debug)]
-enum LandMenuOption {
-    Back,
-    LandAt(i32, i32),
 }
 
 #[derive(Component, Debug)]
@@ -93,7 +86,7 @@ pub fn draw(state: &mut State, ctx: &mut Rltk) {
 
     match sub_window {
         SubWindow::Main => draw_main(state, ctx, info),
-        SubWindow::Land => draw_land_menu(state, ctx, info),
+        SubWindow::Land { .. } => draw_land_menu(state, ctx, info),
     }
 }
 
@@ -120,7 +113,7 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     // sector
     y = draw_sector_map(state, ctx, x, y, info.ship_id);
     // orbiting map
-    y = draw_orbiting_map(state, ctx, &info, x, y);
+    y = draw_orbiting_map(state, ctx, &info, x, y, None);
     // actions
     let commands = list_commands(&state.ecs, info.ship_id);
     y = draw_actions(state, ctx, x, y, &commands);
@@ -234,7 +227,9 @@ fn try_do_command(
     command: Option<&MenuOption>,
 ) -> Result<(), String> {
     match command {
-        Some(MenuOption::Land) => state.ecs.insert(CockpitWindowState::new(SubWindow::Land)),
+        Some(MenuOption::Land) => state.ecs.insert(CockpitWindowState::new(SubWindow::Land {
+            selected: P2::new(0, 0),
+        })),
 
         Some(MenuOption::FlyTo { target_id }) => set_ship_command(
             &mut state.ecs,
@@ -324,6 +319,7 @@ fn draw_orbiting_map(
     info: &LocalInfo,
     x: i32,
     mut y: i32,
+    selected: Option<P2>,
 ) -> i32 {
     let locations_storage = state.ecs.read_storage::<Location>();
     let orbiting_id = match locations_storage.get(info.ship_id) {
@@ -341,10 +337,14 @@ fn draw_orbiting_map(
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Orbiting surface");
     y += 1;
 
-    for _ in 0..surface.height {
+    for sy in 0..surface.height {
         for sx in 0..surface.width {
-            let fg = rltk::GREEN;
+            let mut fg = rltk::GREEN;
             let bg = rltk::GRAY;
+
+            if Some(P2::new(sx, sy)) == selected {
+                fg = rltk::BLUE;
+            }
 
             ctx.set(x + sx as i32, y, fg, bg, '#' as rltk::FontCharType);
         }
@@ -376,10 +376,13 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     // status
     y = draw_status(state, ctx, &info, x, y);
     // orbiting map
-    y = draw_orbiting_map(state, ctx, &info, x, y);
+    let selected = match state.ecs.fetch::<CockpitWindowState>().sub_window {
+        SubWindow::Land { selected } => selected,
+        _ => panic!("unexpected subwindow"),
+    };
+    y = draw_orbiting_map(state, ctx, &info, x, y, Some(selected));
 
     // draw options to land
-    let mut options = vec![LandMenuOption::Back];
     let surfaces_storage = state.ecs.read_storage::<Surface>();
     let orbiting_id = match info.orbiting_id {
         Some(id) => id,
@@ -394,46 +397,68 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
         }
     };
 
+    let surface_size = P2::new(surface.width, surface.height);
+
     y += 1;
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Orbiting surface");
+    y += 2;
+    ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "0) back");
+    y += 1;
+    ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "1) land");
     y += 1;
 
-    for sy in 0..surface.height {
-        for sx in 0..surface.width {
-            options.push(LandMenuOption::LandAt(sx as i32, sy as i32));
-        }
-    }
-
-    for (i, option) in options.iter().enumerate() {
-        let option_str = match option {
-            LandMenuOption::Back => format!("{}) back", i),
-            LandMenuOption::LandAt(x, y) => format!("{}) land at ({},{})", i, x, y),
-        };
-
-        ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, option_str);
-        y += 1;
-    }
-
     // process inputs
-    match get_key_index(ctx.key).and_then(|index| options.get(index)) {
-        Some(LandMenuOption::Back) => {
-            std::mem::drop(surfaces_storage);
+    std::mem::drop(surfaces_storage);
+    match (ctx.key, get_key_index(ctx.key)) {
+        (_, Some(index)) if index == 0 => {
             state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
         }
-        Some(LandMenuOption::LandAt(x, y)) => {
-            std::mem::drop(surfaces_storage);
-
+        (_, Some(index)) if index == 1 => {
             set_ship_command(
                 &mut state.ecs,
                 info.ship_id,
                 ship::Command::Land {
                     target_id: orbiting_id,
-                    coords: P2::new(*x, *y),
+                    coords: selected,
                 },
             );
         }
+        (Some(VirtualKeyCode::Up), _) => {
+            set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::N)
+        }
+        (Some(VirtualKeyCode::Right), _) => {
+            set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::E)
+        }
+        (Some(VirtualKeyCode::Down), _) => {
+            set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::S)
+        }
+        (Some(VirtualKeyCode::Left), _) => {
+            set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::W)
+        }
+
         _ => {}
     }
+}
+
+fn set_selected_land_position(ecs: &mut World, surface_size: P2, mut current: P2, dir: Dir) {
+    let v = dir.as_vec();
+    current.x += v.0;
+    current.y += v.1;
+
+    if current.x < 0 {
+        current.x = surface_size.x;
+    }
+    if current.y < 0 {
+        current.y = surface_size.y;
+    }
+    if current.x >= surface_size.x {
+        current.x = 0;
+    }
+    if current.y >= surface_size.y {
+        current.y = 0;
+    }
+
+    ecs.fetch_mut::<CockpitWindowState>().sub_window = SubWindow::Land { selected: current };
 }
 
 fn set_ship_command(ecs: &mut World, ship_id: Entity, ship_command: ship::Command) {

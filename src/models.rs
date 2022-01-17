@@ -62,12 +62,12 @@ impl Position {
     // }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug, Hash, Eq)]
 pub enum Dir {
     N,
+    E,
     S,
     W,
-    E,
 }
 
 impl Dir {
@@ -88,8 +88,16 @@ impl Dir {
             Dir::W => "w",
         }
     }
-}
 
+    pub fn as_vec(&self) -> (i32, i32) {
+        match self {
+            Dir::N => (0, -1),
+            Dir::S => (0, 1),
+            Dir::W => (-1, 0),
+            Dir::E => (1, 0),
+        }
+    }
+}
 #[derive(Component, PartialEq, Copy, Clone, Debug)]
 pub enum ObjectsType {
     Door { vertical: bool },

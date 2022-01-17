@@ -76,6 +76,10 @@ impl<'a> System<'a> for FlyToSystem {
                         }
                     }
                 }
+
+                Command::Land { target_id, coords } => {
+                    //
+                }
                 _ => {}
             }
         }

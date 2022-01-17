@@ -1,8 +1,7 @@
-use crate::cockpit::Command;
 use crate::view::window::Window;
 use crate::{
-    cfg, cockpit, ship, GMap, Label, Location, Player, Position, Sector, SectorBody, Ship, State,
-    Surface,
+    cfg, ship, GMap, Label, Location, Player, Position, Sector, SectorBody, Ship, State, Surface,
+    P2,
 };
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
@@ -43,6 +42,21 @@ impl LocalInfo {
 pub enum SubWindow {
     Main,
     Land,
+}
+
+/// list of commands that a cockpit can show
+#[derive(Clone, Debug)]
+enum MenuOption {
+    Land,
+    FlyTo { target_id: Entity },
+    Launch,
+}
+
+/// list of commands of land menu
+#[derive(Clone, Debug)]
+enum LandMenuOption {
+    Back,
+    LandAt(i32, i32),
 }
 
 #[derive(Component, Debug)]
@@ -108,7 +122,7 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     // orbiting map
     y = draw_orbiting_map(state, ctx, &info, x, y);
     // actions
-    let commands = super::super::cockpit::list_commands(&state.ecs, info.ship_id);
+    let commands = list_commands(&state.ecs, info.ship_id);
     y = draw_actions(state, ctx, x, y, &commands);
     // draw messages
     y = draw_msg(state, ctx, border, x, y);
@@ -145,18 +159,18 @@ fn draw_actions(
     ctx: &mut BTerm,
     x: i32,
     mut y: i32,
-    commands: &Vec<Command>,
+    commands: &Vec<MenuOption>,
 ) -> i32 {
     let labels = state.ecs.read_storage::<Label>();
     for (i, command) in commands.iter().enumerate() {
         let command_str = match command {
-            cockpit::Command::Land => "land".to_string(),
-            cockpit::Command::FlyTo { target_id } => {
+            MenuOption::Land => "land".to_string(),
+            MenuOption::FlyTo { target_id } => {
                 let label = labels.get(*target_id);
                 let name = label.map(|i| i.name.as_str()).unwrap_or("unknown");
                 format!("fly to {}", name)
             }
-            cockpit::Command::Launch => "launch".to_string(),
+            MenuOption::Launch => "launch".to_string(),
         };
 
         ctx.print_color(
@@ -217,12 +231,18 @@ fn try_do_command(
     state: &mut State,
     ctx: &mut Rltk,
     ship_id: Entity,
-    command: Option<&cockpit::Command>,
+    command: Option<&MenuOption>,
 ) -> Result<(), String> {
     match command {
-        Some(cockpit::Command::Land) => state.ecs.insert(CockpitWindowState::new(SubWindow::Land)),
+        Some(MenuOption::Land) => state.ecs.insert(CockpitWindowState::new(SubWindow::Land)),
 
-        Some(command) => cockpit::do_command(&mut state.ecs, ship_id, command),
+        Some(MenuOption::FlyTo { target_id }) => set_ship_command(
+            &mut state.ecs,
+            ship_id,
+            ship::Command::FlyTo {
+                target_id: *target_id,
+            },
+        ),
         _ => {}
     }
     Ok(())
@@ -335,11 +355,6 @@ fn draw_orbiting_map(
     y
 }
 
-enum LandMenuOption {
-    Back,
-    LandAt(i32, i32),
-}
-
 fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     // frame
     let border = 4;
@@ -366,11 +381,11 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     // draw options to land
     let mut options = vec![LandMenuOption::Back];
     let surfaces_storage = state.ecs.read_storage::<Surface>();
-    let surface = match info
-        .orbiting_id
-        .as_ref()
-        .and_then(|id| surfaces_storage.get(*id))
-    {
+    let orbiting_id = match info.orbiting_id {
+        Some(id) => id,
+        None => return,
+    };
+    let surface = match surfaces_storage.get(orbiting_id) {
         Some(surface) => surface,
         _ => {
             std::mem::drop(surfaces_storage);
@@ -406,10 +421,27 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
             state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
         }
         Some(LandMenuOption::LandAt(x, y)) => {
-            todo!()
+            std::mem::drop(surfaces_storage);
+
+            set_ship_command(
+                &mut state.ecs,
+                info.ship_id,
+                ship::Command::Land {
+                    target_id: orbiting_id,
+                    coords: P2::new(*x, *y),
+                },
+            );
         }
         _ => {}
     }
+}
+
+fn set_ship_command(ecs: &mut World, ship_id: Entity, ship_command: ship::Command) {
+    info!("update ship {:?} command to {:?}", ship_id, ship_command);
+    ecs.write_storage::<Ship>()
+        .get_mut(ship_id)
+        .unwrap()
+        .current_command = ship_command;
 }
 
 pub fn get_key_index(key: Option<VirtualKeyCode>) -> Option<usize> {
@@ -426,4 +458,37 @@ pub fn get_key_index(key: Option<VirtualKeyCode>) -> Option<usize> {
         Some(VirtualKeyCode::Key9) => Some(9),
         _ => None,
     }
+}
+
+fn list_commands(ecs: &World, ship_id: Entity) -> Vec<MenuOption> {
+    let locations = ecs.read_storage::<Location>();
+    let sectors = ecs.read_storage::<Sector>();
+
+    let location = locations.get(ship_id).expect("ship has no location");
+
+    let mut commands = vec![];
+
+    match location {
+        Location::Sector { sector_id, .. } => {
+            let sector = sectors.get(*sector_id).unwrap();
+            for body_id in &sector.bodies {
+                if *body_id == ship_id {
+                    continue;
+                }
+
+                commands.push(MenuOption::FlyTo {
+                    target_id: *body_id,
+                });
+            }
+        }
+        Location::Orbit { .. } => {
+            commands.push(MenuOption::Land);
+        }
+        Location::BodySurface { .. } => {
+            commands.push(MenuOption::Launch);
+        }
+        Location::BodySurfacePlace { .. } => {}
+    }
+
+    commands
 }

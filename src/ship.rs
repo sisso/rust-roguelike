@@ -11,6 +11,8 @@ pub const FLY_SLEEP_TIME: u32 = 60;
 pub enum Command {
     Idle,
     FlyTo { target_id: Entity },
+    Land { target_id: Entity, coords: P2 },
+    Launch,
 }
 
 #[derive(Component, Debug, Clone)]

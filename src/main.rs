@@ -17,7 +17,6 @@ use crate::visibility_system::VisibilitySystem;
 
 pub mod actions;
 pub mod cfg;
-pub mod cockpit;
 pub mod events;
 pub mod gmap;
 pub mod loader;

@@ -1,4 +1,3 @@
-use crate::gmap::TileType;
 use rltk::Point;
 use specs::prelude::*;
 use specs_derive::*;

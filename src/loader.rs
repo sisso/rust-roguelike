@@ -1,12 +1,11 @@
-use crate::gmap::{Cell, TileType};
+use crate::gmap::{Cell, GMap, GMapTile};
 use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
-use crate::GMap;
 use rltk::{Algorithm2D, RGB};
 use specs::prelude::*;
 
 pub fn parse_map_tiles(
-    legend: &Vec<(char, TileType)>,
+    legend: &Vec<(char, GMapTile)>,
     map: &ParseMapAst,
 ) -> Result<GMap, ParseMapError> {
     let mut gmap = GMap {
@@ -29,7 +28,7 @@ pub fn parse_map_tiles(
 }
 
 pub fn map_empty(width: i32, height: i32) -> GMap {
-    fn create(total_cells: usize, default_tile: TileType) -> Vec<Cell> {
+    fn create(total_cells: usize, default_tile: GMapTile) -> Vec<Cell> {
         let mut cells = vec![];
         // total random
         for _ in 0..total_cells {
@@ -42,16 +41,16 @@ pub fn map_empty(width: i32, height: i32) -> GMap {
     fn apply_walls(map: &mut GMap) {
         for x in 0..(map.width as i32) {
             let i = map.point2d_to_index((x, 0).into());
-            map.cells[i].tile = TileType::Wall;
+            map.cells[i].tile = GMapTile::Wall;
             let i = map.point2d_to_index((x, map.height - 1).into());
-            map.cells[i].tile = TileType::Wall;
+            map.cells[i].tile = GMapTile::Wall;
         }
 
         for y in 0..(map.height as i32) {
             let i = map.point2d_to_index((0, y).into());
-            map.cells[i].tile = TileType::Wall;
+            map.cells[i].tile = GMapTile::Wall;
             let i = map.point2d_to_index((map.width - 1, y).into());
-            map.cells[i].tile = TileType::Wall;
+            map.cells[i].tile = GMapTile::Wall;
         }
     }
 
@@ -61,7 +60,7 @@ pub fn map_empty(width: i32, height: i32) -> GMap {
     let mut gmap = GMap {
         width: width,
         height: height,
-        cells: create(total_cells, TileType::Floor),
+        cells: create(total_cells, GMapTile::Floor),
     };
 
     apply_walls(&mut gmap);

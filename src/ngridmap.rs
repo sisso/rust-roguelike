@@ -1,4 +1,4 @@
-use crate::gmap::{Cell, TileType};
+use crate::gmap::Cell;
 use crate::models::P2;
 
 struct NGridMap {
@@ -36,7 +36,7 @@ impl rltk::BaseMap for NGridMap {
 
 #[cfg(test)]
 mod test {
-    use crate::gmap::{Cell, TileType};
+    use crate::gmap::{Cell, GMapTile};
     use crate::ngridmap::NGridMap;
     use rltk::Algorithm2D;
     use rltk::BaseMap;
@@ -48,14 +48,14 @@ mod test {
         gm.height = 2;
         gm.cells = vec![
             Some(Cell {
-                tile: TileType::Wall,
+                tile: GMapTile::Wall,
             }),
             Some(Cell {
-                tile: TileType::Space,
+                tile: GMapTile::Space,
             }),
             None,
             Some(Cell {
-                tile: TileType::Space,
+                tile: GMapTile::Space,
             }),
         ];
         gm

@@ -2,7 +2,7 @@ use crate::{Location, Sector};
 use log::debug;
 use specs::prelude::*;
 
-pub fn update_objects_list(ecs: &mut World) {
+pub fn update_bodies_list(ecs: &mut World) {
     let objects = ecs.entities();
     let locations = ecs.read_storage::<Location>();
     let mut sectors = ecs.write_storage::<Sector>();

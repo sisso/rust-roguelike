@@ -7,7 +7,6 @@ use specs::prelude::*;
 use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::actions::EntityActions;
-use crate::gmap::GMap;
 use crate::models::*;
 use crate::ship::Ship;
 use crate::view::cockpit_window::CockpitWindowState;
@@ -17,6 +16,7 @@ use crate::visibility_system::VisibilitySystem;
 
 pub mod actions;
 pub mod cfg;
+pub mod commons;
 pub mod events;
 pub mod gmap;
 pub mod loader;
@@ -25,6 +25,7 @@ pub mod models;
 pub mod ngridmap;
 pub mod sectors;
 pub mod ship;
+pub mod surfaces;
 pub mod utils;
 pub mod view;
 pub mod visibility_system;
@@ -73,9 +74,9 @@ pub fn run_systems(st: &mut State, _ctx: &mut Rltk) {
 }
 
 fn main() -> rltk::BError {
+    // setup
     use rltk::RltkBuilder;
 
-    let cfg = cfg::Cfg::new();
     env_logger::builder().filter(None, LevelFilter::Info).init();
 
     let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
@@ -92,27 +93,59 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Player>();
     gs.ecs.register::<CockpitWindowState>();
-    gs.ecs.register::<GMap>();
+    gs.ecs.register::<gmap::GMap>();
     gs.ecs.register::<Location>();
     gs.ecs.register::<Surface>();
     gs.ecs.register::<Sector>();
     gs.ecs.register::<Label>();
     gs.ecs.register::<SectorBody>();
 
-    let map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
-    let map =
-        loader::parse_map_tiles(&cfg.raw_map_tiles, &&map_ast).expect("fail to load map tiles");
+    // initialize
+    let cfg = cfg::Cfg::new();
+    let ship_map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
+    let ship_map = loader::parse_map_tiles(&cfg.raw_map_tiles, &&ship_map_ast)
+        .expect("fail to load map tiles");
 
-    let spawn_x = map.width / 2;
-    let spawn_y = map.height / 2;
+    let spawn_x = ship_map.width / 2;
+    let spawn_y = ship_map.height / 2;
 
     gs.ecs.insert(Window::World);
     gs.ecs.insert(cfg);
     gs.ecs.insert(CockpitWindowState::default());
 
+    // load scenery
     let sector_id = gs.ecs.create_entity().with(Sector::default()).build();
+    let planets_zones_id = (0..4)
+        .map(|i| {
+            let size = 10;
+            let total_cells = size * size;
+            let mut cells = Vec::with_capacity(total_cells);
+            for j in 0..(total_cells) {
+                cells.push(gmap::Cell {
+                    tile: gmap::GMapTile::Ground,
+                })
+            }
 
-    let _planet_id = gs
+            let gmap = gmap::GMap {
+                width: size as i32,
+                height: size as i32,
+                cells: cells,
+            };
+
+            let zone_id = gs
+                .ecs
+                .create_entity()
+                .with(gmap)
+                .with(Label {
+                    name: format!("zone {}", i),
+                })
+                .build();
+
+            zone_id
+        })
+        .collect::<Vec<_>>();
+
+    let planet_id = gs
         .ecs
         .create_entity()
         .with(SectorBody::Planet)
@@ -132,6 +165,7 @@ fn main() -> rltk::BError {
                 SurfaceTileKind::Plain,
                 SurfaceTileKind::Plain,
             ],
+            zones: planets_zones_id,
         })
         .build();
 
@@ -149,7 +183,7 @@ fn main() -> rltk::BError {
             sector_id: sector_id,
             pos: P2::new(0, 0),
         })
-        .with(map)
+        .with(ship_map)
         .build();
     let avatar_entity = gs
         .ecs
@@ -181,9 +215,11 @@ fn main() -> rltk::BError {
 
     gs.ecs.insert(Player::new(avatar_entity));
 
-    loader::parse_map_objects(&mut gs.ecs, ship_id, map_ast).expect("fail to load map objects");
+    loader::parse_map_objects(&mut gs.ecs, ship_id, ship_map_ast)
+        .expect("fail to load map objects");
 
-    sectors::update_objects_list(&mut gs.ecs);
+    sectors::update_bodies_list(&mut gs.ecs);
+    surfaces::update_zones_list(&mut gs.ecs);
 
     rltk::main_loop(context, gs)
 }

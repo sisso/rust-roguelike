@@ -1,6 +1,6 @@
 use crate::view::window::Window;
 use crate::{
-    cfg, ship, Dir, GMap, Label, Location, Player, Position, Sector, SectorBody, Ship, State,
+    cfg, gmap::GMap, ship, Dir, Label, Location, Player, Position, Sector, SectorBody, Ship, State,
     Surface, P2,
 };
 use log::{info, warn};

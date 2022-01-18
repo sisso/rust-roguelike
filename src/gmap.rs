@@ -3,16 +3,17 @@ use specs::prelude::*;
 use specs_derive::*;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
-pub enum TileType {
+pub enum GMapTile {
+    Ground,
     Floor,
     Wall,
     Space,
     OutOfMap,
 }
 
-impl TileType {
+impl GMapTile {
     pub fn is_opaque(&self) -> bool {
-        *self == TileType::Wall
+        *self == GMapTile::Wall
     }
 }
 
@@ -47,5 +48,5 @@ impl GMap {
 
 #[derive(Component, Debug, Clone)]
 pub struct Cell {
-    pub tile: TileType,
+    pub tile: GMapTile,
 }

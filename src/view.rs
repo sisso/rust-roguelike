@@ -3,7 +3,7 @@ pub mod cockpit_window;
 pub mod window;
 
 use crate::actions::{Action, EntityActions};
-use crate::gmap::{GMap, TileType};
+use crate::gmap::{GMap, GMapTile};
 use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
@@ -114,15 +114,16 @@ fn draw_map(
             let index = map.point2d_to_index(cell.point);
             map.cells[index].tile
         } else {
-            TileType::OutOfMap
+            GMapTile::OutOfMap
         };
 
         // calculate real tile
         let (mut fg, mut bg, mut ch) = match tile {
-            TileType::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
-            TileType::Wall => (rltk::GREEN, rltk::BLACK, '#'),
-            TileType::Space => (rltk::BLACK, rltk::BLACK, ' '),
-            TileType::OutOfMap => (rltk::BLACK, rltk::GRAY, ' '),
+            GMapTile::Ground => (rltk::LIGHT_GRAY, rltk::BLACK, '.'),
+            GMapTile::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
+            GMapTile::Wall => (rltk::GREEN, rltk::BLACK, '#'),
+            GMapTile::Space => (rltk::BLACK, rltk::BLACK, ' '),
+            GMapTile::OutOfMap => (rltk::BLACK, rltk::GRAY, ' '),
         };
 
         // replace non visible tiles
@@ -243,7 +244,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
 
 fn draw_gui_bottom_box(
     ctx: &mut Rltk,
-    current_tile: TileType,
+    current_tile: GMapTile,
     objects: &Vec<(Entity, ObjectsType)>,
     actions: &Vec<(char, &str)>,
 ) {
@@ -263,10 +264,11 @@ fn draw_gui_bottom_box(
     let inner_box_x = box_x + 1;
     let inner_box_y = box_y + 1;
     let tile_str = match current_tile {
-        TileType::Floor => "floor",
-        TileType::Wall => "?",
-        TileType::Space => "space",
-        TileType::OutOfMap => "oom",
+        GMapTile::Ground => "ground",
+        GMapTile::Floor => "floor",
+        GMapTile::Wall => "?",
+        GMapTile::Space => "space",
+        GMapTile::OutOfMap => "oom",
     };
     ctx.print_color(inner_box_x, inner_box_y, rltk::GRAY, rltk::BLACK, tile_str);
 

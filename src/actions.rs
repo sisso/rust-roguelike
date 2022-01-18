@@ -1,4 +1,4 @@
-use crate::gmap::{GMap, TileType};
+use crate::gmap::{GMap, GMapTile};
 use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::window::Window;
@@ -45,7 +45,7 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
         }
 
         let destination_idx = map.point2d_to_index(new_pos);
-        if map.get_cell(destination_idx).tile != TileType::Wall {
+        if map.get_cell(destination_idx).tile != GMapTile::Wall {
             pos.point.x = min(map.width - 1, max(0, pos.point.x + delta_x));
             pos.point.y = min(map.height - 1, max(0, pos.point.y + delta_y));
         }

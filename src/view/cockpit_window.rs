@@ -408,31 +408,42 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
     y += 1;
 
     // process inputs
-    std::mem::drop(surfaces_storage);
     match (ctx.key, get_key_index(ctx.key)) {
         (_, Some(index)) if index == 0 => {
+            std::mem::drop(surfaces_storage);
             state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
         }
         (_, Some(index)) if index == 1 => {
+            let selected_index = crate::commons::grid::coords_to_index(
+                surface.width as i32,
+                &selected.to_tuple().into(),
+            );
+            let target_id = surface.zones[selected_index as usize];
+
+            std::mem::drop(surfaces_storage);
             set_ship_command(
                 &mut state.ecs,
                 info.ship_id,
                 ship::Command::Land {
-                    target_id: orbiting_id,
-                    coords: selected,
+                    target_id: target_id,
+                    pos: P2::new(0, 0),
                 },
             );
         }
         (Some(VirtualKeyCode::Up), _) => {
+            std::mem::drop(surfaces_storage);
             set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::N)
         }
         (Some(VirtualKeyCode::Right), _) => {
+            std::mem::drop(surfaces_storage);
             set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::E)
         }
         (Some(VirtualKeyCode::Down), _) => {
+            std::mem::drop(surfaces_storage);
             set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::S)
         }
         (Some(VirtualKeyCode::Left), _) => {
+            std::mem::drop(surfaces_storage);
             set_selected_land_position(&mut state.ecs, surface_size, selected, Dir::W)
         }
 

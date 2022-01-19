@@ -25,7 +25,6 @@ pub mod models;
 pub mod ngridmap;
 pub mod sectors;
 pub mod ship;
-pub mod surfaces;
 pub mod utils;
 pub mod view;
 pub mod visibility_system;
@@ -219,7 +218,6 @@ fn main() -> rltk::BError {
         .expect("fail to load map objects");
 
     sectors::update_bodies_list(&mut gs.ecs);
-    surfaces::update_zones_list(&mut gs.ecs);
 
     rltk::main_loop(context, gs)
 }

@@ -1,4 +1,4 @@
-use super::recti::RectI;
+use super::recti;
 use super::v2i::V2I;
 use std::collections::HashMap;
 
@@ -20,21 +20,21 @@ pub type Index = i32;
     6 7 8
 */
 #[derive(Debug, Clone)]
-pub struct Grid<T: Default> {
+pub struct Grid<T> {
     pub width: i32,
     pub height: i32,
     pub list: Vec<T>,
 }
 
-impl<T: Default> Grid<T> {
-    pub fn new_square(size: i32) -> Self {
-        Grid::new(size, size)
+impl<T> Grid<T> {
+    pub fn new_square(size: i32, default: fn() -> T) -> Self {
+        Grid::new(size, size, default)
     }
 
-    pub fn new(width: i32, height: i32) -> Self {
+    pub fn new(width: i32, height: i32, default: fn() -> T) -> Self {
         let mut list = vec![];
         for _ in 0..width * height {
-            list.push(Default::default());
+            list.push(default());
         }
 
         Grid {
@@ -183,36 +183,29 @@ impl<T> FlexGrid<T> {
 }
 
 #[derive(Clone, Debug)]
-pub struct PGrid<T: Default> {
-    pub rect: RectI,
+pub struct PGrid<T> {
+    pub pos: V2I,
     pub grid: Grid<T>,
 }
 
-impl<T: Default> PGrid<T> {
-    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
-        let rect = RectI::new(x, y, width, height);
-
+impl<T> PGrid<T> {
+    pub fn new(x: i32, y: i32, width: i32, height: i32, default: fn() -> T) -> Self {
         PGrid {
-            rect: rect,
-            grid: Grid::new(width, height),
+            pos: V2I::new(x, y),
+            grid: Grid::new(width, height, default),
         }
     }
 
     pub fn from_grid(coord: &V2I, grid: Grid<T>) -> Self {
-        let rect = RectI::new(coord.x, coord.y, grid.width, grid.height);
-
-        PGrid {
-            rect: rect,
-            grid: grid,
-        }
+        PGrid { pos: *coord, grid }
     }
 
     pub fn get_pos(&self) -> Coord {
-        self.rect.get_top_left().clone()
+        self.pos
     }
 
     pub fn set_pos(&mut self, pos: &V2I) {
-        self.rect = self.rect.copy_with_pos(pos);
+        self.pos = *pos;
     }
 
     pub fn get_width(&self) -> i32 {
@@ -223,12 +216,16 @@ impl<T: Default> PGrid<T> {
         self.grid.height
     }
 
+    pub fn get_rect(&self) -> recti::RectI {
+        recti::RectI::new(self.pos.x, self.pos.y, self.grid.width, self.grid.height)
+    }
+
     pub fn to_local(&self, coord: &Coord) -> Coord {
-        self.rect.to_local(coord)
+        recti::to_local(&self.pos, coord)
     }
 
     pub fn to_global(&self, coord: &Coord) -> Coord {
-        self.rect.to_global(coord)
+        recti::to_global(&self.pos, coord)
     }
 
     pub fn set_at(&mut self, coord: &Coord, value: T) -> T {
@@ -249,7 +246,7 @@ impl<T: Default> PGrid<T> {
     }
 
     pub fn is_valid_coords(&self, coord: &Coord) -> bool {
-        self.rect.is_inside(coord)
+        self.get_rect().is_inside(coord)
     }
 
     pub fn get_valid_4_neighbours(&self, coords: &Coord) -> Vec<Coord> {
@@ -291,9 +288,73 @@ impl<T: Default> PGrid<T> {
     }
 }
 
-impl<T: Default> From<PGrid<T>> for Grid<T> {
+impl<T> From<PGrid<T>> for Grid<T> {
     fn from(pgrid: PGrid<T>) -> Self {
         pgrid.grid
+    }
+}
+
+///  Feature: Add cache of all layers to avoid the n-layer check
+#[derive(Clone, Debug)]
+pub struct NGrid<T: TitleCanBeEmpty> {
+    grids: Vec<PGrid<T>>,
+    default: T,
+}
+
+pub trait TitleCanBeEmpty {
+    fn is_empty(&self) -> bool;
+}
+
+impl<T: TitleCanBeEmpty> NGrid<T> {
+    pub fn new(default: T) -> Self {
+        NGrid {
+            grids: vec![],
+            default,
+        }
+    }
+
+    pub fn from_grid(grid: Grid<T>, default: T) -> Self {
+        NGrid {
+            grids: vec![PGrid::from_grid(&super::v2i::ZERO, grid)],
+            default,
+        }
+    }
+
+    pub fn get_size(&self) -> V2I {
+        assert!(!self.grids.is_empty());
+        (self.grids[0].get_width(), self.grids[0].get_height()).into()
+    }
+
+    pub fn get_at(&self, coord: &Coord) -> &T {
+        for g in self.grids.iter().rev() {
+            match g.get_at_opt(coord) {
+                Some(tile) if !tile.is_empty() => return tile,
+                _ => {}
+            }
+        }
+
+        &self.default
+    }
+
+    pub fn push_surface_at(&mut self, coord: &V2I, mut surf: NGrid<T>) {
+        for mut g in surf.grids {
+            // translate new surface into local position
+            let pos = g.get_pos().translate(coord.x, coord.y);
+            g.set_pos(&pos);
+
+            self.grids.push(g);
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.grids.len()
+    }
+
+    pub fn remove(&mut self, index: usize, default: T) -> NGrid<T> {
+        assert!(index <= self.grids.len());
+
+        let grid = self.grids.remove(index);
+        NGrid::from_grid(grid.into(), default)
     }
 }
 

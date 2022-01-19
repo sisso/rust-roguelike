@@ -127,6 +127,9 @@ pub enum SectorBody {
     Ship,
 }
 
+#[derive(Component, Debug, Clone)]
+pub struct SurfaceZone {}
+
 #[derive(Debug, Clone, Copy)]
 pub enum SurfaceTileKind {
     Plain,

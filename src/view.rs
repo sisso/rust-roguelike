@@ -7,8 +7,8 @@ use crate::gmap::{GMap, GMapTile};
 use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
-use crate::State;
 use crate::{actions, cfg};
+use crate::{State, P2};
 use rltk::{Algorithm2D, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
@@ -102,6 +102,15 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
     draw_objects(&camera, &v.visible_tiles, &state.ecs, ctx);
 }
 
+impl Into<rltk::Point> for P2 {
+    fn into(self) -> rltk::Point {
+        rltk::Point {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
 fn draw_map(
     camera: &Camera,
     visible_cells: &Vec<rltk::Point>,
@@ -110,8 +119,8 @@ fn draw_map(
     ctx: &mut Rltk,
 ) {
     for cell in camera.list_cells() {
-        let tile = if map.in_bounds(cell.point) {
-            let index = map.point2d_to_index(cell.point);
+        let tile = if map.in_bounds(cell.point.into()) {
+            let index = map.point2d_to_index(cell.point.into());
             map.cells[index].tile
         } else {
             GMapTile::OutOfMap
@@ -127,8 +136,12 @@ fn draw_map(
         };
 
         // replace non visible tiles
-        if visible_cells.iter().find(|p| **p == cell.point).is_none() {
-            if know_cells.contains(&cell.point) {
+        if visible_cells
+            .iter()
+            .find(|p| cell.point.x == p.x && cell.point.y == p.y)
+            .is_none()
+        {
+            if know_cells.contains(&cell.point.into()) {
                 // if is know
                 fg = rltk::GRAY;
             } else {
@@ -190,17 +203,11 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
 
         let tile = map
             .cells
-            .get(map.point2d_to_index(position.point))
+            .get(map.point2d_to_index(position.point.into()))
             .unwrap()
             .tile;
 
-        let objects_at = find_objects_at(
-            entities,
-            objects,
-            positions,
-            position.point.x,
-            position.point.y,
-        );
+        let objects_at = find_objects_at(entities, objects, positions, position);
 
         draw_gui_bottom_box(
             ctx,
@@ -321,10 +328,10 @@ mod test {
             h: 3,
         };
 
-        assert_eq!(Point::new(1, 1), camera.screen_to_global((0, 0).into()));
-        assert_eq!(Point::new(6, 5), camera.screen_to_global((5, 4).into()));
-        assert_eq!(Point::new(0, 0), camera.global_to_screen((1, 1).into()));
-        assert_eq!(Point::new(-1, -1), camera.global_to_screen((0, 0).into()));
+        assert_eq!(P2::new(1, 1), camera.screen_to_global((0, 0).into()));
+        assert_eq!(P2::new(6, 5), camera.screen_to_global((5, 4).into()));
+        assert_eq!(P2::new(0, 0), camera.global_to_screen((1, 1).into()));
+        assert_eq!(P2::new(-1, -1), camera.global_to_screen((0, 0).into()));
     }
     #[test]
     fn test_camera_iterator() {

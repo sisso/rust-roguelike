@@ -1,5 +1,6 @@
 use super::recti;
 use super::v2i::V2I;
+use crate::P2;
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, PartialEq, Debug, Hash, Eq)]
@@ -294,18 +295,82 @@ impl<T> From<PGrid<T>> for Grid<T> {
     }
 }
 
-///  Feature: Add cache of all layers to avoid the n-layer check
+///
+/// Grid with N reference of other girds. Normally is temporarily build to be used
+/// when interact with multiple grids
+///
 #[derive(Clone, Debug)]
-pub struct NGrid<T: TitleCanBeEmpty> {
+pub struct RefNGrid<'a, T: GridCell> {
+    grids: Vec<(P2, &'a Grid<T>)>,
+    default: T,
+}
+
+impl<'a, T: GridCell> RefNGrid<'a, T> {
+    pub fn new(default: T, grids: Vec<(P2, &'a Grid<T>)>) -> Self {
+        RefNGrid { grids, default }
+    }
+
+    pub fn get_size(&self) -> V2I {
+        // assert!(!self.grids.is_empty());
+        // let mw = 0;
+        // let mh = 0;
+        // for (p, g) in self.grids {
+        //     let w = g.width + p.x;
+        //     let h = g.height + p.y;
+        // }
+        //
+        // let (mw, mh) = (self.grids[0].1.width, self.grids[0].1.height);
+        todo!()
+    }
+
+    pub fn get_at(&self, coord: &Coord) -> &T {
+        // for g in self.grids.iter().rev() {
+        //     match g.get_at_opt(coord) {
+        //         Some(tile) if !tile.is_empty() => return tile,
+        //         _ => {}
+        //     }
+        // }
+        //
+        // &self.default
+        todo!()
+    }
+
+    pub fn push_surface_at(&mut self, coord: &V2I, mut surf: NGrid<T>) {
+        // for mut g in surf.grids {
+        //     // translate new surface into local position
+        //     let pos = g.get_pos().translate(coord.x, coord.y);
+        //     g.set_pos(&pos);
+        //
+        //     self.grids.push(g);
+        // }
+        todo!()
+    }
+
+    pub fn len(&self) -> usize {
+        // self.grids.len()
+        todo!()
+    }
+
+    pub fn remove(&mut self, index: usize, default: T) -> NGrid<T> {
+        // assert!(index <= self.grids.len());
+        //
+        // let grid = self.grids.remove(index);
+        // NGrid::from_grid(grid.into(), default)
+        todo!()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NGrid<T: GridCell> {
     grids: Vec<PGrid<T>>,
     default: T,
 }
 
-pub trait TitleCanBeEmpty {
+pub trait GridCell {
     fn is_empty(&self) -> bool;
 }
 
-impl<T: TitleCanBeEmpty> NGrid<T> {
+impl<T: GridCell> NGrid<T> {
     pub fn new(default: T) -> Self {
         NGrid {
             grids: vec![],
@@ -378,7 +443,7 @@ mod test {
 
     #[test]
     pub fn test_grid_get_valid_neighbors() {
-        let grid = Grid::<i32>::new(2, 2);
+        let grid = Grid::<i32>::new(2, 2, || 0);
         let neighbours = grid.get_valid_8_neighbours(&Coord::new(0, 0));
         assert_eq!(
             vec![Coord::new(1, 0), Coord::new(1, 1), Coord::new(0, 1),],
@@ -388,7 +453,7 @@ mod test {
 
     #[test]
     pub fn test_grid_raytrace() {
-        let mut grid = Grid::<i32>::new(4, 2);
+        let mut grid = Grid::<i32>::new(4, 2, || 0);
 
         // X###
         // ###
@@ -442,5 +507,23 @@ mod test {
         assert_eq!(V2I::new(1, 1), index_to_coord(4, 5));
         assert_eq!(V2I::new(2, 1), index_to_coord(4, 6));
         assert_eq!(V2I::new(3, 1), index_to_coord(4, 7));
+    }
+
+    #[test]
+    fn test_refngrid() {
+        /*
+         110
+         022
+         022
+        */
+        // let g1 = Grid::new(2, 2, || 1);
+        // let g2 = Grid::new(2, 2, || 2);
+        // let grids = vec![(P2::new(0, 0), &g1), (P2::new(1, 1), &g2)];
+        //
+        // let g = RefNGrid::new(0, grids);
+
+        // assert_eq!(3, g.get_width());
+        // assert_eq!(3, g.get_height());
+        // assert_eq!(0, g.get_at(&V2I::new(0, 0)))
     }
 }

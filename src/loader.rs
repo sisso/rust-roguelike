@@ -1,3 +1,4 @@
+use crate::commons::v2i::V2I;
 use crate::gmap::{Cell, GMap, GMapTile};
 use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
@@ -153,7 +154,7 @@ pub fn parse_map_objects(
             changes.push((
                 Position {
                     grid_id: grid_id,
-                    point: pos,
+                    point: V2I::new(pos.x, pos.y),
                 },
                 kind,
             ));

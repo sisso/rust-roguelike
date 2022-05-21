@@ -1,9 +1,11 @@
+use crate::commons::grid::Coord;
+use crate::commons::v2i::V2I;
 use rltk::Point;
 use specs::prelude::*;
 use specs_derive::*;
 
 pub type Index = usize;
-pub type P2 = Point;
+pub type P2 = V2I;
 
 #[derive(Component, Debug)]
 pub struct Avatar {}
@@ -44,7 +46,7 @@ impl Player {
 #[derive(Component, Clone, Debug, PartialEq)]
 pub struct Position {
     pub grid_id: Entity,
-    pub point: rltk::Point,
+    pub point: Coord,
 }
 
 impl Position {

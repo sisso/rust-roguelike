@@ -20,8 +20,7 @@ impl<'a> System<'a> for ActionsSystem {
     fn run(&mut self, (entities, mut avatars, mut actions, objects, positions): Self::SystemData) {
         for (_e, avatar, actions, pos) in (&entities, &mut avatars, &mut actions, &positions).join()
         {
-            let objects_at =
-                find_objects_at(&entities, &objects, &positions, pos.point.x, pos.point.y);
+            let objects_at = find_objects_at(&entities, &objects, &positions, pos);
 
             match actions.current {
                 None => continue,

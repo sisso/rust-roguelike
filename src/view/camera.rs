@@ -1,6 +1,7 @@
-use crate::cfg;
+use crate::{cfg, commons, P2};
 use rltk::{Point, Rect};
 
+use crate::commons::v2i::V2I;
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -15,8 +16,8 @@ pub struct Camera {
 }
 
 pub struct CameraCell {
-    pub screen_point: Point,
-    pub point: Point,
+    pub screen_point: P2,
+    pub point: P2,
 }
 
 impl Camera {
@@ -29,7 +30,7 @@ impl Camera {
         }
     }
 
-    pub fn from_center(p: Point) -> Self {
+    pub fn from_center(p: P2) -> Self {
         let w = cfg::SCREEN_W;
         let h = cfg::SCREEN_H;
 
@@ -41,24 +42,24 @@ impl Camera {
         }
     }
 
-    pub fn global_rect(&self) -> Rect {
-        Rect::with_size(self.x, self.y, self.w, self.h)
+    pub fn global_rect(&self) -> commons::recti::RectI {
+        commons::recti::RectI::new(self.x, self.y, self.w, self.h)
     }
 
-    pub fn global_center(&self) -> Point {
+    pub fn global_center(&self) -> P2 {
         self.global_rect().center()
     }
 
-    pub fn global_to_screen(&self, p: Point) -> Point {
+    pub fn global_to_screen(&self, p: P2) -> P2 {
         (p.x - self.x, p.y - self.y).into()
     }
 
-    pub fn screen_to_global(&self, p: Point) -> Point {
+    pub fn screen_to_global(&self, p: P2) -> P2 {
         (p.x + self.x, p.y + self.y).into()
     }
 
-    pub fn is_global_in(&self, p: Point) -> bool {
-        self.global_rect().point_in_rect(p)
+    pub fn is_global_in(&self, p: P2) -> bool {
+        self.global_rect().is_inside(&p)
     }
 
     pub fn list_cells<'a>(&'a self) -> impl Iterator<Item = CameraCell> + 'a {
@@ -81,7 +82,7 @@ impl<'a> Iterator for CameraIterator<'a> {
         let x = self.current % self.camera.w;
         let y = self.current / self.camera.w;
 
-        let screen_point = Point { x, y };
+        let screen_point = P2 { x, y };
         if y >= self.camera.h {
             return None;
         }

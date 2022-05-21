@@ -15,6 +15,14 @@ impl GMapTile {
     pub fn is_opaque(&self) -> bool {
         *self == GMapTile::Wall
     }
+
+    pub fn is_nothing(&self) -> bool {
+        match self {
+            GMapTile::Space => true,
+            GMapTile::OutOfMap => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone)]

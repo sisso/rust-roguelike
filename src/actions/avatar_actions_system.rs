@@ -18,8 +18,7 @@ impl<'a> System<'a> for FindAvatarActionsSystem {
 
     fn run(&mut self, (entities, avatar, mut actions, objects, positions): Self::SystemData) {
         for (_, actions, pos) in (avatar.get_avatarset(), &mut actions, &positions).join() {
-            let objects_at =
-                find_objects_at(&entities, &objects, &positions, pos.point.x, pos.point.y);
+            let objects_at = find_objects_at(&entities, &objects, &positions, pos);
 
             actions.actions = get_available_actions(&objects_at);
         }

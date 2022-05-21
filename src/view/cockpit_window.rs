@@ -342,7 +342,7 @@ fn draw_orbiting_map(
             let mut fg = rltk::GREEN;
             let bg = rltk::GRAY;
 
-            if Some(P2::new(sx, sy)) == selected {
+            if Some(P2::new(sx as i32, sy as i32)) == selected {
                 fg = rltk::BLUE;
             }
 
@@ -397,7 +397,7 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
         }
     };
 
-    let surface_size = P2::new(surface.width, surface.height);
+    let surface_size = P2::new(surface.width as i32, surface.height as i32);
 
     y += 1;
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Orbiting surface");
@@ -414,10 +414,8 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
             state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
         }
         (_, Some(index)) if index == 1 => {
-            let selected_index = crate::commons::grid::coords_to_index(
-                surface.width as i32,
-                &selected.to_tuple().into(),
-            );
+            let selected_index =
+                crate::commons::grid::coords_to_index(surface.width as i32, &selected);
             let target_id = surface.zones[selected_index as usize];
 
             std::mem::drop(surfaces_storage);
@@ -429,6 +427,7 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
                     pos: P2::new(0, 0),
                 },
             );
+            state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
         }
         (Some(VirtualKeyCode::Up), _) => {
             std::mem::drop(surfaces_storage);
@@ -500,7 +499,13 @@ fn list_commands(ecs: &World, ship_id: Entity) -> Vec<MenuOption> {
     let locations = ecs.read_storage::<Location>();
     let sectors = ecs.read_storage::<Sector>();
 
-    let location = locations.get(ship_id).expect("ship has no location");
+    // currently can be none when ship is landed TODO: ok ugly
+    let location = match locations.get(ship_id) {
+        Some(loc) => loc,
+        None => {
+            return vec![];
+        }
+    };
 
     let mut commands = vec![];
 

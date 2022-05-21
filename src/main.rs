@@ -76,7 +76,9 @@ fn main() -> rltk::BError {
     // setup
     use rltk::RltkBuilder;
 
-    env_logger::builder().filter(None, LevelFilter::Info).init();
+    env_logger::builder()
+        .filter(None, LevelFilter::Debug)
+        .init();
 
     let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
     let mut gs = State { ecs: World::new() };
@@ -102,10 +104,10 @@ fn main() -> rltk::BError {
     // initialize
     let cfg = cfg::Cfg::new();
     let ship_map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
-    let ship_map = loader::parse_map_tiles(&cfg.raw_map_tiles, &&ship_map_ast)
-        .expect("fail to load map tiles");
+    let ship_map =
+        loader::parse_map_tiles(&cfg.raw_map_tiles, &ship_map_ast).expect("fail to load map tiles");
 
-    let spawn_x = ship_map.width / 2;
+    let spawn_x = ship_map.width / 2 - 5;
     let spawn_y = ship_map.height / 2;
 
     gs.ecs.insert(Window::World);
@@ -116,7 +118,7 @@ fn main() -> rltk::BError {
     let sector_id = gs.ecs.create_entity().with(Sector::default()).build();
     let planets_zones_id = (0..4)
         .map(|i| {
-            let size = 10;
+            let size = 100;
             let total_cells = size * size;
             let mut cells = Vec::with_capacity(total_cells);
             for j in 0..(total_cells) {
@@ -178,10 +180,13 @@ fn main() -> rltk::BError {
             current_command: ship::Command::Idle,
             move_calm_down: 0,
         })
-        .with(Location::Sector {
-            sector_id: sector_id,
-            pos: P2::new(0, 0),
+        .with(Location::Orbit {
+            target_id: planet_id,
         })
+        // .with(Location::Sector {
+        //     sector_id: sector_id,
+        //     pos: P2::new(0, 0),
+        // })
         .with(ship_map)
         .build();
     let avatar_entity = gs
@@ -211,6 +216,8 @@ fn main() -> rltk::BError {
             current: None,
         })
         .build();
+
+    info!("avatar id: {}", avatar_entity.id());
 
     gs.ecs.insert(Player::new(avatar_entity));
 

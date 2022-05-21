@@ -63,8 +63,7 @@ pub fn try_interact(ecs: &mut World) {
         let objects = ecs.read_storage::<ObjectsType>();
 
         'outer: for (_, pos) in (avatar.get_avatarset(), &positions).join() {
-            let at_list =
-                find_objects_at(&entities, &objects, &positions, pos.point.x, pos.point.y);
+            let at_list = find_objects_at(&entities, &objects, &positions, pos);
 
             for (_e, t) in at_list {
                 match t {

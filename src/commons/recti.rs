@@ -51,6 +51,13 @@ impl RectI {
     pub fn copy_with_pos(&self, pos: &V2I) -> RectI {
         RectI::new(pos.x, pos.y, self.get_width(), self.get_height())
     }
+
+    pub fn center(&self) -> V2I {
+        return V2I::new(
+            self.topleft.x + self.get_width() / 2,
+            self.topleft.y + self.get_height() / 2,
+        );
+    }
 }
 
 pub fn to_local(rectxy: &V2I, pxy: &V2I) -> V2I {

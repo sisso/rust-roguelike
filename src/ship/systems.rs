@@ -103,56 +103,58 @@ impl<'a> System<'a> for FlyToSystem {
                         .get_mut(target_id)
                         .expect("gmap for landing target id not found");
 
+                    todo!()
+
                     // bake ship grid into new zone
-                    let target_center_pos =
-                        Coord::new(target_gmap.width / 2, target_gmap.height / 2);
-                    let ship_pos = Coord::new(
-                        target_center_pos.x - ship_gmap.width / 2,
-                        target_center_pos.y - ship_gmap.height / 2,
-                    );
-
-                    debug!(
-                        "copying ship map {:?} into surface {:?} on {:?}",
-                        ship_entity.id(),
-                        target_id.id(),
-                        ship_pos
-                    );
-                    for x in 0..ship_gmap.width {
-                        for y in 0..ship_gmap.height {
-                            let coords = Coord::new(x, y);
-                            let global = commons::recti::to_global(&ship_pos, &coords);
-                            let sindex =
-                                commons::grid::coords_to_index(ship_gmap.width, &coords) as usize;
-                            let tindex =
-                                commons::grid::coords_to_index(target_gmap.width, &global) as usize;
-
-                            if ship_gmap.cells[sindex].tile.is_nothing() {
-                                continue;
-                            }
-
-                            target_gmap.cells[tindex] = ship_gmap.cells[sindex].clone();
-                        }
-                    }
-
-                    // move objects into new zone
-                    for (e, p) in (&entities, &mut positions).join() {
-                        if p.grid_id == ship_entity {
-                            let global = commons::recti::to_global(&ship_pos, &p.point);
-                            debug!("moving {} from {:?} to {:?}", e.id(), p.point, global);
-                            p.grid_id = target_id;
-                            p.point = global;
-                        }
-                    }
-
-                    // update ship location
-                    (&mut locations).insert(
-                        ship_entity,
-                        Location::BodySurfacePlace {
-                            body_id: target_id,
-                            place_coords: ship_pos,
-                            surface_pos: surf_pos,
-                        },
-                    );
+                    // let target_center_pos =
+                    //     Coord::new(target_gmap.width / 2, target_gmap.height / 2);
+                    // let ship_pos = Coord::new(
+                    //     target_center_pos.x - ship_gmap.width / 2,
+                    //     target_center_pos.y - ship_gmap.height / 2,
+                    // );
+                    //
+                    // debug!(
+                    //     "copying ship map {:?} into surface {:?} on {:?}",
+                    //     ship_entity.id(),
+                    //     target_id.id(),
+                    //     ship_pos
+                    // );
+                    // for x in 0..ship_gmap.width {
+                    //     for y in 0..ship_gmap.height {
+                    //         let coords = Coord::new(x, y);
+                    //         let global = commons::recti::to_global(&ship_pos, &coords);
+                    //         let sindex =
+                    //             commons::grid::coords_to_index(ship_gmap.width, &coords) as usize;
+                    //         let tindex =
+                    //             commons::grid::coords_to_index(target_gmap.width, &global) as usize;
+                    //
+                    //         if ship_gmap.cells[sindex].tile.is_nothing() {
+                    //             continue;
+                    //         }
+                    //
+                    //         target_gmap.cells[tindex] = ship_gmap.cells[sindex].clone();
+                    //     }
+                    // }
+                    //
+                    // // move objects into new zone
+                    // for (e, p) in (&entities, &mut positions).join() {
+                    //     if p.grid_id == ship_entity {
+                    //         let global = commons::recti::to_global(&ship_pos, &p.point);
+                    //         debug!("moving {} from {:?} to {:?}", e.id(), p.point, global);
+                    //         p.grid_id = target_id;
+                    //         p.point = global;
+                    //     }
+                    // }
+                    //
+                    // // update ship location
+                    // (&mut locations).insert(
+                    //     ship_entity,
+                    //     Location::BodySurfacePlace {
+                    //         body_id: target_id,
+                    //         place_coords: ship_pos,
+                    //         surface_pos: surf_pos,
+                    //     },
+                    // );
                 }
 
                 Command::Launch => {

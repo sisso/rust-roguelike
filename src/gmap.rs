@@ -1,7 +1,10 @@
 use super::models::*;
-use crate::commons::grid::Grid;
+use crate::commons;
+use crate::commons::grid::{Grid, NGrid};
+use crate::commons::v2i::V2I;
 use specs::prelude::*;
 use specs_derive::*;
+use std::panic::resume_unwind;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum GMapTile {
@@ -15,7 +18,11 @@ pub enum GMapTile {
 
 impl GMapTile {
     pub fn is_opaque(&self) -> bool {
-        *self == GMapTile::Wall
+        match self {
+            GMapTile::Wall => true,
+            GMapTile::OutOfMap => true,
+            _ => false,
+        }
     }
 
     pub fn is_nothing(&self) -> bool {
@@ -35,30 +42,36 @@ impl Default for GMapTile {
 
 #[derive(Component, Debug, Clone)]
 pub struct GMap {
-    pub width: i32,
-    pub height: i32,
-    pub cells: Vec<Cell>,
+    grid: NGrid<Cell>,
+    // layer zero is always self
+    layers: Vec<(Entity, usize)>,
 }
 
 impl rltk::Algorithm2D for GMap {
     fn dimensions(&self) -> rltk::Point {
-        rltk::Point::new(self.width, self.height)
+        let size = self.grid.get_size();
+        rltk::Point::new(size.x, size.y)
+    }
+
+    fn in_bounds(&self, pos: rltk::Point) -> bool {
+        self.grid.is_valid(&V2I::new(pos.x, pos.y))
     }
 }
 
 impl rltk::BaseMap for GMap {
     fn is_opaque(&self, idx: usize) -> bool {
-        self.cells[idx].tile.is_opaque()
+        let w = self.grid.get_width();
+        let c = commons::grid::index_to_coord(w, idx as i32);
+        self.grid
+            .get_at(&c)
+            .map(|i| i.tile.is_opaque())
+            .unwrap_or(true)
     }
 }
 
 impl GMap {
-    pub fn get_cell(&self, index: Index) -> &Cell {
-        &self.cells[index]
-    }
-
-    pub fn get_cell_mut(&mut self, index: Index) -> &mut Cell {
-        &mut self.cells[index]
+    pub fn get_grid(&self) -> &NGrid<Cell> {
+        &self.grid
     }
 }
 
@@ -92,6 +105,23 @@ impl Cell {
     }
 }
 
-impl Component for Grid<GMapTile> {
-    type Storage = DenseVecStorage<Self>;
+impl commons::grid::GridCell for Cell {
+    fn is_empty(&self) -> bool {
+        self.tile.is_nothing()
+    }
+}
+
+impl Default for &Cell {
+    fn default() -> Self {
+        &EMPTY_CELL
+    }
+}
+
+impl From<Grid<Cell>> for GMap {
+    fn from(g: Grid<Cell>) -> Self {
+        GMap {
+            grid: NGrid::from_grid(g),
+            layers: vec![],
+        }
+    }
 }

@@ -115,16 +115,12 @@ fn draw_map(
     camera: &Camera,
     visible_cells: &Vec<rltk::Point>,
     know_cells: &HashSet<rltk::Point>,
-    map: &GMap,
+    gmap: &GMap,
     ctx: &mut Rltk,
 ) {
-    for cell in camera.list_cells() {
-        let tile = if map.in_bounds(cell.point.into()) {
-            let index = map.point2d_to_index(cell.point.into());
-            map.cells[index].tile
-        } else {
-            GMapTile::OutOfMap
-        };
+    for c in camera.list_cells() {
+        let cell = gmap.get_grid().get_at(&c.point);
+        let tile = cell.unwrap_or_default().tile;
 
         // calculate real tile
         let (mut fg, mut bg, mut ch) = match tile {
@@ -138,10 +134,10 @@ fn draw_map(
         // replace non visible tiles
         if visible_cells
             .iter()
-            .find(|p| cell.point.x == p.x && cell.point.y == p.y)
+            .find(|p| c.point.x == p.x && c.point.y == p.y)
             .is_none()
         {
-            if know_cells.contains(&cell.point.into()) {
+            if know_cells.contains(&c.point.into()) {
                 // if is know
                 fg = rltk::GRAY;
             } else {
@@ -153,8 +149,8 @@ fn draw_map(
         }
 
         ctx.set(
-            cell.screen_point.x,
-            cell.screen_point.y,
+            c.screen_point.x,
+            c.screen_point.y,
             fg,
             bg,
             ch as rltk::FontCharType,
@@ -197,21 +193,16 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let positions = &state.ecs.read_storage::<Position>();
     let actions_st = &state.ecs.read_storage::<EntityActions>();
 
-    for (_avatar, position, actions) in (avatars, positions, actions_st).join() {
+    for (_avatar_id, position, actions) in (avatars, positions, actions_st).join() {
         let grids = &state.ecs.read_storage::<GMap>();
-        let map = grids.get(position.grid_id).unwrap();
+        let gmap = grids.get(position.grid_id).unwrap();
 
-        let tile = map
-            .cells
-            .get(map.point2d_to_index(position.point.into()))
-            .unwrap()
-            .tile;
-
+        let tile = gmap.get_grid().get_at(&position.point).unwrap_or_default();
         let objects_at = find_objects_at(entities, objects, positions, position);
 
         draw_gui_bottom_box(
             ctx,
-            tile,
+            tile.tile,
             &objects_at,
             &map_actions_to_keys(&actions.actions)
                 .iter()

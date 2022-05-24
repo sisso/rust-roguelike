@@ -7,6 +7,8 @@ use specs::prelude::*;
 use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::actions::EntityActions;
+use crate::commons::grid::Grid;
+use crate::gmap::GMap;
 use crate::models::*;
 use crate::ship::Ship;
 use crate::view::cockpit_window::CockpitWindowState;
@@ -107,8 +109,8 @@ fn main() -> rltk::BError {
     let ship_map =
         loader::parse_map_tiles(&cfg.raw_map_tiles, &ship_map_ast).expect("fail to load map tiles");
 
-    let spawn_x = ship_map.width / 2 - 5;
-    let spawn_y = ship_map.height / 2;
+    let spawn_x = ship_map.get_grid().get_width() / 2 - 5;
+    let spawn_y = ship_map.get_grid().get_height() / 2;
 
     gs.ecs.insert(Window::World);
     gs.ecs.insert(cfg);
@@ -127,11 +129,12 @@ fn main() -> rltk::BError {
                 })
             }
 
-            let gmap = gmap::GMap {
+            let gmap: GMap = Grid {
                 width: size as i32,
                 height: size as i32,
-                cells: cells,
-            };
+                list: cells,
+            }
+            .into();
 
             let zone_id = gs
                 .ecs

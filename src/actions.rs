@@ -1,7 +1,9 @@
-use crate::gmap::{GMap, GMapTile};
+use crate::commons::v2i::V2I;
+use crate::gmap::{Cell, GMap, GMapTile};
 use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::window::Window;
+use log::debug;
 use rltk::{Algorithm2D, Point};
 use specs::prelude::*;
 use specs_derive::*;
@@ -34,20 +36,23 @@ impl EntityActions {
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
     let grids = ecs.read_storage::<GMap>();
-    let avatar = ecs.fetch::<Player>();
+    let avatars = ecs.fetch::<Player>();
 
-    for (_player, pos) in (avatar.get_avatarset(), &mut positions).join() {
-        let new_pos = Point::new(pos.point.x + delta_x, pos.point.y + delta_y);
+    for (avatar_id, pos) in (avatars.get_avatarset(), &mut positions).join() {
         let map = grids.borrow().get(pos.grid_id).unwrap();
 
-        if !map.in_bounds(new_pos) {
-            return;
-        }
-
-        let destination_idx = map.point2d_to_index(new_pos);
-        if map.get_cell(destination_idx).tile != GMapTile::Wall {
-            pos.point.x = min(map.width - 1, max(0, pos.point.x + delta_x));
-            pos.point.y = min(map.height - 1, max(0, pos.point.y + delta_y));
+        let new_pos = pos.point.translate(delta_x, delta_y);
+        match map.get_grid().get_at(&new_pos) {
+            Some(cell) if !cell.tile.is_opaque() => {
+                debug!("{:?} move to position {:?}", avatar_id, new_pos);
+                pos.point = new_pos;
+            }
+            _ => {
+                debug!(
+                    "{:?} try to move to invalid position {:?}",
+                    avatar_id, new_pos
+                );
+            }
         }
     }
 }

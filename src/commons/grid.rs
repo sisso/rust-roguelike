@@ -315,7 +315,7 @@ impl<T: GridCell> NGrid<T> {
         NGrid { grids: vec![] }
     }
 
-    pub fn from_grid(grid: Grid<T>, default: T) -> Self {
+    pub fn from_grid(grid: Grid<T>) -> Self {
         NGrid {
             grids: vec![PGrid::from_grid(&super::v2i::ZERO, grid)],
         }
@@ -326,14 +326,31 @@ impl<T: GridCell> NGrid<T> {
         (self.grids[0].get_width(), self.grids[0].get_height()).into()
     }
 
+    pub fn get_width(&self) -> i32 {
+        self.grids[0].get_width()
+    }
+
+    pub fn get_height(&self) -> i32 {
+        self.grids[0].get_height()
+    }
+    pub fn is_valid(&self, coords: &Coord) -> bool {
+        self.grids[0].is_valid_coords(coords)
+    }
+
     pub fn get_at(&self, coord: &Coord) -> Option<&T> {
+        let mut found = None;
+
         for g in self.grids.iter().rev() {
             match g.get_at_opt(coord) {
                 Some(tile) if !tile.is_empty() => return Some(tile),
+                Some(tile) => {
+                    found = Some(tile);
+                }
                 _ => {}
             }
         }
-        None
+
+        found
     }
 
     pub fn push_surface_at(&mut self, coord: &V2I, mut surf: NGrid<T>) {
@@ -354,7 +371,7 @@ impl<T: GridCell> NGrid<T> {
         assert!(index <= self.grids.len());
 
         let grid = self.grids.remove(index);
-        NGrid::from_grid(grid.into(), default)
+        NGrid::from_grid(grid.into())
     }
 }
 

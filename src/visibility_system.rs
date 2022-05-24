@@ -2,7 +2,6 @@ use crate::gmap::GMap;
 use crate::models::Position;
 use crate::view::Viewshed;
 use specs::prelude::*;
-use std::borrow::Borrow;
 
 pub struct VisibilitySystem {}
 
@@ -15,7 +14,7 @@ impl<'a> System<'a> for VisibilitySystem {
 
     fn run(&mut self, (gridmaps, mut viewshed, pos): Self::SystemData) {
         for (viewshed, pos) in (&mut viewshed, &pos).join() {
-            let gridmap = gridmaps.borrow().get(pos.grid_id).unwrap();
+            let gridmap = gridmaps.get(pos.grid_id).unwrap();
 
             viewshed.visible_tiles.clear();
             viewshed.visible_tiles = rltk::field_of_view(
@@ -23,9 +22,12 @@ impl<'a> System<'a> for VisibilitySystem {
                 viewshed.range,
                 gridmap,
             );
-            viewshed
-                .visible_tiles
-                .retain(|p| p.x >= 0 && p.x < gridmap.width && p.y >= 0 && p.y < gridmap.height);
+            viewshed.visible_tiles.retain(|p| {
+                p.x >= 0
+                    && p.x < gridmap.get_grid().get_width()
+                    && p.y >= 0
+                    && p.y < gridmap.get_grid().get_height()
+            });
 
             for pos in &viewshed.visible_tiles {
                 viewshed.know_tiles.insert(*pos);

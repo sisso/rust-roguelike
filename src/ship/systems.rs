@@ -1,9 +1,8 @@
 use crate::commons::grid::Coord;
-use crate::gmap::{GMap, GMapTile};
+use crate::gmap::GMap;
 use crate::ship::Command;
-use crate::{commons, Location, Position, Sector, SectorBody, Ship, Surface, P2};
+use crate::{commons, Location, Position, Sector, SectorBody, Ship, Surface};
 use log::{debug, info, warn};
-use rltk::Tile;
 use specs::prelude::*;
 use std::borrow::BorrowMut;
 

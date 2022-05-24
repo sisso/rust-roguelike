@@ -1,6 +1,6 @@
 pub const ZERO: V2I = V2I { x: 0, y: 0 };
 
-#[derive(Clone, Copy, PartialEq, Debug, Hash, Eq, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, Debug, Hash, Eq, PartialOrd, Default)]
 pub struct V2I {
     pub x: i32,
     pub y: i32,

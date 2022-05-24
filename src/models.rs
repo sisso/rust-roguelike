@@ -1,6 +1,5 @@
 use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
-use rltk::Point;
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -18,7 +17,6 @@ pub struct Label {
 #[derive(Component, Debug)]
 pub struct Player {
     avatar_id: Entity,
-    avatar_queue: Vec<Entity>,
     bscurrent: BitSet,
 }
 
@@ -29,7 +27,6 @@ impl Player {
 
         Player {
             avatar_id: current,
-            avatar_queue: Default::default(),
             bscurrent: bsc,
         }
     }
@@ -47,6 +44,21 @@ impl Player {
 pub struct Position {
     pub grid_id: Entity,
     pub point: Coord,
+}
+
+#[derive(Component, Clone, Debug, PartialEq)]
+pub struct GridPosition {
+    pub grid_id: Option<Entity>,
+    pub pos: Coord,
+}
+
+impl Default for GridPosition {
+    fn default() -> Self {
+        GridPosition {
+            grid_id: None,
+            pos: V2I { x: 0, y: 0 },
+        }
+    }
 }
 
 impl Position {

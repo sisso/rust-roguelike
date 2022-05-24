@@ -1,4 +1,5 @@
 use super::models::*;
+use crate::commons::grid::Grid;
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -8,6 +9,7 @@ pub enum GMapTile {
     Floor,
     Wall,
     Space,
+    // normally used by returns to avoid option, TODO: remove?
     OutOfMap,
 }
 
@@ -22,6 +24,12 @@ impl GMapTile {
             GMapTile::OutOfMap => true,
             _ => false,
         }
+    }
+}
+
+impl Default for GMapTile {
+    fn default() -> Self {
+        GMapTile::Space
     }
 }
 
@@ -54,7 +62,36 @@ impl GMap {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+struct ViewGrid<'a> {
+    grids: Vec<(Entity, P2, &'a GMap)>,
+}
+
+impl<'a> ViewGrid<'a> {
+    pub fn create_view(
+        locations: ReadStorage<'a, Location>,
+        gmaps: ReadStorage<'a, Location>,
+        entity: Entity,
+    ) -> ViewGrid<'a> {
+        todo!()
+    }
+}
+
+pub const EMPTY_CELL: Cell = Cell {
+    tile: GMapTile::Space,
+};
+
+#[derive(Component, Debug, Clone, Default)]
 pub struct Cell {
     pub tile: GMapTile,
+    // pub objects? // how will return ref?
+}
+
+impl Cell {
+    pub fn new(tile: GMapTile) -> Self {
+        Cell { tile }
+    }
+}
+
+impl Component for Grid<GMapTile> {
+    type Storage = DenseVecStorage<Self>;
 }

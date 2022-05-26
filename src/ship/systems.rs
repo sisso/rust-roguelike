@@ -44,46 +44,7 @@ impl<'a> System<'a> for FlyToSystem {
             // execute command
             match ship.current_command {
                 Command::FlyTo { target_id } => {
-                    ship.move_calm_down = super::FLY_SLEEP_TIME;
-
-                    // update position
-                    let target_pos = {
-                        match locations.get(target_id) {
-                            Some(Location::Sector { pos, .. }) => pos.clone(),
-                            other => {
-                                warn!("invalid location for flyto target: {:?}", other);
-                                continue;
-                            }
-                        }
-                    };
-
-                    match locations.get_mut(ship_entity) {
-                        Some(Location::Sector { pos, .. }) if *pos == target_pos => {
-                            info!("ship arrival, entering in orbit");
-                            ship.current_command = Command::Idle;
-                            locations
-                                .insert(
-                                    ship_entity,
-                                    Location::Orbit {
-                                        target_id: target_id,
-                                    },
-                                )
-                                .unwrap();
-                        }
-                        Some(Location::Sector {
-                            pos,
-                            sector_id: sector,
-                        }) => {
-                            let mut delta_x = clamp(target_pos.x - pos.x, -1, 1);
-                            let mut delta_y = clamp(target_pos.y - pos.y, -1, 1);
-                            info!("moving {:?} by {},{}", pos, delta_x, delta_y);
-                            pos.x += delta_x;
-                            pos.y += delta_y;
-                        }
-                        other => {
-                            warn!("invalid location for ship with flyto command: {:?}", other);
-                        }
-                    }
+                    do_ship_fly(&mut locations, ship_entity, ship, target_id)
                 }
 
                 Command::Land {
@@ -164,6 +125,54 @@ impl<'a> System<'a> for FlyToSystem {
                 }
                 _ => {}
             }
+        }
+    }
+}
+
+fn do_ship_fly(
+    locations: &mut WriteStorage<Location>,
+    ship_entity: Entity,
+    ship: &mut Ship,
+    target_id: Entity,
+) {
+    ship.move_calm_down = super::FLY_SLEEP_TIME;
+
+    // update position
+    let target_pos = {
+        match locations.get(target_id) {
+            Some(Location::Sector { pos, .. }) => pos.clone(),
+            other => {
+                warn!("invalid location for flyto target: {:?}", other);
+                return;
+            }
+        }
+    };
+
+    match locations.get_mut(ship_entity) {
+        Some(Location::Sector { pos, .. }) if *pos == target_pos => {
+            info!("ship arrival, entering in orbit");
+            ship.current_command = Command::Idle;
+            locations
+                .insert(
+                    ship_entity,
+                    Location::Orbit {
+                        target_id: target_id,
+                    },
+                )
+                .unwrap();
+        }
+        Some(Location::Sector {
+            pos,
+            sector_id: sector,
+        }) => {
+            let mut delta_x = clamp(target_pos.x - pos.x, -1, 1);
+            let mut delta_y = clamp(target_pos.y - pos.y, -1, 1);
+            info!("moving {:?} by {},{}", pos, delta_x, delta_y);
+            pos.x += delta_x;
+            pos.y += delta_y;
+        }
+        other => {
+            warn!("invalid location for ship with flyto command: {:?}", other);
         }
     }
 }

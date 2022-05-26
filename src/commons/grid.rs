@@ -311,7 +311,7 @@ pub trait GridCell {
 }
 
 impl<T: GridCell> NGrid<T> {
-    pub fn new(default: T) -> Self {
+    pub fn new(_default: T) -> Self {
         NGrid { grids: vec![] }
     }
 
@@ -353,7 +353,7 @@ impl<T: GridCell> NGrid<T> {
         found
     }
 
-    pub fn push_surface_at(&mut self, coord: &V2I, mut surf: NGrid<T>) {
+    pub fn push_surface_at(&mut self, coord: &V2I, surf: NGrid<T>) {
         for mut g in surf.grids {
             // translate new surface into local position
             let pos = g.get_pos().translate(coord.x, coord.y);
@@ -367,7 +367,7 @@ impl<T: GridCell> NGrid<T> {
         self.grids.len()
     }
 
-    pub fn remove(&mut self, index: usize, default: T) -> NGrid<T> {
+    pub fn remove(&mut self, index: usize, _default: T) -> NGrid<T> {
         assert!(index <= self.grids.len());
 
         let grid = self.grids.remove(index);

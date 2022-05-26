@@ -1,10 +1,10 @@
-use crate::commons::grid::Coord;
+
 use crate::gmap::GMap;
 use crate::ship::Command;
-use crate::{commons, Location, Position, Sector, SectorBody, Ship, Surface};
+use crate::{Location, Position, Sector, SectorBody, Ship};
 use log::{debug, info, warn};
 use specs::prelude::*;
-use std::borrow::BorrowMut;
+
 
 pub struct FlyToSystem {}
 
@@ -31,7 +31,7 @@ impl<'a> System<'a> for FlyToSystem {
 
     fn run(
         &mut self,
-        (entities, mut ships, mut locations, sectors, bodies, mut gmaps, mut positions): Self::SystemData,
+        (entities, mut ships, mut locations, _sectors, _bodies, mut gmaps, _positions): Self::SystemData,
     ) {
         for (ship_entity, ship) in (&entities, &mut ships).join() {
             // update calm down
@@ -48,19 +48,19 @@ impl<'a> System<'a> for FlyToSystem {
                 }
 
                 Command::Land {
-                    pos: surf_pos,
+                    pos: _surf_pos,
                     target_id,
                 } => {
                     // update ship command to idle
                     ship.current_command = Command::Idle;
 
                     // get landing zone
-                    let ship_gmap = (&gmaps)
+                    let _ship_gmap = (&gmaps)
                         .get(ship_entity)
                         .expect("ship map not found")
                         .clone();
 
-                    let target_gmap = (&mut gmaps)
+                    let _target_gmap = (&mut gmaps)
                         .get_mut(target_id)
                         .expect("gmap for landing target id not found");
 
@@ -163,10 +163,10 @@ fn do_ship_fly(
         }
         Some(Location::Sector {
             pos,
-            sector_id: sector,
+            sector_id: _sector,
         }) => {
-            let mut delta_x = clamp(target_pos.x - pos.x, -1, 1);
-            let mut delta_y = clamp(target_pos.y - pos.y, -1, 1);
+            let delta_x = clamp(target_pos.x - pos.x, -1, 1);
+            let delta_y = clamp(target_pos.y - pos.y, -1, 1);
             info!("moving {:?} by {},{}", pos, delta_x, delta_y);
             pos.x += delta_x;
             pos.y += delta_y;

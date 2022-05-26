@@ -4,7 +4,7 @@ use crate::commons::grid::{Grid, NGrid};
 use crate::commons::v2i::V2I;
 use specs::prelude::*;
 use specs_derive::*;
-use std::panic::resume_unwind;
+
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum GMapTile {
@@ -81,9 +81,9 @@ struct ViewGrid<'a> {
 
 impl<'a> ViewGrid<'a> {
     pub fn create_view(
-        locations: ReadStorage<'a, Location>,
-        gmaps: ReadStorage<'a, Location>,
-        entity: Entity,
+        _locations: ReadStorage<'a, Location>,
+        _gmaps: ReadStorage<'a, Location>,
+        _entity: Entity,
     ) -> ViewGrid<'a> {
         todo!()
     }

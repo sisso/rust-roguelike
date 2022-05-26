@@ -9,7 +9,7 @@ use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::{actions, cfg};
 use crate::{State, P2};
-use rltk::{Algorithm2D, Rltk, VirtualKeyCode, RGB};
+use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 use std::collections::HashSet;
@@ -297,7 +297,7 @@ fn draw_gui_bottom_box(
 #[cfg(test)]
 mod test {
     use super::*;
-    use rltk::Point;
+    
 
     /*
           0 1 2 3 4 5 ...

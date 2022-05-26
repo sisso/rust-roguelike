@@ -1,13 +1,13 @@
 use crate::view::window::Window;
 use crate::{
-    cfg, gmap::GMap, ship, Dir, Label, Location, Player, Position, Sector, SectorBody, Ship, State,
+    cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, State,
     Surface, P2,
 };
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
-use std::borrow::Borrow;
+
 
 struct LocalInfo {
     pub avatar_id: Entity,
@@ -102,7 +102,7 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
         RGB::named(rltk::BLACK),
     );
 
-    let mut x = border + 2;
+    let x = border + 2;
     let mut y = border + 2;
 
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "The cockpit");
@@ -199,11 +199,11 @@ fn draw_status(state: &mut State, ctx: &mut Rltk, info: &LocalInfo, x: i32, mut 
             );
             y += 1;
         }
-        (Some(Location::Sector { pos, .. }), Some(ship::Command::Idle)) => {
+        (Some(Location::Sector { pos: _, .. }), Some(ship::Command::Idle)) => {
             ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship is drifting in space");
             y += 1;
         }
-        (Some(Location::Orbit { target_id, .. }), _) => {
+        (Some(Location::Orbit { target_id: _, .. }), _) => {
             ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship is orbiting a object");
             y += 1;
         }
@@ -222,7 +222,7 @@ fn draw_status(state: &mut State, ctx: &mut Rltk, info: &LocalInfo, x: i32, mut 
 
 fn try_do_command(
     state: &mut State,
-    ctx: &mut Rltk,
+    _ctx: &mut Rltk,
     ship_id: Entity,
     command: Option<&MenuOption>,
 ) -> Result<(), String> {
@@ -251,7 +251,7 @@ fn draw_sector_map(state: &mut State, ctx: &mut Rltk, x: i32, y: i32, ship_id: E
     let labels = state.ecs.read_storage::<Label>();
 
     // get ship location
-    let (ship_pos, ship_sector_id) = match locations.get(ship_id) {
+    let (_ship_pos, ship_sector_id) = match locations.get(ship_id) {
         Some(Location::Sector { pos, sector_id }) => (pos.clone(), *sector_id),
         Some(Location::Orbit { target_id }) => {
             match crate::locations::resolve_sector_pos(&locations, *target_id) {
@@ -281,7 +281,7 @@ fn draw_sector_map(state: &mut State, ctx: &mut Rltk, x: i32, y: i32, ship_id: E
         let _ = bodies_bitset.add(i.id());
     });
 
-    for (e, loc, lab) in (&entities, &locations, &labels).join() {
+    for (e, _loc, _lab) in (&entities, &locations, &labels).join() {
         let (pos, _) = match crate::locations::resolve_sector_pos(&locations, e) {
             Some(value) => value,
             _ => continue,
@@ -367,7 +367,7 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
         RGB::named(rltk::BLACK),
     );
 
-    let mut x = border + 2;
+    let x = border + 2;
     let mut y = border + 2;
 
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Choose landing location");

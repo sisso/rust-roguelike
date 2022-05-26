@@ -1,5 +1,5 @@
 use crate::commons;
-use crate::commons::grid::Grid;
+
 use crate::commons::v2i::V2I;
 use crate::gmap::{Cell, GMap, GMapTile};
 use crate::models::{ObjectsType, Position};

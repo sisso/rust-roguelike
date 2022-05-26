@@ -1,7 +1,7 @@
 use crate::commons::grid::{Coord, Grid, Index};
 use crate::commons::recti::RectI;
 use crate::gmap;
-use crate::gmap::{Cell, GMapTile};
+use crate::gmap::{Cell};
 use crate::models::P2;
 
 struct NGridMap {
@@ -70,9 +70,9 @@ impl rltk::BaseMap for NGridMap {
 #[cfg(test)]
 mod test {
     use crate::commons::grid::{Coord, Grid};
-    use crate::commons::v2i;
-    use crate::commons::v2i::V2I;
-    use crate::gmap::{Cell, GMap, GMapTile};
+    
+    
+    use crate::gmap::{Cell, GMapTile};
     use crate::ngridmap::NGridMap;
     use crate::P2;
     use rltk::Algorithm2D;
@@ -182,10 +182,10 @@ mod test {
 
 #[cfg(test)]
 mod test_acceptance {
-    use super::*;
-    use crate::commons::grid::Grid;
-    use crate::commons::v2i::V2I;
-    use specs::prelude::*;
+    
+    
+    
+    
 
     #[test]
     fn test_view_grid() {

@@ -123,7 +123,7 @@ fn main() -> rltk::BError {
             let size = 100;
             let total_cells = size * size;
             let mut cells = Vec::with_capacity(total_cells);
-            for j in 0..(total_cells) {
+            for _j in 0..(total_cells) {
                 cells.push(gmap::Cell {
                     tile: gmap::GMapTile::Ground,
                 })

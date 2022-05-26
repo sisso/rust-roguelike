@@ -1,14 +1,14 @@
-use crate::commons::v2i::V2I;
-use crate::gmap::{Cell, GMap, GMapTile};
+
+use crate::gmap::{GMap};
 use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::window::Window;
 use log::debug;
-use rltk::{Algorithm2D, Point};
+
 use specs::prelude::*;
 use specs_derive::*;
 use std::borrow::Borrow;
-use std::cmp::{max, min};
+
 
 pub mod actions_system;
 pub mod avatar_actions_system;

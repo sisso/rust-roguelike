@@ -1,8 +1,8 @@
 use crate::{cfg, commons, P2};
-use log::debug;
-use rltk::{Point, Rect};
 
-use crate::commons::v2i::V2I;
+use rltk::{Point};
+
+
 use specs::prelude::*;
 use specs_derive::*;
 

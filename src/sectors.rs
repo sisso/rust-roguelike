@@ -10,7 +10,7 @@ pub fn update_bodies_list(ecs: &mut World) {
     for (obj_id, location) in (&objects, &locations).join() {
         match location {
             Location::Sector {
-                sector_id: sector_id,
+                sector_id,
                 ..
             } => {
                 let sector = sectors.get_mut(*sector_id).unwrap();

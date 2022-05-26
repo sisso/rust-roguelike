@@ -1,13 +1,9 @@
 use crate::view::window::Window;
-use crate::{
-    cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, State,
-    Surface, P2,
-};
+use crate::{cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, State, Surface, P2};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 use specs_derive::*;
-
 
 struct LocalInfo {
     pub avatar_id: Entity,
@@ -528,7 +524,9 @@ fn list_commands(ecs: &World, ship_id: Entity) -> Vec<MenuOption> {
         Location::BodySurface { .. } => {
             commands.push(MenuOption::Launch);
         }
-        Location::BodySurfacePlace { .. } => {}
+        Location::BodySurfacePlace { .. } => {
+            commands.push(MenuOption::Launch);
+        }
     }
 
     commands

@@ -96,21 +96,22 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Player>();
     gs.ecs.register::<CockpitWindowState>();
-    gs.ecs.register::<gmap::GMap>();
+    gs.ecs.register::<GMap>();
     gs.ecs.register::<Location>();
     gs.ecs.register::<Surface>();
     gs.ecs.register::<Sector>();
     gs.ecs.register::<Label>();
     gs.ecs.register::<SectorBody>();
+    gs.ecs.register::<AtZone>();
 
     // initialize
     let cfg = cfg::Cfg::new();
     let ship_map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
-    let ship_map =
+    let ship_gmap =
         loader::parse_map_tiles(&cfg.raw_map_tiles, &ship_map_ast).expect("fail to load map tiles");
 
-    let spawn_x = ship_map.get_grid().get_width() / 2 - 5;
-    let spawn_y = ship_map.get_grid().get_height() / 2;
+    let spawn_x = ship_gmap.get_grid().get_width() / 2 - 5;
+    let spawn_y = ship_gmap.get_grid().get_height() / 2;
 
     gs.ecs.insert(Window::World);
     gs.ecs.insert(cfg);
@@ -173,8 +174,9 @@ fn main() -> rltk::BError {
         })
         .build();
 
-    let ship_id = gs
-        .ecs
+    let ship_zone = gs.ecs.create_entity().with(ship_gmap).build();
+
+    gs.ecs
         .create_entity()
         .with(Label {
             name: "ship".to_string(),
@@ -190,8 +192,9 @@ fn main() -> rltk::BError {
         //     sector_id: sector_id,
         //     pos: P2::new(0, 0),
         // })
-        .with(ship_map)
+        .with(AtZone::new(ship_zone))
         .build();
+
     let avatar_entity = gs
         .ecs
         .create_entity()
@@ -200,7 +203,7 @@ fn main() -> rltk::BError {
             name: "player".to_string(),
         })
         .with(Position {
-            grid_id: ship_id,
+            grid_id: ship_zone,
             point: (spawn_x, spawn_y).into(),
         })
         .with(Renderable {
@@ -224,7 +227,7 @@ fn main() -> rltk::BError {
 
     gs.ecs.insert(Player::new(avatar_entity));
 
-    loader::parse_map_objects(&mut gs.ecs, ship_id, ship_map_ast)
+    loader::parse_map_objects(&mut gs.ecs, ship_zone, ship_map_ast)
         .expect("fail to load map objects");
 
     sectors::update_bodies_list(&mut gs.ecs);

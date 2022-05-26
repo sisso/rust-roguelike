@@ -150,6 +150,17 @@ pub enum SurfaceTileKind {
 }
 
 #[derive(Component, Debug, Clone)]
+pub struct AtZone {
+    pub zone_id: Entity,
+}
+
+impl AtZone {
+    pub fn new(zone_id: Entity) -> Self {
+        AtZone { zone_id }
+    }
+}
+
+#[derive(Component, Debug, Clone)]
 pub struct Surface {
     pub width: u32,
     pub height: u32,
@@ -169,6 +180,7 @@ pub enum Location {
         target_id: Entity,
     },
     // at surface, in big map scale (ship is a dot)
+    // TODO: probably deprecate it?
     BodySurface {
         body_id: Entity,
         place_coords: P2,

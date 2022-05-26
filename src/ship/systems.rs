@@ -1,10 +1,9 @@
-
+use crate::commons::grid::Coord;
 use crate::gmap::GMap;
 use crate::ship::Command;
-use crate::{Location, Position, Sector, SectorBody, Ship};
+use crate::{commons, Location, Position, Sector, SectorBody, Ship};
 use log::{debug, info, warn};
 use specs::prelude::*;
-
 
 pub struct FlyToSystem {}
 
@@ -31,7 +30,7 @@ impl<'a> System<'a> for FlyToSystem {
 
     fn run(
         &mut self,
-        (entities, mut ships, mut locations, _sectors, _bodies, mut gmaps, _positions): Self::SystemData,
+        (entities, mut ships, mut locations, sectors, bodies, mut gmaps, positions): Self::SystemData,
     ) {
         for (ship_entity, ship) in (&entities, &mut ships).join() {
             // update calm down
@@ -48,38 +47,41 @@ impl<'a> System<'a> for FlyToSystem {
                 }
 
                 Command::Land {
-                    pos: _surf_pos,
+                    pos: surf_pos,
                     target_id,
                 } => {
                     // update ship command to idle
                     ship.current_command = Command::Idle;
 
                     // get landing zone
-                    let _ship_gmap = (&gmaps)
+                    let ship_gmap = (&gmaps)
                         .get(ship_entity)
                         .expect("ship map not found")
                         .clone();
 
-                    let _target_gmap = (&mut gmaps)
+                    let target_gmap = (&mut gmaps)
                         .get_mut(target_id)
                         .expect("gmap for landing target id not found");
 
-                    todo!()
+                    // move grid layers into new map
+                    let target_center_pos = Coord::new(
+                        target_gmap.get_grid().get_width() / 2,
+                        target_gmap.get_grid().get_height() / 2,
+                    );
+                    let ship_pos = Coord::new(
+                        target_center_pos.x - ship_gmap.get_grid().get_width() / 2,
+                        target_center_pos.y - ship_gmap.get_grid().get_height() / 2,
+                    );
 
-                    // bake ship grid into new zone
-                    // let target_center_pos =
-                    //     Coord::new(target_gmap.width / 2, target_gmap.height / 2);
-                    // let ship_pos = Coord::new(
-                    //     target_center_pos.x - ship_gmap.width / 2,
-                    //     target_center_pos.y - ship_gmap.height / 2,
-                    // );
-                    //
-                    // debug!(
-                    //     "copying ship map {:?} into surface {:?} on {:?}",
-                    //     ship_entity.id(),
-                    //     target_id.id(),
-                    //     ship_pos
-                    // );
+                    debug!(
+                        "copying ship map {:?} into surface {:?} on {:?}",
+                        ship_entity.id(),
+                        target_id.id(),
+                        ship_pos
+                    );
+
+                    // target_gmap.merge_grid(ship_gmap);
+
                     // for x in 0..ship_gmap.width {
                     //     for y in 0..ship_gmap.height {
                     //         let coords = Coord::new(x, y);

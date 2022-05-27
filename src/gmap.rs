@@ -5,7 +5,6 @@ use crate::commons::v2i::V2I;
 use specs::prelude::*;
 use specs_derive::*;
 
-
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum GMapTile {
     Ground,
@@ -43,8 +42,7 @@ impl Default for GMapTile {
 #[derive(Component, Debug, Clone)]
 pub struct GMap {
     grid: NGrid<Cell>,
-    // layer zero is always self
-    layers: Vec<(Entity, usize)>,
+    layers: Vec<Entity>,
 }
 
 impl rltk::Algorithm2D for GMap {
@@ -72,6 +70,9 @@ impl rltk::BaseMap for GMap {
 impl GMap {
     pub fn get_grid(&self) -> &NGrid<Cell> {
         &self.grid
+    }
+    pub fn new(grid: NGrid<Cell>, layers: Vec<Entity>) -> Self {
+        Self { grid, layers }
     }
 }
 

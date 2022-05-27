@@ -1,4 +1,4 @@
-use crate::commons;
+use crate::{commons, Grid};
 
 use crate::commons::v2i::V2I;
 use crate::gmap::{Cell, GMap, GMapTile};
@@ -10,7 +10,7 @@ use specs::prelude::*;
 pub fn parse_map_tiles(
     legend: &Vec<(char, GMapTile)>,
     map: &ParseMapAst,
-) -> Result<GMap, ParseMapError> {
+) -> Result<Grid<Cell>, ParseMapError> {
     let mut cells = vec![];
 
     for i in 0..(map.width as usize * map.height as usize) {
@@ -29,7 +29,7 @@ pub fn parse_map_tiles(
         list: cells,
     };
 
-    Ok(grid.into())
+    Ok(grid)
 }
 
 // pub fn map_empty(width: i32, height: i32) -> GMap {

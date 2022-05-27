@@ -149,14 +149,16 @@ pub enum SurfaceTileKind {
     Plain,
 }
 
+/// Entity that hold the gmap of the following object. You need to check on each layer in GMap
+/// to find the correct grid
 #[derive(Component, Debug, Clone)]
-pub struct AtZone {
-    pub zone_id: Entity,
+pub struct ObjGrid {
+    pub grid_id: Entity,
 }
 
-impl AtZone {
-    pub fn new(zone_id: Entity) -> Self {
-        AtZone { zone_id }
+impl ObjGrid {
+    pub fn new(grid_id: Entity) -> Self {
+        ObjGrid { grid_id }
     }
 }
 

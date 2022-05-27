@@ -301,17 +301,17 @@ impl<T> From<PGrid<T>> for Grid<T> {
     }
 }
 
+pub trait GridCell {
+    fn is_empty(&self) -> bool;
+}
+
 #[derive(Clone, Debug)]
 pub struct NGrid<T: GridCell> {
     grids: Vec<PGrid<T>>,
 }
 
-pub trait GridCell {
-    fn is_empty(&self) -> bool;
-}
-
 impl<T: GridCell> NGrid<T> {
-    pub fn new(_default: T) -> Self {
+    pub fn new() -> Self {
         NGrid { grids: vec![] }
     }
 

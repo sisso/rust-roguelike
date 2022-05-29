@@ -1,14 +1,11 @@
-
-use crate::gmap::{GMap};
 use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::window::Window;
 use log::debug;
 
+use crate::gridref::GridRef;
 use specs::prelude::*;
 use specs_derive::*;
-use std::borrow::Borrow;
-
 
 pub mod actions_system;
 pub mod avatar_actions_system;
@@ -35,11 +32,11 @@ impl EntityActions {
 
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
-    let grids = ecs.read_storage::<GMap>();
+    let grids = ecs.read_storage::<GridRef>();
     let avatars = ecs.fetch::<Player>();
 
     for (avatar_id, pos) in (avatars.get_avatarset(), &mut positions).join() {
-        let map = grids.borrow().get(pos.grid_id).unwrap();
+        let map = GridRef::find_gmap(&grids, pos.grid_id).unwrap();
 
         let new_pos = pos.point.translate(delta_x, delta_y);
         match map.get_grid().get_at(&new_pos) {

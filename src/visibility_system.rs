@@ -1,4 +1,4 @@
-use crate::gmap::GMap;
+use crate::gridref::GridRef;
 use crate::models::Position;
 use crate::view::Viewshed;
 use specs::prelude::*;
@@ -7,14 +7,14 @@ pub struct VisibilitySystem {}
 
 impl<'a> System<'a> for VisibilitySystem {
     type SystemData = (
-        ReadStorage<'a, GMap>,
+        ReadStorage<'a, GridRef>,
         WriteStorage<'a, Viewshed>,
         WriteStorage<'a, Position>,
     );
 
-    fn run(&mut self, (gridmaps, mut viewshed, pos): Self::SystemData) {
+    fn run(&mut self, (grids, mut viewshed, pos): Self::SystemData) {
         for (viewshed, pos) in (&mut viewshed, &pos).join() {
-            let gridmap = gridmaps.get(pos.grid_id).expect("grid map not found");
+            let gridmap = GridRef::find_gmap(&grids, pos.grid_id).unwrap();
 
             viewshed.visible_tiles.clear();
             viewshed.visible_tiles = rltk::field_of_view(

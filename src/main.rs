@@ -1,3 +1,5 @@
+extern crate core;
+
 use std::collections::HashSet;
 
 use log::*;
@@ -21,10 +23,10 @@ pub mod cfg;
 pub mod commons;
 pub mod events;
 pub mod gmap;
+pub mod gridref;
 pub mod loader;
 pub mod locations;
 pub mod models;
-pub mod ngridmap;
 pub mod sectors;
 pub mod ship;
 pub mod utils;
@@ -76,6 +78,7 @@ pub fn run_systems(st: &mut State, _ctx: &mut Rltk) {
 
 fn main() -> rltk::BError {
     // setup
+    use gridref::GridRef;
     use rltk::RltkBuilder;
 
     env_logger::builder()
@@ -96,13 +99,12 @@ fn main() -> rltk::BError {
     gs.ecs.register::<Avatar>();
     gs.ecs.register::<Player>();
     gs.ecs.register::<CockpitWindowState>();
-    gs.ecs.register::<GMap>();
     gs.ecs.register::<Location>();
     gs.ecs.register::<Surface>();
     gs.ecs.register::<Sector>();
     gs.ecs.register::<Label>();
     gs.ecs.register::<SectorBody>();
-    gs.ecs.register::<ObjGrid>();
+    gs.ecs.register::<GridRef>();
 
     // initialize
     let cfg = cfg::Cfg::new();
@@ -130,13 +132,7 @@ fn main() -> rltk::BError {
                 })
             }
 
-            let zone_id = gs
-                .ecs
-                .create_entity()
-                .with(Label {
-                    name: format!("zone {}", i),
-                })
-                .build();
+            let builder = gs.ecs.create_entity();
 
             let gmap = GMap::new(
                 NGrid::from_grid(Grid {
@@ -145,11 +141,15 @@ fn main() -> rltk::BError {
                     list: cells,
                 })
                 .into(),
-                vec![zone_id],
+                vec![builder.entity],
             );
-            let grid_id = gs.ecs.create_entity().with(gmap).build();
 
-            (&mut gs.ecs.write_storage::<ObjGrid>()).insert(zone_id, ObjGrid { grid_id });
+            let zone_id = builder
+                .with(Label {
+                    name: format!("zone {}", i),
+                })
+                .with(GridRef::GMap(gmap))
+                .build();
 
             zone_id
         })
@@ -179,11 +179,12 @@ fn main() -> rltk::BError {
         })
         .build();
 
-    let ship_grid_id = gs.ecs.create_entity().build();
+    let builder = gs.ecs.create_entity();
+    let ship_id = builder.entity;
 
-    let ship_id = gs
-        .ecs
-        .create_entity()
+    let ship_gmap = GMap::new(NGrid::from_grid(ship_grid), vec![ship_id]);
+
+    builder
         .with(Label {
             name: "ship".to_string(),
         })
@@ -198,13 +199,8 @@ fn main() -> rltk::BError {
         //     sector_id: sector_id,
         //     pos: P2::new(0, 0),
         // })
-        .with(ObjGrid::new(ship_grid_id))
+        .with(GridRef::GMap(ship_gmap))
         .build();
-
-    (&mut gs.ecs.write_storage::<GMap>()).insert(
-        ship_grid_id,
-        GMap::new(NGrid::from_grid(ship_grid), vec![ship_id]),
-    )?;
 
     let avatar_entity = gs
         .ecs
@@ -214,7 +210,7 @@ fn main() -> rltk::BError {
             name: "player".to_string(),
         })
         .with(Position {
-            grid_id: ship_grid_id,
+            grid_id: ship_id,
             point: (spawn_x, spawn_y).into(),
         })
         .with(Renderable {
@@ -238,7 +234,7 @@ fn main() -> rltk::BError {
 
     gs.ecs.insert(Player::new(avatar_entity));
 
-    loader::parse_map_objects(&mut gs.ecs, ship_grid_id, ship_map_ast)
+    loader::parse_map_objects(&mut gs.ecs, ship_id, ship_map_ast)
         .expect("fail to load map objects");
 
     sectors::update_bodies_list(&mut gs.ecs);

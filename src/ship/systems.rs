@@ -1,7 +1,8 @@
 use crate::commons::grid::Coord;
-use crate::gmap::GMap;
+use crate::commons::recti;
+use crate::gridref::GridRef;
 use crate::ship::Command;
-use crate::{commons, Location, Position, Sector, SectorBody, Ship};
+use crate::{Location, Position, Sector, SectorBody, Ship};
 use log::{debug, info, warn};
 use specs::prelude::*;
 
@@ -24,15 +25,15 @@ impl<'a> System<'a> for FlyToSystem {
         WriteStorage<'a, Location>,
         ReadStorage<'a, Sector>,
         ReadStorage<'a, SectorBody>,
-        WriteStorage<'a, GMap>,
+        WriteStorage<'a, GridRef>,
         WriteStorage<'a, Position>,
     );
 
     fn run(
         &mut self,
-        (entities, mut ships, mut locations, sectors, bodies, mut gmaps, positions): Self::SystemData,
+        (entities, mut ships, mut locations, sectors, bodies, mut grids, mut positions): Self::SystemData,
     ) {
-        for (ship_entity, ship) in (&entities, &mut ships).join() {
+        for (ship_id, ship) in (&entities, &mut ships).join() {
             // update calm down
             if ship.move_calm_down > 0 {
                 ship.move_calm_down -= 1;
@@ -43,25 +44,29 @@ impl<'a> System<'a> for FlyToSystem {
             // execute command
             match ship.current_command {
                 Command::FlyTo { target_id } => {
-                    do_ship_fly(&mut locations, ship_entity, ship, target_id)
+                    do_ship_fly(&mut locations, ship_id, ship, target_id)
                 }
 
                 Command::Land {
-                    pos: surf_pos,
                     target_id,
+                    place_coords,
                 } => {
                     // update ship command to idle
                     ship.current_command = Command::Idle;
 
-                    // get landing zone
-                    let ship_gmap = (&gmaps)
-                        .get(ship_entity)
-                        .expect("ship map not found")
-                        .clone();
+                    // replace ship reference to new target
+                    let ship_gmap =
+                        match GridRef::replace(&mut grids, ship_id, GridRef::Ref(target_id)) {
+                            Some(GridRef::GMap(gmap)) => gmap,
+                            _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
+                        };
 
-                    let target_gmap = (&mut gmaps)
-                        .get_mut(target_id)
-                        .expect("gmap for landing target id not found");
+                    // get landing zone
+                    let gridsm = &mut grids;
+                    let target_gmap = match (gridsm).get_mut(target_id) {
+                        Some(GridRef::GMap(gmap)) => gmap,
+                        _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
+                    };
 
                     // move grid layers into new map
                     let target_center_pos = Coord::new(
@@ -73,51 +78,39 @@ impl<'a> System<'a> for FlyToSystem {
                         target_center_pos.y - ship_gmap.get_grid().get_height() / 2,
                     );
 
+                    // move objects into new zone
+                    for (e, p) in (&entities, &mut positions).join() {
+                        if p.grid_id == ship_id {
+                            let global = recti::to_global(&ship_pos, &p.point);
+                            debug!(
+                                "on land, update object {} from {:?} to {:?}",
+                                e.id(),
+                                p.point,
+                                global
+                            );
+                            p.grid_id = target_id;
+                            p.point = global;
+                        }
+                    }
+
                     debug!(
-                        "copying ship map {:?} into surface {:?} on {:?}",
-                        ship_entity.id(),
+                        "moving ship map {:?} into surface {:?} on {:?}",
+                        ship_id.id(),
                         target_id.id(),
                         ship_pos
                     );
 
-                    // target_gmap.merge_grid(ship_gmap);
+                    target_gmap.merge(ship_gmap, &ship_pos);
 
-                    // for x in 0..ship_gmap.width {
-                    //     for y in 0..ship_gmap.height {
-                    //         let coords = Coord::new(x, y);
-                    //         let global = commons::recti::to_global(&ship_pos, &coords);
-                    //         let sindex =
-                    //             commons::grid::coords_to_index(ship_gmap.width, &coords) as usize;
-                    //         let tindex =
-                    //             commons::grid::coords_to_index(target_gmap.width, &global) as usize;
-                    //
-                    //         if ship_gmap.cells[sindex].tile.is_nothing() {
-                    //             continue;
-                    //         }
-                    //
-                    //         target_gmap.cells[tindex] = ship_gmap.cells[sindex].clone();
-                    //     }
-                    // }
-                    //
-                    // // move objects into new zone
-                    // for (e, p) in (&entities, &mut positions).join() {
-                    //     if p.grid_id == ship_entity {
-                    //         let global = commons::recti::to_global(&ship_pos, &p.point);
-                    //         debug!("moving {} from {:?} to {:?}", e.id(), p.point, global);
-                    //         p.grid_id = target_id;
-                    //         p.point = global;
-                    //     }
-                    // }
-                    //
-                    // // update ship location
-                    // (&mut locations).insert(
-                    //     ship_entity,
-                    //     Location::BodySurfacePlace {
-                    //         body_id: target_id,
-                    //         place_coords: ship_pos,
-                    //         surface_pos: surf_pos,
-                    //     },
-                    // );
+                    // update ship location
+                    (&mut locations).insert(
+                        ship_id,
+                        Location::BodySurfacePlace {
+                            body_id: target_id,
+                            place_coords: place_coords,
+                            grid_pos: ship_pos,
+                        },
+                    );
                 }
 
                 Command::Launch => {

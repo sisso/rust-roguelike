@@ -149,19 +149,6 @@ pub enum SurfaceTileKind {
     Plain,
 }
 
-/// Entity that hold the gmap of the following object. You need to check on each layer in GMap
-/// to find the correct grid
-#[derive(Component, Debug, Clone)]
-pub struct ObjGrid {
-    pub grid_id: Entity,
-}
-
-impl ObjGrid {
-    pub fn new(grid_id: Entity) -> Self {
-        ObjGrid { grid_id }
-    }
-}
-
 #[derive(Component, Debug, Clone)]
 pub struct Surface {
     pub width: u32,
@@ -193,6 +180,6 @@ pub enum Location {
         // place in big scale map
         place_coords: P2,
         // pos in surface
-        surface_pos: P2,
+        grid_pos: P2,
     },
 }

@@ -315,6 +315,25 @@ impl<T: GridCell> NGrid<T> {
         NGrid { grids: vec![] }
     }
 
+    pub fn get_layer(&self, coord: &Coord) -> Option<usize> {
+        let mut found = None;
+
+        for (layer_id, g) in self.grids.iter().enumerate().rev() {
+            match g.get_at_opt(coord) {
+                Some(tile) if !tile.is_empty() => {
+                    found = Some(layer_id);
+                    break;
+                }
+                Some(_) => {
+                    found = Some(layer_id);
+                }
+                _ => {}
+            }
+        }
+
+        found
+    }
+
     pub fn from_grid(grid: Grid<T>) -> Self {
         NGrid {
             grids: vec![PGrid::from_grid(&super::v2i::ZERO, grid)],
@@ -338,19 +357,11 @@ impl<T: GridCell> NGrid<T> {
     }
 
     pub fn get_at(&self, coord: &Coord) -> Option<&T> {
-        let mut found = None;
-
-        for g in self.grids.iter().rev() {
-            match g.get_at_opt(coord) {
-                Some(tile) if !tile.is_empty() => return Some(tile),
-                Some(tile) => {
-                    found = Some(tile);
-                }
-                _ => {}
-            }
-        }
-
-        found
+        let layer_id = self.get_layer(coord);
+        layer_id.and_then(|index| {
+            let grid = &self.grids[index];
+            grid.get_at_opt(coord)
+        })
     }
 
     pub fn push_surface_at(&mut self, coord: &V2I, surf: NGrid<T>) {
@@ -372,6 +383,13 @@ impl<T: GridCell> NGrid<T> {
 
         let grid = self.grids.remove(index);
         NGrid::from_grid(grid.into())
+    }
+
+    pub fn merge(&mut self, gmap: NGrid<T>, pos: &Coord) {
+        for mut grid in gmap.grids {
+            grid.pos = grid.pos.translate(pos.x, pos.y);
+            self.grids.push(grid);
+        }
     }
 }
 
@@ -462,20 +480,40 @@ mod test {
     }
 
     #[test]
-    fn test_refngrid() {
+    fn test_ngrid_merge() {
         /*
          110
          022
          022
         */
-        // let g1 = Grid::new(2, 2, || 1);
-        // let g2 = Grid::new(2, 2, || 2);
-        // let grids = vec![(P2::new(0, 0), &g1), (P2::new(1, 1), &g2)];
-        //
-        // let g = RefNGrid::new(0, grids);
 
-        // assert_eq!(3, g.get_width());
-        // assert_eq!(3, g.get_height());
-        // assert_eq!(0, g.get_at(&V2I::new(0, 0)))
+        impl GridCell for i32 {
+            fn is_empty(&self) -> bool {
+                false
+            }
+        }
+
+        let g0 = Grid::new(3, 3, || 0);
+        let g1 = Grid::new(2, 1, || 1);
+        let g2 = Grid::new(2, 2, || 2);
+
+        let mut ng0 = NGrid::from_grid(g0);
+        let ng1 = NGrid::from_grid(g1);
+        let ng2 = NGrid::from_grid(g2);
+
+        ng0.merge(ng1, &V2I::new(0, 0));
+        ng0.merge(ng2, &V2I::new(1, 1));
+
+        assert_eq!(3, ng0.get_width());
+        assert_eq!(3, ng0.get_height());
+        assert_eq!(Some(&1), ng0.get_at(&V2I::new(0, 0)));
+        assert_eq!(Some(&1), ng0.get_at(&V2I::new(1, 0)));
+        assert_eq!(Some(&0), ng0.get_at(&V2I::new(2, 0)));
+        assert_eq!(Some(&0), ng0.get_at(&V2I::new(0, 1)));
+        assert_eq!(Some(&2), ng0.get_at(&V2I::new(1, 1)));
+        assert_eq!(Some(&2), ng0.get_at(&V2I::new(2, 1)));
+        assert_eq!(Some(&0), ng0.get_at(&V2I::new(0, 2)));
+        assert_eq!(Some(&2), ng0.get_at(&V2I::new(1, 2)));
+        assert_eq!(Some(&2), ng0.get_at(&V2I::new(2, 2)));
     }
 }

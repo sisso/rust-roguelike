@@ -4,6 +4,7 @@ pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::gmap::{GMap, GMapTile};
+use crate::gridref::GridRef;
 use crate::models::{ObjectsType, Player, Position};
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
@@ -96,9 +97,9 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
     let camera = Camera::from_center(pos.point);
 
     // draw
-    let grids = &state.ecs.read_storage::<GMap>();
-    let map = grids.get(pos.grid_id).unwrap();
-    draw_map(&camera, &v.visible_tiles, &v.know_tiles, &map, ctx);
+    let grids = &state.ecs.read_storage::<GridRef>();
+    let map = GridRef::find_gmap(grids, pos.grid_id).unwrap();
+    draw_map(&camera, &v.visible_tiles, &v.know_tiles, map, ctx);
     draw_objects(&camera, &v.visible_tiles, &state.ecs, ctx);
 }
 
@@ -192,10 +193,10 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let avatars = &state.ecs.read_storage::<Player>();
     let positions = &state.ecs.read_storage::<Position>();
     let actions_st = &state.ecs.read_storage::<EntityActions>();
+    let grids = &state.ecs.read_storage::<GridRef>();
 
     for (_avatar_id, position, actions) in (avatars, positions, actions_st).join() {
-        let grids = &state.ecs.read_storage::<GMap>();
-        let gmap = grids.get(position.grid_id).unwrap();
+        let gmap = GridRef::find_gmap(grids, position.grid_id).unwrap();
 
         let tile = gmap.get_grid().get_at(&position.point).unwrap_or_default();
         let objects_at = find_objects_at(entities, objects, positions, position);
@@ -297,7 +298,6 @@ fn draw_gui_bottom_box(
 #[cfg(test)]
 mod test {
     use super::*;
-    
 
     /*
           0 1 2 3 4 5 ...

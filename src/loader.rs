@@ -1,7 +1,8 @@
 use crate::{commons, Grid};
 
 use crate::commons::v2i::V2I;
-use crate::gmap::{Cell, GMap, GMapTile};
+use crate::gmap::{Cell, GMapTile};
+use crate::gridref::GridRef;
 use crate::models::{ObjectsType, Position};
 use crate::view::Renderable;
 use rltk::{Algorithm2D, RGB};
@@ -139,8 +140,8 @@ pub fn parse_map_objects(
     let mut changes: Vec<(Position, ObjectsType)> = vec![];
     {
         let cfg = ecs.fetch::<super::cfg::Cfg>();
-        let grids = &ecs.read_storage::<GMap>();
-        let map = grids.get(grid_id).unwrap();
+        let grids = &ecs.read_storage::<GridRef>();
+        let map = GridRef::find_gmap(grids, grid_id).unwrap();
         for (index, cell) in ast.cells.iter().enumerate() {
             let kind = cfg
                 .raw_map_objects

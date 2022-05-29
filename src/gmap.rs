@@ -1,6 +1,6 @@
 use super::models::*;
 use crate::commons;
-use crate::commons::grid::{Grid, NGrid};
+use crate::commons::grid::{Coord, Grid, NGrid};
 use crate::commons::v2i::V2I;
 use specs::prelude::*;
 use specs_derive::*;
@@ -11,7 +11,7 @@ pub enum GMapTile {
     Floor,
     Wall,
     Space,
-    // normally used by returns to avoid option, TODO: remove?
+    // normally used by returns to avoid option
     OutOfMap,
 }
 
@@ -39,10 +39,30 @@ impl Default for GMapTile {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+type LayerId = usize;
+
+#[derive(Debug, Clone)]
 pub struct GMap {
     grid: NGrid<Cell>,
     layers: Vec<Entity>,
+}
+
+impl GMap {
+    pub fn new(grid: NGrid<Cell>, layers: Vec<Entity>) -> Self {
+        Self { grid, layers }
+    }
+    pub fn get_entity_at(&self, coord: &Coord) -> Option<Entity> {
+        self.grid
+            .get_layer(coord)
+            .and_then(|index| self.layers.get(index).cloned())
+    }
+    pub fn get_grid(&self) -> &NGrid<Cell> {
+        &self.grid
+    }
+    pub fn merge(&mut self, gmap: GMap, pos: &P2) {
+        self.grid.merge(gmap.grid, pos);
+        self.layers.extend(gmap.layers.into_iter());
+    }
 }
 
 impl rltk::Algorithm2D for GMap {
@@ -64,15 +84,6 @@ impl rltk::BaseMap for GMap {
             .get_at(&c)
             .map(|i| i.tile.is_opaque())
             .unwrap_or(true)
-    }
-}
-
-impl GMap {
-    pub fn get_grid(&self) -> &NGrid<Cell> {
-        &self.grid
-    }
-    pub fn new(grid: NGrid<Cell>, layers: Vec<Entity>) -> Self {
-        Self { grid, layers }
     }
 }
 

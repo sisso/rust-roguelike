@@ -1,3 +1,4 @@
+use crate::commons::grid::Coord;
 use crate::GMap;
 use specs::prelude::*;
 use specs_derive::*;
@@ -18,21 +19,36 @@ impl GridRef {
         })
     }
 
-    // pub fn find_gmap_mut<'a, 'b>(
-    //     storage: &'a mut WriteStorage<'b, GridRef>,
-    //     id: Entity,
-    // ) -> Option<&'a mut GMap> {
-    //     let mut current_id = id;
-    //
-    //     loop {
-    //         let grid_ref = storage.get_mut(id);
-    //         match grid_ref {
-    //             Some(GridRef::GMap(gmap)) => return Some(gmap),
-    //             Some(GridRef::Ref(ref_id)) => current_id = *ref_id,
-    //             None => return None,
-    //         }
-    //     }
-    // }
+    pub fn find_gmap_entity_mut<'a, 'b>(
+        storage: &'a mut WriteStorage<'b, GridRef>,
+        id: Entity,
+    ) -> Option<Entity> {
+        let mut current_id = id;
+        loop {
+            let current_grid = storage.get(current_id)?;
+            match current_grid {
+                GridRef::Ref(id) => {
+                    current_id = *id;
+                }
+                GridRef::GMap(_) => {
+                    break;
+                }
+            }
+        }
+
+        Some(current_id)
+    }
+
+    pub fn find_gmap_mut<'a, 'b>(
+        storage: &'a mut WriteStorage<'b, GridRef>,
+        id: Entity,
+    ) -> Option<&'a mut GMap> {
+        let current_id = Self::find_gmap_entity_mut(storage, id)?;
+        match storage.get_mut(current_id) {
+            Some(GridRef::GMap(gmap)) => Some(gmap),
+            _ => None,
+        }
+    }
 
     pub fn replace<'a, 'b>(
         storage: &'a mut WriteStorage<'b, GridRef>,
@@ -42,6 +58,14 @@ impl GridRef {
         let previous = storage.remove(id);
         storage.insert(id, new_ref).unwrap();
         previous
+    }
+
+    pub fn extract<'a, 'b>(
+        storage: &'a mut WriteStorage<'b, GridRef>,
+        from_grid_id: Entity,
+        layer_id: Entity,
+    ) -> Option<(GMap, Coord)> {
+        todo!()
     }
 
     pub fn get_gmap(&self) -> Option<&GMap> {

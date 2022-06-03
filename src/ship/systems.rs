@@ -1,8 +1,10 @@
 use crate::commons::grid::Coord;
 use crate::commons::recti;
+use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
+use crate::gridref::GridRef::GMap;
 use crate::ship::Command;
-use crate::{Location, Position, Sector, SectorBody, Ship};
+use crate::{Location, Position, Sector, SectorBody, Ship, Surface, SurfaceZone, P2};
 use log::{debug, info, warn};
 use specs::prelude::*;
 
@@ -27,11 +29,12 @@ impl<'a> System<'a> for FlyToSystem {
         ReadStorage<'a, SectorBody>,
         WriteStorage<'a, GridRef>,
         WriteStorage<'a, Position>,
+        ReadStorage<'a, Surface>,
     );
 
     fn run(
         &mut self,
-        (entities, mut ships, mut locations, sectors, bodies, mut grids, mut positions): Self::SystemData,
+        (entities, mut ships, mut locations, sectors, bodies, mut grids, mut positions, surfaces): Self::SystemData,
     ) {
         for (ship_id, ship) in (&entities, &mut ships).join() {
             // update calm down
@@ -51,75 +54,133 @@ impl<'a> System<'a> for FlyToSystem {
                     target_id,
                     place_coords,
                 } => {
-                    // update ship command to idle
-                    ship.current_command = Command::Idle;
-
-                    // replace ship reference to new target
-                    let ship_gmap =
-                        match GridRef::replace(&mut grids, ship_id, GridRef::Ref(target_id)) {
-                            Some(GridRef::GMap(gmap)) => gmap,
-                            _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
-                        };
-
-                    // get landing zone
-                    let gridsm = &mut grids;
-                    let target_gmap = match (gridsm).get_mut(target_id) {
-                        Some(GridRef::GMap(gmap)) => gmap,
-                        _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
-                    };
-
-                    // move grid layers into new map
-                    let target_center_pos = Coord::new(
-                        target_gmap.get_grid().get_width() / 2,
-                        target_gmap.get_grid().get_height() / 2,
-                    );
-                    let ship_pos = Coord::new(
-                        target_center_pos.x - ship_gmap.get_grid().get_width() / 2,
-                        target_center_pos.y - ship_gmap.get_grid().get_height() / 2,
-                    );
-
-                    // move objects into new zone
-                    for (e, p) in (&entities, &mut positions).join() {
-                        if p.grid_id == ship_id {
-                            let global = recti::to_global(&ship_pos, &p.point);
-                            debug!(
-                                "on land, update object {} from {:?} to {:?}",
-                                e.id(),
-                                p.point,
-                                global
-                            );
-                            p.grid_id = target_id;
-                            p.point = global;
-                        }
-                    }
-
-                    debug!(
-                        "moving ship map {:?} into surface {:?} on {:?}",
-                        ship_id.id(),
-                        target_id.id(),
-                        ship_pos
-                    );
-
-                    target_gmap.merge(ship_gmap, &ship_pos);
-
-                    // update ship location
-                    (&mut locations).insert(
+                    do_ship_landing(
+                        &entities,
+                        &mut locations,
+                        &mut grids,
+                        &mut positions,
                         ship_id,
-                        Location::BodySurfacePlace {
-                            body_id: target_id,
-                            place_coords: place_coords,
-                            grid_pos: ship_pos,
-                        },
+                        ship,
+                        target_id,
+                        place_coords,
                     );
                 }
 
                 Command::Launch => {
-                    // copy grid back to entity
-                    // move objects to previous grid
-                    warn!("landing is not implemented");
+                    // find ship grid
+                    let grid_id = GridRef::find_gmap_entity_mut(&mut grids, ship_id).unwrap();
+
+                    // find what body we are landed
+                    let surface_body_id =
+                        Surface::find_surface_body(&entities, &surfaces, grid_id).unwrap();
+
+                    // update ship command to idle
+                    ship.current_command = Command::Idle;
+
+                    // extract ship grid
+                    let (grid, previous_coords) =
+                        GridRef::extract(&mut grids, grid_id, ship_id).unwrap();
+                    (&mut grids).insert(ship_id, GridRef::GMap(grid));
+
+                    // move objects inside ship grid back to ship
+                    move_all_objects(
+                        &entities,
+                        &mut positions,
+                        grid_id,
+                        ship_id,
+                        &previous_coords.inverse(),
+                    );
+
+                    // change ship state
+                    locations.insert(
+                        ship_id,
+                        Location::Orbit {
+                            target_id: surface_body_id,
+                        },
+                    );
                 }
                 _ => {}
             }
+        }
+    }
+}
+
+fn do_ship_landing(
+    entities: &Entities,
+    locations: &mut WriteStorage<Location>,
+    mut grids: &mut WriteStorage<GridRef>,
+    positions: &mut WriteStorage<Position>,
+    ship_id: Entity,
+    ship: &mut Ship,
+    target_id: Entity,
+    place_coords: P2,
+) {
+    // update ship command to idle
+    ship.current_command = Command::Idle;
+
+    // replace ship reference to new target
+    let ship_gmap = match GridRef::replace(&mut grids, ship_id, GridRef::Ref(target_id)) {
+        Some(GridRef::GMap(gmap)) => gmap,
+        _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
+    };
+
+    // get landing zone
+    let target_gmap = match (&mut grids).get_mut(target_id) {
+        Some(GridRef::GMap(gmap)) => gmap,
+        _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
+    };
+
+    // move grid layers into new map
+    let target_center_pos = Coord::new(
+        target_gmap.get_grid().get_width() / 2,
+        target_gmap.get_grid().get_height() / 2,
+    );
+    let ship_pos = Coord::new(
+        target_center_pos.x - ship_gmap.get_grid().get_width() / 2,
+        target_center_pos.y - ship_gmap.get_grid().get_height() / 2,
+    );
+
+    // move objects into new zone
+    move_all_objects(entities, positions, ship_id, target_id, &ship_pos);
+
+    debug!(
+        "moving ship map {:?} into surface {:?} on {:?}",
+        ship_id.id(),
+        target_id.id(),
+        ship_pos
+    );
+
+    target_gmap.merge(ship_gmap, &ship_pos);
+
+    // update ship location
+    locations.insert(
+        ship_id,
+        Location::BodySurfacePlace {
+            body_id: target_id,
+            place_coords: place_coords,
+            grid_pos: ship_pos,
+        },
+    );
+}
+
+fn move_all_objects(
+    entities: &Entities,
+    positions: &mut WriteStorage<Position>,
+    from_grid_id: Entity,
+    to_grid_id: Entity,
+    to_pos: &V2I,
+) {
+    for (e, p) in (entities, positions).join() {
+        if p.grid_id == from_grid_id {
+            let global = recti::to_global(&to_pos, &p.point);
+            debug!(
+                "update object {} from {:?} to {:?}",
+                e.id(),
+                p.point,
+                global
+            );
+            p.grid_id = to_grid_id;
+            p.point = global;
         }
     }
 }

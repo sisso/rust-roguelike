@@ -63,6 +63,10 @@ impl GMap {
         self.grid.merge(gmap.grid, pos);
         self.layers.extend(gmap.layers.into_iter());
     }
+
+    pub fn get_layers(&self) -> &Vec<Entity> {
+        &self.layers
+    }
 }
 
 impl rltk::Algorithm2D for GMap {

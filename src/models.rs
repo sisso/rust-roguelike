@@ -1,6 +1,7 @@
 use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
 use specs::prelude::*;
+use specs::prelude::*;
 use specs_derive::*;
 
 pub type Index = usize;
@@ -155,6 +156,22 @@ pub struct Surface {
     pub height: u32,
     pub tiles: Vec<SurfaceTileKind>,
     pub zones: Vec<Entity>,
+}
+
+impl Surface {
+    pub fn find_surface_body(
+        entities: &Entities,
+        storage: &ReadStorage<Surface>,
+        surface_id: Entity,
+    ) -> Option<Entity> {
+        for (e, s) in (entities, storage).join() {
+            if s.zones.contains(&surface_id) {
+                return Some(e);
+            }
+        }
+
+        None
+    }
 }
 
 #[derive(Component, Debug, Clone)]

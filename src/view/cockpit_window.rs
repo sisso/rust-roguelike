@@ -262,7 +262,14 @@ fn try_do_command(
                 target_id: *target_id,
             },
         ),
-        _ => {}
+
+        Some(MenuOption::Launch) => {
+            set_ship_command(&mut state.ecs, ship_id, ship::Command::Launch)
+        }
+
+        _ => {
+            log::warn!("unknown command {:?}", command);
+        }
     }
     Ok(())
 }

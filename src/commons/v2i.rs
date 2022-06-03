@@ -25,6 +25,13 @@ impl V2I {
     pub fn as_tuple(&self) -> (i32, i32) {
         (self.x, self.y)
     }
+
+    pub fn inverse(self) -> V2I {
+        V2I {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
 }
 
 impl From<(i32, i32)> for V2I {

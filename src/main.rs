@@ -155,6 +155,8 @@ fn main() -> rltk::BError {
         })
         .collect::<Vec<_>>();
 
+    log::debug!("planet zones id {:?}", planets_zones_id);
+
     let planet_id = gs
         .ecs
         .create_entity()
@@ -179,12 +181,14 @@ fn main() -> rltk::BError {
         })
         .build();
 
+    log::debug!("planet id {:?}", planet_id);
+
     let builder = gs.ecs.create_entity();
     let ship_id = builder.entity;
 
     let ship_gmap = GMap::new(NGrid::from_grid(ship_grid), vec![ship_id]);
 
-    builder
+    let ship_id = builder
         .with(Label {
             name: "ship".to_string(),
         })
@@ -201,6 +205,7 @@ fn main() -> rltk::BError {
         // })
         .with(GridRef::GMap(ship_gmap))
         .build();
+    log::debug!("ship id {:?}", ship_id);
 
     let avatar_entity = gs
         .ecs

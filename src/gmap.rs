@@ -4,6 +4,7 @@ use crate::commons::grid::{Coord, Grid, NGrid};
 use crate::commons::v2i::V2I;
 use specs::prelude::*;
 use specs_derive::*;
+use std::ops::Index;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum GMapTile {
@@ -51,7 +52,7 @@ impl GMap {
     pub fn new(grid: NGrid<Cell>, layers: Vec<Entity>) -> Self {
         Self { grid, layers }
     }
-    pub fn get_entity_at(&self, coord: &Coord) -> Option<Entity> {
+    pub fn get_layer_entity_at(&self, coord: &Coord) -> Option<Entity> {
         self.grid
             .get_layer(coord)
             .and_then(|index| self.layers.get(index).cloned())
@@ -66,6 +67,15 @@ impl GMap {
 
     pub fn get_layers(&self) -> &Vec<Entity> {
         &self.layers
+    }
+
+    pub fn remove_layer(&mut self, entity: Entity) -> Option<(GMap, Coord)> {
+        let index = self.layers.iter().position(|i| *i == entity)?;
+        self.layers.remove(index);
+
+        let pgrid = self.grid.remove(index);
+        let gmap = GMap::new(NGrid::from_grid(pgrid.grid), vec![entity]);
+        Some((gmap, pgrid.pos))
     }
 }
 
@@ -133,11 +143,11 @@ impl Default for &Cell {
     }
 }
 
-impl From<Grid<Cell>> for GMap {
-    fn from(g: Grid<Cell>) -> Self {
-        GMap {
-            grid: NGrid::from_grid(g),
-            layers: vec![],
-        }
-    }
-}
+// impl From<Grid<Cell>> for GMap {
+//     fn from(g: Grid<Cell>) -> Self {
+//         GMap {
+//             grid: NGrid::from_grid(g),
+//             layers: vec![],
+//         }
+//     }
+// }

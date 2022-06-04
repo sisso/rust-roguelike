@@ -364,25 +364,21 @@ impl<T: GridCell> NGrid<T> {
         })
     }
 
-    pub fn push_surface_at(&mut self, coord: &V2I, surf: NGrid<T>) {
-        for mut g in surf.grids {
-            // translate new surface into local position
-            let pos = g.get_pos().translate(coord.x, coord.y);
-            g.set_pos(&pos);
-
-            self.grids.push(g);
-        }
-    }
+    // pub fn push(&mut self, coord: &V2I, mut grid: PGrid<T>) {
+    //     // translate new surface into local position
+    //     let pos = grid.get_pos().translate(coord.x, coord.y);
+    //     grid.set_pos(&pos);
+    //
+    //     self.grids.push(grid);
+    // }
 
     pub fn len(&self) -> usize {
         self.grids.len()
     }
 
-    pub fn remove(&mut self, index: usize, _default: T) -> NGrid<T> {
+    pub fn remove(&mut self, index: usize) -> PGrid<T> {
         assert!(index <= self.grids.len());
-
-        let grid = self.grids.remove(index);
-        NGrid::from_grid(grid.into())
+        self.grids.remove(index)
     }
 
     pub fn merge(&mut self, gmap: NGrid<T>, pos: &Coord) {

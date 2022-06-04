@@ -2,7 +2,6 @@ use crate::commons::grid::Coord;
 use crate::commons::recti;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
-use crate::gridref::GridRef::GMap;
 use crate::ship::Command;
 use crate::{Location, Position, Sector, SectorBody, Ship, Surface, SurfaceZone, P2};
 use log::{debug, info, warn};
@@ -83,6 +82,7 @@ impl<'a> System<'a> for FlyToSystem {
                     (&mut grids).insert(ship_id, GridRef::GMap(grid));
 
                     // move objects inside ship grid back to ship
+                    // TODO: move only objects in top of the removed grid
                     move_all_objects(
                         &entities,
                         &mut positions,
@@ -174,10 +174,12 @@ fn move_all_objects(
         if p.grid_id == from_grid_id {
             let global = recti::to_global(&to_pos, &p.point);
             debug!(
-                "update object {} from {:?} to {:?}",
+                "update object {} from {:?} grid {:?} to {:?} at grid {:?}",
                 e.id(),
                 p.point,
-                global
+                from_grid_id,
+                global,
+                to_grid_id
             );
             p.grid_id = to_grid_id;
             p.point = global;

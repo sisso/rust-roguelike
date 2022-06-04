@@ -65,7 +65,12 @@ impl GridRef {
         from_grid_id: Entity,
         layer_id: Entity,
     ) -> Option<(GMap, Coord)> {
-        todo!()
+        match storage.get_mut(from_grid_id)? {
+            GridRef::GMap(gmap) => {
+                gmap.remove_layer(layer_id)
+            }
+            _ => None,
+        }
     }
 
     pub fn get_gmap(&self) -> Option<&GMap> {

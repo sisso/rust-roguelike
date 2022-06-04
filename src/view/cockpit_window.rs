@@ -24,8 +24,9 @@ impl LocalInfo {
 
         let grid_storage = &ecs.read_storage::<GridRef>();
         let gmap = GridRef::find_gmap(grid_storage, grid_id).unwrap();
+
         let cell_entity_id = gmap
-            .get_entity_at(&pos.point)
+            .get_layer_entity_at(&pos.point)
             .expect("invalid entity at position");
 
         let ship_and_orbiting = ecs.read_storage::<Ship>().get(cell_entity_id).map(|_| {

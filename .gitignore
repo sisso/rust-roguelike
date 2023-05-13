@@ -1,6 +1,5 @@
 target
 .idea
-Cargo.lock
 wasm/rust-rogelike_bg.wasm
 wasm/rust-rogelike.js
 *.swp

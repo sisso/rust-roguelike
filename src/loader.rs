@@ -1,12 +1,77 @@
-use crate::{commons, Grid};
+use crate::{commons, gmap, Grid};
 
+use crate::commons::grid::NGrid;
 use crate::commons::v2i::V2I;
-use crate::gmap::{Cell, GMapTile};
+use crate::gmap::{Cell, GMap, GMapTile};
 use crate::gridref::GridRef;
-use crate::models::{ObjectsType, Position};
+use crate::models::{
+    Label, Location, ObjectsType, Position, Sector, SectorBody, Surface, SurfaceTileKind, P2,
+};
 use crate::view::Renderable;
+use rltk::VirtualKeyCode::P;
 use rltk::{Algorithm2D, RGB};
 use specs::prelude::*;
+
+pub fn create_sector(world: &mut World) -> Entity {
+    world.create_entity().with(Sector::default()).build()
+}
+
+pub fn create_planet_zone(world: &mut World, index: usize, size: usize, tile: GMapTile) -> Entity {
+    let total_cells = size * size;
+    let mut cells = Vec::with_capacity(total_cells);
+    for _j in 0..(total_cells) {
+        cells.push(gmap::Cell { tile })
+    }
+
+    let builder = world.create_entity();
+
+    let gmap = GMap::new(
+        NGrid::from_grid(Grid {
+            width: size as i32,
+            height: size as i32,
+            list: cells,
+        })
+        .into(),
+        vec![builder.entity],
+    );
+
+    let zone_id = builder
+        .with(Label {
+            name: format!("zone {}", index),
+        })
+        .with(GridRef::GMap(gmap))
+        .build();
+
+    zone_id
+}
+
+pub fn create_planet(
+    world: &mut World,
+    sector_id: Entity,
+    label: &str,
+    zones: Vec<(Entity, SurfaceTileKind)>,
+    width_and_height: u32,
+) -> Entity {
+    assert_eq!(width_and_height * width_and_height, zones.len() as u32);
+
+    world
+        .create_entity()
+        .with(SectorBody::Planet)
+        .with(Location::Sector {
+            sector_id: sector_id,
+            pos: P2::new(5, 0),
+        })
+        .with(Label {
+            name: label.to_string(),
+        })
+        .with(Surface {
+            width: width_and_height,
+            height: width_and_height,
+            tiles: zones.iter().map(|(_, t)| *t).collect(),
+            zones: zones.iter().map(|(e, _)| *e).collect(),
+        })
+        .build()
+}
 
 pub fn parse_map_tiles(
     legend: &Vec<(char, GMapTile)>,

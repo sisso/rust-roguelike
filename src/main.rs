@@ -2,7 +2,6 @@ extern crate core;
 
 use std::collections::HashSet;
 
-use log::*;
 use rltk::{Rltk, RGB};
 use specs::prelude::*;
 use state::State;
@@ -57,7 +56,7 @@ fn main() -> rltk::BError {
     use rltk::RltkBuilder;
 
     env_logger::builder()
-        .filter(None, LevelFilter::Debug)
+        .filter(None, log::LevelFilter::Debug)
         .init();
 
     let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
@@ -77,67 +76,16 @@ fn main() -> rltk::BError {
     gs.ecs.insert(CockpitWindowState::default());
 
     // load scenery
-    let sector_id = gs.ecs.create_entity().with(Sector::default()).build();
-    let planets_zones_id = (0..4)
-        .map(|i| {
-            let size = 100;
-            let total_cells = size * size;
-            let mut cells = Vec::with_capacity(total_cells);
-            for _j in 0..(total_cells) {
-                cells.push(gmap::Cell {
-                    tile: gmap::GMapTile::Ground,
-                })
-            }
+    let sector_id = loader::create_sector(&mut gs.ecs);
+    log::debug!("sector id {:?}", sector_id);
 
-            let builder = gs.ecs.create_entity();
+    let planets_zones = (0..4)
+        .map(|i| loader::create_planet_zone(&mut gs.ecs, i, 100, gmap::GMapTile::Ground))
+        .map(|z| (z, SurfaceTileKind::Plain))
+        .collect();
+    log::debug!("planet zones id {:?}", planets_zones);
 
-            let gmap = GMap::new(
-                NGrid::from_grid(Grid {
-                    width: size as i32,
-                    height: size as i32,
-                    list: cells,
-                })
-                .into(),
-                vec![builder.entity],
-            );
-
-            let zone_id = builder
-                .with(Label {
-                    name: format!("zone {}", i),
-                })
-                .with(GridRef::GMap(gmap))
-                .build();
-
-            zone_id
-        })
-        .collect::<Vec<_>>();
-
-    log::debug!("planet zones id {:?}", planets_zones_id);
-
-    let planet_id = gs
-        .ecs
-        .create_entity()
-        .with(SectorBody::Planet)
-        .with(Location::Sector {
-            sector_id: sector_id,
-            pos: P2::new(5, 0),
-        })
-        .with(Label {
-            name: "Planet X".to_string(),
-        })
-        .with(Surface {
-            width: 2,
-            height: 2,
-            tiles: vec![
-                SurfaceTileKind::Plain,
-                SurfaceTileKind::Plain,
-                SurfaceTileKind::Plain,
-                SurfaceTileKind::Plain,
-            ],
-            zones: planets_zones_id,
-        })
-        .build();
-
+    let planet_id = loader::create_planet(&mut gs.ecs, sector_id, "Planet X", planets_zones, 2);
     log::debug!("planet id {:?}", planet_id);
 
     let builder = gs.ecs.create_entity();
@@ -192,7 +140,7 @@ fn main() -> rltk::BError {
         })
         .build();
 
-    info!("avatar id: {}", avatar_entity.id());
+    log::info!("avatar id: {}", avatar_entity.id());
 
     gs.ecs.insert(Player::new(avatar_entity));
 
@@ -202,4 +150,23 @@ fn main() -> rltk::BError {
     sectors::update_bodies_list(&mut gs.ecs);
 
     rltk::main_loop(context, gs)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::cfg::Cfg;
+    use crate::state::State;
+
+    #[test]
+    fn test_acceptance() {
+        let mut s = new_state_basic_scenery();
+    }
+
+    pub fn new_state_basic_scenery() {
+        let mut state = new_state();
+    }
+
+    pub fn new_state() -> State {
+        State::new(Cfg::new())
+    }
 }

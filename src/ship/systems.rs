@@ -79,7 +79,7 @@ impl<'a> System<'a> for FlyToSystem {
                     // extract ship grid
                     let (grid, previous_coords) =
                         GridRef::extract(&mut grids, grid_id, ship_id).unwrap();
-                    (&mut grids).insert(ship_id, GridRef::GMap(grid));
+                    (&mut grids).insert(ship_id, GridRef::GMap(grid)).unwrap();
 
                     // move objects inside ship grid back to ship
                     // TODO: move only objects in top of the removed grid

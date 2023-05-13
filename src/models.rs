@@ -1,7 +1,6 @@
 use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
 use specs::prelude::*;
-use specs::prelude::*;
 use specs_derive::*;
 
 pub type Index = usize;

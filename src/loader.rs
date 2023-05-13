@@ -1,14 +1,16 @@
 use crate::{commons, gmap, Grid};
+use std::collections::HashSet;
 
+use crate::actions::EntityActions;
 use crate::commons::grid::NGrid;
 use crate::commons::v2i::V2I;
 use crate::gmap::{Cell, GMap, GMapTile};
 use crate::gridref::GridRef;
 use crate::models::{
-    Label, Location, ObjectsType, Position, Sector, SectorBody, Surface, SurfaceTileKind, P2,
+    Avatar, Label, Location, ObjectsType, Position, Sector, SectorBody, Surface, SurfaceTileKind,
 };
-use crate::view::Renderable;
-use rltk::VirtualKeyCode::P;
+use crate::ship::Ship;
+use crate::view::{Renderable, Viewshed};
 use rltk::{Algorithm2D, RGB};
 use specs::prelude::*;
 
@@ -47,8 +49,8 @@ pub fn create_planet_zone(world: &mut World, index: usize, size: usize, tile: GM
 
 pub fn create_planet(
     world: &mut World,
-    sector_id: Entity,
     label: &str,
+    location: Location,
     zones: Vec<(Entity, SurfaceTileKind)>,
     width_and_height: u32,
 ) -> Entity {
@@ -57,10 +59,7 @@ pub fn create_planet(
     world
         .create_entity()
         .with(SectorBody::Planet)
-        .with(Location::Sector {
-            sector_id: sector_id,
-            pos: P2::new(5, 0),
-        })
+        .with(location)
         .with(Label {
             name: label.to_string(),
         })
@@ -69,6 +68,56 @@ pub fn create_planet(
             height: width_and_height,
             tiles: zones.iter().map(|(_, t)| *t).collect(),
             zones: zones.iter().map(|(e, _)| *e).collect(),
+        })
+        .build()
+}
+
+pub fn create_ship(
+    world: &mut World,
+    label: &str,
+    ship: Ship,
+    location: Location,
+    ship_grid: NGrid<Cell>,
+) -> Entity {
+    let builder = world.create_entity();
+
+    let ship_id = builder.entity;
+    let ship_gmap = GMap::new(ship_grid, vec![ship_id]);
+
+    builder
+        .with(Label {
+            name: label.to_string(),
+        })
+        .with(ship)
+        .with(location)
+        .with(GridRef::GMap(ship_gmap))
+        .build();
+
+    ship_id
+}
+
+pub fn create_avatar(world: &mut World, position: Position) -> Entity {
+    world
+        .create_entity()
+        .with(Avatar {})
+        .with(Label {
+            name: "player".to_string(),
+        })
+        .with(position)
+        .with(Renderable {
+            glyph: rltk::to_cp437('@'),
+            fg: RGB::named(rltk::YELLOW),
+            bg: RGB::named(rltk::BLACK),
+            priority: 1,
+        })
+        .with(Viewshed {
+            visible_tiles: vec![],
+            know_tiles: HashSet::new(),
+            range: 16,
+        })
+        .with(EntityActions {
+            actions: vec![],
+            current: None,
         })
         .build()
 }

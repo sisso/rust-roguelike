@@ -5,10 +5,10 @@ use crate::models::{
     Avatar, Label, Location, ObjectsType, Player, Position, Sector, SectorBody, Surface,
 };
 use crate::ship::Ship;
+use crate::view;
 use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
 use crate::view::{Renderable, Viewshed};
-use crate::{cfg, view};
 use rltk::BTerm as Rltk;
 use specs::prelude::*;
 use specs::World;

@@ -422,7 +422,7 @@ mod test {
         let mut grid = Grid::<i32>::new(4, 2, || 0);
 
         // X###
-        // ###
+        // ####
         assert_eq!(grid.raytrace(&(0, 0).into(), -1, 0), Vec::<Coord>::new());
 
         // #X##

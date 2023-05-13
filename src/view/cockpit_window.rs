@@ -1,6 +1,7 @@
 use crate::gridref::GridRef;
+use crate::state::State;
 use crate::view::window::Window;
-use crate::{cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, State, Surface, P2};
+use crate::{cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, Surface, P2};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;

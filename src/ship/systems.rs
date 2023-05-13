@@ -92,12 +92,14 @@ impl<'a> System<'a> for FlyToSystem {
                     );
 
                     // change ship state
-                    locations.insert(
-                        ship_id,
-                        Location::Orbit {
-                            target_id: surface_body_id,
-                        },
-                    );
+                    locations
+                        .insert(
+                            ship_id,
+                            Location::Orbit {
+                                target_id: surface_body_id,
+                            },
+                        )
+                        .expect("fail to insert orbit");
                 }
                 _ => {}
             }
@@ -153,14 +155,16 @@ fn do_ship_landing(
     target_gmap.merge(ship_gmap, &ship_pos);
 
     // update ship location
-    locations.insert(
-        ship_id,
-        Location::BodySurfacePlace {
-            body_id: target_id,
-            place_coords: place_coords,
-            grid_pos: ship_pos,
-        },
-    );
+    locations
+        .insert(
+            ship_id,
+            Location::BodySurfacePlace {
+                body_id: target_id,
+                place_coords: place_coords,
+                grid_pos: ship_pos,
+            },
+        )
+        .expect("fail to update location");
 }
 
 fn move_all_objects(

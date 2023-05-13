@@ -1,10 +1,9 @@
 use super::models::*;
 use crate::commons;
-use crate::commons::grid::{Coord, Grid, NGrid};
+use crate::commons::grid::{Coord, NGrid};
 use crate::commons::v2i::V2I;
 use specs::prelude::*;
 use specs_derive::*;
-use std::ops::Index;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum GMapTile {

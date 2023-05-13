@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use log::*;
 use rltk::{Rltk, RGB};
 use specs::prelude::*;
+use state::State;
 
 use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
@@ -29,36 +30,10 @@ pub mod locations;
 pub mod models;
 pub mod sectors;
 pub mod ship;
+pub mod state;
 pub mod utils;
 pub mod view;
 pub mod visibility_system;
-
-pub struct State {
-    pub ecs: World,
-}
-
-impl rltk::GameState for State {
-    fn tick(&mut self, ctx: &mut Rltk) {
-        ctx.cls();
-
-        let window = *self.ecs.fetch::<Window>();
-
-        match window {
-            Window::World => {
-                view::player_input(self, ctx);
-                run_systems(self, ctx);
-                view::draw_map_and_objects(self, ctx);
-                view::draw_gui(self, ctx);
-            }
-
-            Window::Cockpit => {
-                run_systems(self, ctx);
-                view::draw_map_and_objects(self, ctx);
-                view::cockpit_window::draw(self, ctx);
-            }
-        }
-    }
-}
 
 pub fn run_systems(st: &mut State, _ctx: &mut Rltk) {
     let mut s = VisibilitySystem {};
@@ -86,28 +61,10 @@ fn main() -> rltk::BError {
         .init();
 
     let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
-    let mut gs = State { ecs: World::new() };
-    gs.ecs.register::<cfg::Cfg>();
-    gs.ecs.register::<Position>();
-    gs.ecs.register::<Renderable>();
-    gs.ecs.register::<Player>();
-    gs.ecs.register::<Viewshed>();
-    gs.ecs.register::<ObjectsType>();
-    gs.ecs.register::<EntityActions>();
-    gs.ecs.register::<Window>();
-    gs.ecs.register::<Ship>();
-    gs.ecs.register::<Avatar>();
-    gs.ecs.register::<Player>();
-    gs.ecs.register::<CockpitWindowState>();
-    gs.ecs.register::<Location>();
-    gs.ecs.register::<Surface>();
-    gs.ecs.register::<Sector>();
-    gs.ecs.register::<Label>();
-    gs.ecs.register::<SectorBody>();
-    gs.ecs.register::<GridRef>();
 
     // initialize
     let cfg = cfg::Cfg::new();
+
     let ship_map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
     let mut ship_grid =
         loader::parse_map_tiles(&cfg.raw_map_tiles, &ship_map_ast).expect("fail to load map tiles");
@@ -115,8 +72,8 @@ fn main() -> rltk::BError {
     let spawn_x = ship_grid.width / 2 - 5;
     let spawn_y = ship_grid.height / 2;
 
+    let mut gs = State::new(cfg);
     gs.ecs.insert(Window::World);
-    gs.ecs.insert(cfg);
     gs.ecs.insert(CockpitWindowState::default());
 
     // load scenery

@@ -41,9 +41,14 @@ impl Default for GMapTile {
 
 type LayerId = usize;
 
+/// It is a collection of many Grid layered on top of each other, this work as a "cached" version
+/// of all grids living on same area one on top of other
+///
 #[derive(Debug, Clone)]
 pub struct GMap {
+    /// grids on this map, the index must match with layers
     grid: NGrid<Cell>,
+    /// entities that own on each grid in this map
     layers: Vec<Entity>,
 }
 

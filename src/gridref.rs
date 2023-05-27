@@ -3,8 +3,8 @@ use crate::GMap;
 use specs::prelude::*;
 use specs_derive::*;
 
-/// Entity that hold the gmap of the following object. You need to check on each layer in GMap
-/// to find the correct grid
+/// Entity that hold the gmap of the following object. To find the real grid the references must be
+/// followed until a GMap is found and them search on what layer index belong to this object
 #[derive(Component, Debug, Clone)]
 pub enum GridRef {
     Ref(Entity),
@@ -66,9 +66,7 @@ impl GridRef {
         layer_id: Entity,
     ) -> Option<(GMap, Coord)> {
         match storage.get_mut(from_grid_id)? {
-            GridRef::GMap(gmap) => {
-                gmap.remove_layer(layer_id)
-            }
+            GridRef::GMap(gmap) => gmap.remove_layer(layer_id),
             _ => None,
         }
     }

@@ -14,7 +14,7 @@ pub struct Label {
     pub name: String,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug)]
 pub struct Player {
     avatar_id: Entity,
     bscurrent: BitSet,

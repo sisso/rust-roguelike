@@ -33,9 +33,9 @@ impl EntityActions {
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut positions = ecs.write_storage::<Position>();
     let grids = ecs.read_storage::<GridRef>();
-    let avatars = ecs.fetch::<Player>();
+    let player = ecs.fetch::<Player>();
 
-    for (avatar_id, pos) in (avatars.get_avatarset(), &mut positions).join() {
+    for (avatar_id, pos) in (player.get_avatarset(), &mut positions).join() {
         let map = GridRef::find_gmap(&grids, pos.grid_id).unwrap();
 
         let new_pos = pos.point.translate(delta_x, delta_y);

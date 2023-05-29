@@ -23,14 +23,12 @@ impl State {
         gs.ecs.register::<Cfg>();
         gs.ecs.register::<Position>();
         gs.ecs.register::<Renderable>();
-        gs.ecs.register::<Player>();
         gs.ecs.register::<Viewshed>();
         gs.ecs.register::<ObjectsType>();
         gs.ecs.register::<EntityActions>();
         gs.ecs.register::<Window>();
         gs.ecs.register::<Ship>();
         gs.ecs.register::<Avatar>();
-        gs.ecs.register::<Player>();
         gs.ecs.register::<CockpitWindowState>();
         gs.ecs.register::<Location>();
         gs.ecs.register::<Surface>();

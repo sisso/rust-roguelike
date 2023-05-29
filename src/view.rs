@@ -191,12 +191,12 @@ fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, 
 pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let entities = &state.ecs.entities();
     let objects = &state.ecs.read_storage::<ObjectsType>();
-    let avatars = &state.ecs.read_storage::<Player>();
     let positions = &state.ecs.read_storage::<Position>();
     let actions_st = &state.ecs.read_storage::<EntityActions>();
     let grids = &state.ecs.read_storage::<GridRef>();
+    let player = state.ecs.fetch::<Player>();
 
-    for (_avatar_id, position, actions) in (avatars, positions, actions_st).join() {
+    for (_avatar_id, position, actions) in (player.get_avatarset(), positions, actions_st).join() {
         let gmap = GridRef::find_gmap(grids, position.grid_id).unwrap();
 
         let tile = gmap.get_grid().get_at(&position.point).unwrap_or_default();

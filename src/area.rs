@@ -39,20 +39,18 @@ impl Default for GMapTile {
     }
 }
 
-type LayerId = usize;
-
 /// It is a collection of many Grid layered on top of each other, this work as a "cached" version
 /// of all grids living on same area one on top of other
 ///
 #[derive(Debug, Clone)]
-pub struct GMap {
+pub struct Area {
     /// grids on this map, the index must match with layers
     grid: NGrid<Cell>,
     /// entities that own on each grid in this map
     layers: Vec<Entity>,
 }
 
-impl GMap {
+impl Area {
     pub fn new(grid: NGrid<Cell>, layers: Vec<Entity>) -> Self {
         Self { grid, layers }
     }
@@ -64,7 +62,7 @@ impl GMap {
     pub fn get_grid(&self) -> &NGrid<Cell> {
         &self.grid
     }
-    pub fn merge(&mut self, gmap: GMap, pos: &P2) {
+    pub fn merge(&mut self, gmap: Area, pos: &P2) {
         self.grid.merge(gmap.grid, pos);
         self.layers.extend(gmap.layers.into_iter());
     }
@@ -73,17 +71,17 @@ impl GMap {
         &self.layers
     }
 
-    pub fn remove_layer(&mut self, entity: Entity) -> Option<(GMap, Coord)> {
+    pub fn remove_layer(&mut self, entity: Entity) -> Option<(Area, Coord)> {
         let index = self.layers.iter().position(|i| *i == entity)?;
         self.layers.remove(index);
 
         let pgrid = self.grid.remove(index);
-        let gmap = GMap::new(NGrid::from_grid(pgrid.grid), vec![entity]);
+        let gmap = Area::new(NGrid::from_grid(pgrid.grid), vec![entity]);
         Some((gmap, pgrid.pos))
     }
 }
 
-impl rltk::Algorithm2D for GMap {
+impl rltk::Algorithm2D for Area {
     fn dimensions(&self) -> rltk::Point {
         let size = self.grid.get_size();
         rltk::Point::new(size.x, size.y)
@@ -94,7 +92,7 @@ impl rltk::Algorithm2D for GMap {
     }
 }
 
-impl rltk::BaseMap for GMap {
+impl rltk::BaseMap for Area {
     fn is_opaque(&self, idx: usize) -> bool {
         let w = self.grid.get_width();
         let c = commons::grid::index_to_coord(w, idx as i32);
@@ -106,7 +104,7 @@ impl rltk::BaseMap for GMap {
 }
 
 struct ViewGrid<'a> {
-    grids: Vec<(Entity, P2, &'a GMap)>,
+    grids: Vec<(Entity, P2, &'a Area)>,
 }
 
 impl<'a> ViewGrid<'a> {

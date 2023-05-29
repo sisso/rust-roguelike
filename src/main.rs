@@ -6,8 +6,8 @@ use state::State;
 
 use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
+use crate::area::Area;
 use crate::commons::grid::{Grid, NGrid};
-use crate::gmap::GMap;
 use crate::models::*;
 use crate::ship::Ship;
 use crate::view::cockpit_window::CockpitWindowState;
@@ -15,10 +15,10 @@ use crate::view::window::Window;
 use crate::visibility_system::VisibilitySystem;
 
 pub mod actions;
+pub mod area;
 pub mod cfg;
 pub mod commons;
 pub mod events;
-pub mod gmap;
 pub mod gridref;
 pub mod loader;
 pub mod locations;
@@ -75,7 +75,7 @@ fn main() -> rltk::BError {
     log::debug!("sector id {:?}", sector_id);
 
     let planets_zones = (0..4)
-        .map(|i| loader::create_planet_zone(&mut gs.ecs, i, 100, gmap::GMapTile::Ground))
+        .map(|i| loader::create_planet_zone(&mut gs.ecs, i, 100, area::GMapTile::Ground))
         .map(|z| (z, SurfaceTileKind::Plain))
         .collect();
     log::debug!("planet zones id {:?}", planets_zones);

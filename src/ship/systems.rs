@@ -112,6 +112,9 @@ impl<'a> System<'a> for FlyToSystem {
 /// 2. replace ship GridRef to a reference to the landing position entity
 /// 3. Move all entities Location to the new gmap and update its position
 /// 4. take ship grid and add as a new layer to the landing position
+///
+/// Why do we move grid into target grid? Is easy to manage a single data structure NGrid that for
+/// each cell recursive find the parent so we can check what area belong that grid
 fn do_ship_landing(
     entities: &Entities,
     locations: &mut WriteStorage<Location>,

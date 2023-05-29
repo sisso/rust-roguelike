@@ -3,7 +3,7 @@ pub mod cockpit_window;
 pub mod window;
 
 use crate::actions::{Action, EntityActions};
-use crate::gmap::{GMap, GMapTile};
+use crate::area::{Area, GMapTile};
 use crate::gridref::GridRef;
 use crate::models::{ObjectsType, Player, Position};
 use crate::state::State;
@@ -117,7 +117,7 @@ fn draw_map(
     camera: &Camera,
     visible_cells: &Vec<rltk::Point>,
     know_cells: &HashSet<rltk::Point>,
-    gmap: &GMap,
+    gmap: &Area,
     ctx: &mut Rltk,
 ) {
     for c in camera.list_cells() {

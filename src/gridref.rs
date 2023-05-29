@@ -1,5 +1,5 @@
 use crate::commons::grid::Coord;
-use crate::GMap;
+use crate::Area;
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -8,11 +8,11 @@ use specs_derive::*;
 #[derive(Component, Debug, Clone)]
 pub enum GridRef {
     Ref(Entity),
-    GMap(GMap),
+    GMap(Area),
 }
 
 impl GridRef {
-    pub fn find_gmap<'a>(storage: &'a ReadStorage<'a, GridRef>, id: Entity) -> Option<&'a GMap> {
+    pub fn find_gmap<'a>(storage: &'a ReadStorage<'a, GridRef>, id: Entity) -> Option<&'a Area> {
         storage.get(id).and_then(|i| match i {
             GridRef::GMap(gmap) => Some(gmap),
             GridRef::Ref(ref_id) => GridRef::find_gmap(storage, *ref_id),
@@ -42,7 +42,7 @@ impl GridRef {
     pub fn find_gmap_mut<'a, 'b>(
         storage: &'a mut WriteStorage<'b, GridRef>,
         id: Entity,
-    ) -> Option<&'a mut GMap> {
+    ) -> Option<&'a mut Area> {
         let current_id = Self::find_gmap_entity_mut(storage, id)?;
         match storage.get_mut(current_id) {
             Some(GridRef::GMap(gmap)) => Some(gmap),
@@ -64,14 +64,14 @@ impl GridRef {
         storage: &'a mut WriteStorage<'b, GridRef>,
         from_grid_id: Entity,
         layer_id: Entity,
-    ) -> Option<(GMap, Coord)> {
+    ) -> Option<(Area, Coord)> {
         match storage.get_mut(from_grid_id)? {
             GridRef::GMap(gmap) => gmap.remove_layer(layer_id),
             _ => None,
         }
     }
 
-    pub fn get_gmap(&self) -> Option<&GMap> {
+    pub fn get_gmap(&self) -> Option<&Area> {
         match self {
             GridRef::GMap(g) => Some(g),
             _ => None,

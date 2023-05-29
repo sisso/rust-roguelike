@@ -1,4 +1,4 @@
-use crate::gmap::GMapTile;
+use crate::area::GMapTile;
 use crate::models::ObjectsType;
 use specs::prelude::*;
 use specs_derive::*;

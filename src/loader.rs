@@ -1,10 +1,10 @@
-use crate::{commons, gmap, Grid};
+use crate::{area, commons, Grid};
 use std::collections::HashSet;
 
 use crate::actions::EntityActions;
+use crate::area::{Area, Cell, GMapTile};
 use crate::commons::grid::NGrid;
 use crate::commons::v2i::V2I;
-use crate::gmap::{Cell, GMap, GMapTile};
 use crate::gridref::GridRef;
 use crate::models::{
     Avatar, Label, Location, ObjectsType, Position, Sector, SectorBody, Surface, SurfaceTileKind,
@@ -22,12 +22,12 @@ pub fn create_planet_zone(world: &mut World, index: usize, size: usize, tile: GM
     let total_cells = size * size;
     let mut cells = Vec::with_capacity(total_cells);
     for _j in 0..(total_cells) {
-        cells.push(gmap::Cell { tile })
+        cells.push(area::Cell { tile })
     }
 
     let builder = world.create_entity();
 
-    let gmap = GMap::new(
+    let gmap = Area::new(
         NGrid::from_grid(Grid {
             width: size as i32,
             height: size as i32,
@@ -82,7 +82,7 @@ pub fn create_ship(
     let builder = world.create_entity();
 
     let ship_id = builder.entity;
-    let ship_gmap = GMap::new(ship_grid, vec![ship_id]);
+    let ship_gmap = Area::new(ship_grid, vec![ship_id]);
 
     builder
         .with(Label {

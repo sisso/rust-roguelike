@@ -1,3 +1,4 @@
+use crate::commons;
 use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
 use specs::prelude::*;
@@ -147,12 +148,13 @@ pub struct SurfaceZone {}
 #[derive(Debug, Clone, Copy)]
 pub enum SurfaceTileKind {
     Plain,
+    Structure,
 }
 
 #[derive(Component, Debug, Clone)]
 pub struct Surface {
-    pub width: u32,
-    pub height: u32,
+    pub width: i32,
+    pub height: i32,
     pub tiles: Vec<SurfaceTileKind>,
     pub zones: Vec<Entity>,
 }
@@ -170,6 +172,11 @@ impl Surface {
         }
 
         None
+    }
+
+    pub fn get_tile(&self, x: i32, y: i32) -> Option<SurfaceTileKind> {
+        let index = commons::grid::coords_to_index(self.width, Coord::new(x, y));
+        self.tiles.get(index as usize).copied()
     }
 }
 

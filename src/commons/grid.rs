@@ -21,18 +21,32 @@ pub type Index = i32;
 */
 #[derive(Debug, Clone)]
 pub struct Grid<T> {
-    pub width: i32,
-    pub height: i32,
-    pub list: Vec<T>,
+    width: i32,
+    height: i32,
+    list: Vec<T>,
 }
 
 impl<T> Grid<T> {
-    pub fn new_square(size: i32, default: fn() -> T) -> Self {
+    pub fn new_from(width: i32, height: i32, list: Vec<T>) -> Self {
+        Self {
+            width,
+            height,
+            list,
+        }
+    }
+    pub fn new_square<F>(size: i32, default: F) -> Self
+    where
+        F: Fn() -> T,
+    {
         Grid::new(size, size, default)
     }
 
-    pub fn new(width: i32, height: i32, default: fn() -> T) -> Self {
-        let mut list = vec![];
+    pub fn new<F>(width: i32, height: i32, default: F) -> Self
+    where
+        F: Fn() -> T,
+    {
+        let total_cells = width * height;
+        let mut list = Vec::with_capacity(total_cells as usize);
         for _ in 0..width * height {
             list.push(default());
         }
@@ -44,12 +58,21 @@ impl<T> Grid<T> {
         }
     }
 
+    pub fn get_width(&self) -> i32 {
+        self.width
+    }
+
+    pub fn get_height(&self) -> i32 {
+        self.height
+    }
+
     pub fn set(&mut self, index: Index, value: T) {
         assert!(self.is_valid_index(index));
         self.list[index as usize] = value;
     }
 
-    pub fn set_at(&mut self, coord: &Coord, value: T) -> T {
+    /// returns previous assigned value
+    pub fn set_at(&mut self, coord: Coord, value: T) -> T {
         assert!(self.is_valid_coords(coord));
         let index = self.coords_to_index(coord);
         std::mem::replace(&mut self.list[index as usize], value)
@@ -60,13 +83,13 @@ impl<T> Grid<T> {
         &self.list[index as usize]
     }
 
-    pub fn get_at(&self, coord: &Coord) -> &T {
-        assert!(self.is_valid_coords(&coord));
+    pub fn get_at(&self, coord: Coord) -> &T {
+        assert!(self.is_valid_coords(coord));
         let index = self.coords_to_index(coord);
         &self.list[index as usize]
     }
 
-    pub fn get_at_opt(&self, coord: &Coord) -> Option<&T> {
+    pub fn get_at_opt(&self, coord: Coord) -> Option<&T> {
         let index = self.coords_to_index(coord);
         if self.is_valid_coords(coord) {
             Some(&self.list[index as usize])
@@ -80,11 +103,11 @@ impl<T> Grid<T> {
         index < self.list.len() as i32
     }
 
-    pub fn is_valid_coords(&self, coord: &Coord) -> bool {
+    pub fn is_valid_coords(&self, coord: Coord) -> bool {
         coord.x >= 0 && coord.y >= 0 && coord.x < self.width as i32 && coord.y < self.height as i32
     }
 
-    pub fn coords_to_index(&self, coords: &Coord) -> Index {
+    pub fn coords_to_index(&self, coords: Coord) -> Index {
         coords_to_index(self.width, coords)
     }
 
@@ -96,14 +119,14 @@ impl<T> Grid<T> {
         get_4_neighbours(coords)
             .into_iter()
             .map(|(_, i)| i)
-            .filter(|i| self.is_valid_coords(i))
+            .filter(|i| self.is_valid_coords(*i))
             .collect()
     }
 
     pub fn get_valid_8_neighbours(&self, coords: &Coord) -> Vec<Coord> {
         get_8_neighbours(coords)
             .into_iter()
-            .filter(|i| self.is_valid_coords(i))
+            .filter(|i| self.is_valid_coords(*i))
             .collect()
     }
 
@@ -120,7 +143,7 @@ impl<T> Grid<T> {
 
             current = V2I::new(nx, ny);
 
-            if !self.is_valid_coords(&current) {
+            if !self.is_valid_coords(current) {
                 break;
             }
 
@@ -134,7 +157,22 @@ impl<T> Grid<T> {
     }
 }
 
-pub fn coords_to_index(width: i32, xy: &Coord) -> Index {
+impl<T: Clone> Grid<T> {
+    pub fn merge(&mut self, pos: V2I, other: &Grid<T>) {
+        let mut i = 0;
+        for y in 0..other.get_height() {
+            for x in 0..other.get_width() {
+                let cell = other.get(i);
+                let nx = x + pos.x;
+                let ny = y + pos.y;
+                self.set_at(Coord::new(nx, ny), cell.clone());
+                i += 1;
+            }
+        }
+    }
+}
+
+pub fn coords_to_index(width: i32, xy: Coord) -> Index {
     xy.y * width + xy.x
 }
 
@@ -237,19 +275,19 @@ impl<T> PGrid<T> {
 
     pub fn set_at(&mut self, coord: &Coord, value: T) -> T {
         let local = self.to_local(coord);
-        assert!(self.grid.is_valid_coords(&local));
-        self.grid.set_at(&local, value)
+        assert!(self.grid.is_valid_coords(local));
+        self.grid.set_at(local, value)
     }
 
     pub fn get_at(&self, coord: &Coord) -> &T {
         let local = self.to_local(coord);
-        assert!(self.grid.is_valid_coords(&local));
-        self.grid.get_at(&local)
+        assert!(self.grid.is_valid_coords(local));
+        self.grid.get_at(local)
     }
 
     pub fn get_at_opt(&self, coord: &Coord) -> Option<&T> {
         let local = self.to_local(coord);
-        self.grid.get_at_opt(&local)
+        self.grid.get_at_opt(local)
     }
 
     pub fn is_valid_coords(&self, coord: &Coord) -> bool {
@@ -431,7 +469,7 @@ mod test {
 
         // 0###
         // ####
-        grid.set_at(&(0, 0).into(), 0);
+        grid.set_at((0, 0).into(), 0);
 
         // 0X##
         // ####
@@ -439,7 +477,7 @@ mod test {
 
         // 00##
         // ####
-        grid.set_at(&(1, 0).into(), 0);
+        grid.set_at((1, 0).into(), 0);
 
         // 00X#
         // ####
@@ -511,5 +549,32 @@ mod test {
         assert_eq!(Some(&0), ng0.get_at(&V2I::new(0, 2)));
         assert_eq!(Some(&2), ng0.get_at(&V2I::new(1, 2)));
         assert_eq!(Some(&2), ng0.get_at(&V2I::new(2, 2)));
+    }
+
+    #[test]
+    fn test_grid_merge() {
+        /*
+         110
+         023
+         045
+        */
+        let mut g0 = Grid::new(3, 3, || 0);
+        let g1 = Grid::new(2, 1, || 1);
+        let g2 = Grid::new_from(2, 2, vec![2, 3, 4, 5]);
+
+        g0.merge(V2I::new(0, 0), &g1);
+        g0.merge(V2I::new(1, 1), &g2);
+
+        assert_eq!(3, g0.get_width());
+        assert_eq!(3, g0.get_height());
+        assert_eq!(&1, g0.get_at(V2I::new(0, 0)));
+        assert_eq!(&1, g0.get_at(V2I::new(1, 0)));
+        assert_eq!(&0, g0.get_at(V2I::new(2, 0)));
+        assert_eq!(&0, g0.get_at(V2I::new(0, 1)));
+        assert_eq!(&2, g0.get_at(V2I::new(1, 1)));
+        assert_eq!(&3, g0.get_at(V2I::new(2, 1)));
+        assert_eq!(&0, g0.get_at(V2I::new(0, 2)));
+        assert_eq!(&4, g0.get_at(V2I::new(1, 2)));
+        assert_eq!(&5, g0.get_at(V2I::new(2, 2)));
     }
 }

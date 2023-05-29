@@ -12,10 +12,10 @@ pub enum GridRef {
 }
 
 impl GridRef {
-    pub fn find_gmap<'a>(storage: &'a ReadStorage<'a, GridRef>, id: Entity) -> Option<&'a Area> {
+    pub fn find_area<'a>(storage: &'a ReadStorage<'a, GridRef>, id: Entity) -> Option<&'a Area> {
         storage.get(id).and_then(|i| match i {
             GridRef::GMap(gmap) => Some(gmap),
-            GridRef::Ref(ref_id) => GridRef::find_gmap(storage, *ref_id),
+            GridRef::Ref(ref_id) => GridRef::find_area(storage, *ref_id),
         })
     }
 

@@ -14,7 +14,7 @@ impl<'a> System<'a> for VisibilitySystem {
 
     fn run(&mut self, (grids, mut viewshed, pos): Self::SystemData) {
         for (viewshed, pos) in (&mut viewshed, &pos).join() {
-            let gridmap = GridRef::find_gmap(&grids, pos.grid_id).unwrap();
+            let gridmap = GridRef::find_area(&grids, pos.grid_id).unwrap();
 
             viewshed.visible_tiles.clear();
             viewshed.visible_tiles = rltk::field_of_view(

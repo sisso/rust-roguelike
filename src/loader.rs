@@ -2,8 +2,8 @@ use crate::{area, commons, Grid};
 use std::collections::HashSet;
 
 use crate::actions::EntityActions;
-use crate::area::{Area, Cell, GMapTile};
-use crate::commons::grid::NGrid;
+use crate::area::{Area, Cell, Tile};
+use crate::commons::grid::{GridCell, NGrid, PGrid};
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::models::{
@@ -18,25 +18,25 @@ pub fn create_sector(world: &mut World) -> Entity {
     world.create_entity().with(Sector::default()).build()
 }
 
-pub fn create_planet_zone(world: &mut World, index: usize, size: usize, tile: GMapTile) -> Entity {
-    let total_cells = size * size;
-    let mut cells = Vec::with_capacity(total_cells);
-    for _j in 0..(total_cells) {
-        cells.push(area::Cell { tile })
+pub fn create_planet_zone(world: &mut World, index: usize, size: i32, tile: Tile) -> Entity {
+    create_planet_zone_from(world, index, size, tile, vec![])
+}
+
+pub fn create_planet_zone_from(
+    world: &mut World,
+    index: usize,
+    size: i32,
+    tile: Tile,
+    buildings: Vec<(V2I, &Grid<Cell>)>,
+) -> Entity {
+    let mut grid = Grid::new_square(size, || Cell { tile });
+
+    for (pos, other) in buildings {
+        grid.merge(pos, other);
     }
 
     let builder = world.create_entity();
-
-    let gmap = Area::new(
-        NGrid::from_grid(Grid {
-            width: size as i32,
-            height: size as i32,
-            list: cells,
-        })
-        .into(),
-        vec![builder.entity],
-    );
-
+    let gmap = Area::new(NGrid::from_grid(grid), vec![builder.entity]);
     let zone_id = builder
         .with(Label {
             name: format!("zone {}", index),
@@ -52,9 +52,9 @@ pub fn create_planet(
     label: &str,
     location: Location,
     zones: Vec<(Entity, SurfaceTileKind)>,
-    width_and_height: u32,
+    width_and_height: i32,
 ) -> Entity {
-    assert_eq!(width_and_height * width_and_height, zones.len() as u32);
+    assert_eq!(width_and_height * width_and_height, zones.len() as i32);
 
     world
         .create_entity()
@@ -123,7 +123,7 @@ pub fn create_avatar(world: &mut World, position: Position) -> Entity {
 }
 
 pub fn parse_map_tiles(
-    legend: &Vec<(char, GMapTile)>,
+    legend: &Vec<(char, Tile)>,
     map: &ParseMapAst,
 ) -> Result<Grid<Cell>, ParseMapError> {
     let mut cells = vec![];
@@ -138,12 +138,7 @@ pub fn parse_map_tiles(
         cells.push(Cell { tile: tile.clone() })
     }
 
-    let grid = commons::grid::Grid {
-        width: map.width,
-        height: map.height,
-        list: cells,
-    };
-
+    let grid = Grid::new_from(map.width, map.height, cells);
     Ok(grid)
 }
 
@@ -255,7 +250,7 @@ pub fn parse_map_objects(
     {
         let cfg = ecs.fetch::<super::cfg::Cfg>();
         let grids = &ecs.read_storage::<GridRef>();
-        let map = GridRef::find_gmap(grids, grid_id).unwrap();
+        let map = GridRef::find_area(grids, grid_id).unwrap();
         for (index, cell) in ast.cells.iter().enumerate() {
             let kind = cfg
                 .raw_map_objects

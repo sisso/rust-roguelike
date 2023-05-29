@@ -8,6 +8,7 @@ use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::area::Area;
 use crate::commons::grid::{Grid, NGrid};
+use crate::commons::v2i::V2I;
 use crate::models::*;
 use crate::ship::Ship;
 use crate::view::cockpit_window::CockpitWindowState;
@@ -63,8 +64,12 @@ fn main() -> rltk::BError {
     let ship_grid =
         loader::parse_map_tiles(&cfg.raw_map_tiles, &ship_map_ast).expect("fail to load map tiles");
 
-    let spawn_x = ship_grid.width / 2 - 5;
-    let spawn_y = ship_grid.height / 2;
+    let house_ast = loader::parse_map(cfg::HOUSE_MAP).expect("fail to load house map");
+    let house_area =
+        loader::parse_map_tiles(&cfg.raw_map_tiles, &house_ast).expect("fail to load map tiles");
+
+    let spawn_x = ship_grid.get_width() / 2 - 5;
+    let spawn_y = ship_grid.get_height() / 2;
 
     let mut gs = State::new(cfg);
     gs.ecs.insert(Window::World);
@@ -74,10 +79,22 @@ fn main() -> rltk::BError {
     let sector_id = loader::create_sector(&mut gs.ecs);
     log::debug!("sector id {:?}", sector_id);
 
-    let planets_zones = (0..4)
-        .map(|i| loader::create_planet_zone(&mut gs.ecs, i, 100, area::GMapTile::Ground))
-        .map(|z| (z, SurfaceTileKind::Plain))
+    let mut planets_zones: Vec<(Entity, SurfaceTileKind)> = (0..3)
+        .map(|i| loader::create_planet_zone(&mut gs.ecs, i, 100, area::Tile::Ground))
+        .map(|e| (e, SurfaceTileKind::Plain))
         .collect();
+
+    planets_zones.push((
+        loader::create_planet_zone_from(
+            &mut gs.ecs,
+            3,
+            100,
+            area::Tile::Ground,
+            vec![(V2I::new(0, 0), &house_area)],
+        ),
+        SurfaceTileKind::Structure,
+    ));
+
     log::debug!("planet zones id {:?}", planets_zones);
 
     let planet_id = loader::create_planet(

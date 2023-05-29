@@ -3,7 +3,7 @@ pub mod cockpit_window;
 pub mod window;
 
 use crate::actions::{Action, EntityActions};
-use crate::area::{Area, GMapTile};
+use crate::area::{Area, Tile};
 use crate::gridref::GridRef;
 use crate::models::{ObjectsType, Player, Position};
 use crate::state::State;
@@ -99,7 +99,7 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
 
     // draw
     let grids = &state.ecs.read_storage::<GridRef>();
-    let map = GridRef::find_gmap(grids, pos.grid_id).unwrap();
+    let map = GridRef::find_area(grids, pos.grid_id).unwrap();
     draw_map(&camera, &v.visible_tiles, &v.know_tiles, map, ctx);
     draw_objects(&camera, &v.visible_tiles, &state.ecs, ctx);
 }
@@ -126,11 +126,11 @@ fn draw_map(
 
         // calculate real tile
         let (mut fg, mut bg, mut ch) = match tile {
-            GMapTile::Ground => (rltk::LIGHT_GRAY, rltk::BLACK, '.'),
-            GMapTile::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
-            GMapTile::Wall => (rltk::GREEN, rltk::BLACK, '#'),
-            GMapTile::Space => (rltk::BLACK, rltk::BLACK, ' '),
-            GMapTile::OutOfMap => (rltk::BLACK, rltk::GRAY, ' '),
+            Tile::Ground => (rltk::LIGHT_GRAY, rltk::BLACK, '.'),
+            Tile::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
+            Tile::Wall => (rltk::GREEN, rltk::BLACK, '#'),
+            Tile::Space => (rltk::BLACK, rltk::BLACK, ' '),
+            Tile::OutOfMap => (rltk::BLACK, rltk::GRAY, ' '),
         };
 
         // replace non visible tiles
@@ -197,7 +197,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
     let player = state.ecs.fetch::<Player>();
 
     for (_avatar_id, position, actions) in (player.get_avatarset(), positions, actions_st).join() {
-        let gmap = GridRef::find_gmap(grids, position.grid_id).unwrap();
+        let gmap = GridRef::find_area(grids, position.grid_id).unwrap();
 
         let tile = gmap.get_grid().get_at(&position.point).unwrap_or_default();
         let objects_at = find_objects_at(entities, objects, positions, position);
@@ -244,7 +244,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
 
 fn draw_gui_bottom_box(
     ctx: &mut Rltk,
-    current_tile: GMapTile,
+    current_tile: Tile,
     objects: &Vec<(Entity, ObjectsType)>,
     actions: &Vec<(char, &str)>,
 ) {
@@ -264,11 +264,11 @@ fn draw_gui_bottom_box(
     let inner_box_x = box_x + 1;
     let inner_box_y = box_y + 1;
     let tile_str = match current_tile {
-        GMapTile::Ground => "ground",
-        GMapTile::Floor => "floor",
-        GMapTile::Wall => "?",
-        GMapTile::Space => "space",
-        GMapTile::OutOfMap => "oom",
+        Tile::Ground => "ground",
+        Tile::Floor => "floor",
+        Tile::Wall => "?",
+        Tile::Space => "space",
+        Tile::OutOfMap => "oom",
     };
     ctx.print_color(inner_box_x, inner_box_y, rltk::GRAY, rltk::BLACK, tile_str);
 

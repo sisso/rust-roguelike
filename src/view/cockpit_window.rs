@@ -1,4 +1,5 @@
 use crate::gridref::GridRef;
+use crate::models::SurfaceTileKind;
 use crate::state::State;
 use crate::view::window::Window;
 use crate::{cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, Surface, P2};
@@ -24,9 +25,9 @@ impl LocalInfo {
         let grid_id = pos.grid_id;
 
         let grid_storage = &ecs.read_storage::<GridRef>();
-        let gmap = GridRef::find_gmap(grid_storage, grid_id).unwrap();
+        let area = GridRef::find_area(grid_storage, grid_id).expect("area not found");
 
-        let cell_entity_id = gmap
+        let cell_entity_id = area
             .get_layer_entity_at(&pos.point)
             .expect("invalid entity at position");
 
@@ -379,7 +380,12 @@ fn draw_orbiting_map(
                 fg = rltk::BLUE;
             }
 
-            ctx.set(x + sx as i32, y, fg, bg, '#' as rltk::FontCharType);
+            let ch = match surface.get_tile(sx, sy) {
+                Some(SurfaceTileKind::Structure) => '$',
+                _ => '#',
+            };
+
+            ctx.set(x + sx as i32, y, fg, bg, ch as rltk::FontCharType);
         }
 
         y += 1;
@@ -449,7 +455,7 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
         }
         (_, Some(index)) if index == 1 => {
             let selected_index =
-                crate::commons::grid::coords_to_index(surface.width as i32, &place_coords);
+                crate::commons::grid::coords_to_index(surface.width as i32, place_coords);
             let target_id = surface.zones[selected_index as usize];
 
             std::mem::drop(surfaces_storage);

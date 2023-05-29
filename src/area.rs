@@ -6,36 +6,36 @@ use specs::prelude::*;
 use specs_derive::*;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
-pub enum GMapTile {
+pub enum Tile {
     Ground,
     Floor,
     Wall,
     Space,
-    // normally used by returns to avoid option
+    // works like None
     OutOfMap,
 }
 
-impl GMapTile {
+impl Tile {
     pub fn is_opaque(&self) -> bool {
         match self {
-            GMapTile::Wall => true,
-            GMapTile::OutOfMap => true,
+            Tile::Wall => true,
+            Tile::OutOfMap => true,
             _ => false,
         }
     }
 
     pub fn is_nothing(&self) -> bool {
         match self {
-            GMapTile::Space => true,
-            GMapTile::OutOfMap => true,
+            Tile::Space => true,
+            Tile::OutOfMap => true,
             _ => false,
         }
     }
 }
 
-impl Default for GMapTile {
+impl Default for Tile {
     fn default() -> Self {
-        GMapTile::Space
+        Tile::Space
     }
 }
 
@@ -117,18 +117,16 @@ impl<'a> ViewGrid<'a> {
     }
 }
 
-pub const EMPTY_CELL: Cell = Cell {
-    tile: GMapTile::Space,
-};
+pub const EMPTY_CELL: Cell = Cell { tile: Tile::Space };
 
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone, Default, Copy)]
 pub struct Cell {
-    pub tile: GMapTile,
+    pub tile: Tile,
     // pub objects? // how will return ref?
 }
 
 impl Cell {
-    pub fn new(tile: GMapTile) -> Self {
+    pub fn new(tile: Tile) -> Self {
         Cell { tile }
     }
 }

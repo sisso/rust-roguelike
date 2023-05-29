@@ -1,4 +1,4 @@
-use crate::area::GMapTile;
+use crate::area::Tile;
 use crate::models::ObjectsType;
 use specs::prelude::*;
 use specs_derive::*;
@@ -42,21 +42,21 @@ pub const SECTOR_SIZE: i32 = 11;
 
 #[derive(Component, Debug)]
 pub struct Cfg {
-    pub raw_map_tiles: Vec<(char, GMapTile)>,
+    pub raw_map_tiles: Vec<(char, Tile)>,
     pub raw_map_objects: Vec<(char, ObjectsType)>,
 }
 
 impl Cfg {
     pub fn new() -> Self {
-        let raw_map_tiles: Vec<(char, GMapTile)> = vec![
-            ('_', GMapTile::Space),
-            ('.', GMapTile::Floor),
-            ('#', GMapTile::Wall),
-            ('E', GMapTile::Wall),
-            ('-', GMapTile::Floor),
-            ('|', GMapTile::Floor),
-            ('@', GMapTile::Floor),
-            ('!', GMapTile::Floor),
+        let raw_map_tiles: Vec<(char, Tile)> = vec![
+            ('_', Tile::Space),
+            ('.', Tile::Floor),
+            ('#', Tile::Wall),
+            ('E', Tile::Wall),
+            ('-', Tile::Floor),
+            ('|', Tile::Floor),
+            ('@', Tile::Floor),
+            ('!', Tile::Floor),
         ];
 
         let raw_map_objects: Vec<(char, ObjectsType)> = vec![

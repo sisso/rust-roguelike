@@ -1,6 +1,7 @@
 use crate::commons;
 use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -113,7 +114,7 @@ impl Dir {
         }
     }
 }
-#[derive(Component, PartialEq, Copy, Clone, Debug)]
+#[derive(Component, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectsType {
     Door { vertical: bool },
     Engine,

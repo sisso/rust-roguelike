@@ -166,6 +166,10 @@ impl<T> Grid<T> {
             current: 0,
         }
     }
+
+    pub fn len(&self) -> usize {
+        return self.list.len();
+    }
 }
 
 impl<T: Clone> Grid<T> {
@@ -189,14 +193,13 @@ pub struct GridIterator<'a, T> {
 }
 
 impl<'a, T> Iterator for GridIterator<'a, T> {
-    type Item = (i32, &'a T);
+    type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let index = self.current;
-        match self.grid.get_opt(index) {
+        match self.grid.get_opt(self.current) {
             Some(value) => {
                 self.current += 1;
-                Some((index, value))
+                Some(value)
             }
             None => None,
         }

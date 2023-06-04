@@ -1,9 +1,9 @@
-use crate::{area, commons, Grid};
 use std::collections::HashSet;
 
 use crate::actions::EntityActions;
 use crate::area::{Area, Cell, Tile};
-use crate::commons::grid::{GridCell, NGrid, PGrid};
+use crate::cfg::MapParserCfg;
+use crate::commons::grid::{Grid, NGrid};
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::models::{
@@ -11,7 +11,7 @@ use crate::models::{
 };
 use crate::ship::Ship;
 use crate::view::{Renderable, Viewshed};
-use rltk::{Algorithm2D, RGB};
+use rltk::RGB;
 use specs::prelude::*;
 
 pub fn create_sector(world: &mut World) -> Entity {
@@ -122,69 +122,18 @@ pub fn create_avatar(world: &mut World, position: Position) -> Entity {
         .build()
 }
 
-pub fn parse_map_tiles(
-    legend: &Vec<(char, Tile)>,
-    map: &ParseMapAst,
-) -> Result<Grid<Cell>, ParseMapError> {
-    let mut cells = vec![];
-
-    for i in 0..(map.get_width() * map.get_height()) {
-        let ch = *map.get(i);
-        let tile = match legend.iter().find(|(c, _)| c == &ch).map(|(_, tile)| tile) {
-            Some(t) => t,
-            None => return Err(ParseMapError::UnknownChar(ch)),
-        };
-
-        cells.push(Cell { tile: tile.clone() })
-    }
-
-    let grid = Grid::new_from(map.get_width(), map.get_height(), cells);
-    Ok(grid)
+pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
+    let cells = map_ast.iter().map(|e| Cell { tile: e.tile }).collect();
+    Grid::new_from(map_ast.get_width(), map_ast.get_height(), cells)
 }
 
-// pub fn map_empty(width: i32, height: i32) -> GMap {
-//     fn create(total_cells: usize, default_tile: GMapTile) -> Vec<Cell> {
-//         let mut cells = vec![];
-//         // total random
-//         for _ in 0..total_cells {
-//             cells.push(Cell { tile: default_tile });
-//         }
-//
-//         cells
-//     }
-//
-//     fn apply_walls(map: &mut GMap) {
-//         for x in 0..(map.width as i32) {
-//             let i = map.point2d_to_index((x, 0).into());
-//             map.cells[i].tile = GMapTile::Wall;
-//             let i = map.point2d_to_index((x, map.height - 1).into());
-//             map.cells[i].tile = GMapTile::Wall;
-//         }
-//
-//         for y in 0..(map.height as i32) {
-//             let i = map.point2d_to_index((0, y).into());
-//             map.cells[i].tile = GMapTile::Wall;
-//             let i = map.point2d_to_index((map.width - 1, y).into());
-//             map.cells[i].tile = GMapTile::Wall;
-//         }
-//     }
-//
-//     let total_cells = (width * height) as usize;
-//     // let mut rng = rltk::RandomNumberGenerator::new();
-//
-//     let mut gmap: GMap = Grid {
-//         width: width,
-//         height: height,
-//         list: create(total_cells, GMapTile::Floor),
-//     }
-//     .into();
-//
-//     apply_walls(&mut gmap);
-//
-//     gmap
-// }
+pub struct MapAstCell {
+    pub tile: Tile,
+    pub obj: Option<ObjectsType>,
+}
 
-pub type ParseMapAst = Grid<char>;
+pub type MapAst = Grid<MapAstCell>;
+pub type RawMapAst = Grid<char>;
 
 #[derive(Debug)]
 pub enum ParseMapError {
@@ -193,10 +142,38 @@ pub enum ParseMapError {
     InvalidLineWidth(String),
 }
 
+pub fn parse_map(cfg: &MapParserCfg, map: &str) -> Result<MapAst, ParseMapError> {
+    let raw = parse_map_str(map)?;
+    parse_rawmap(cfg, &raw)
+}
+
+fn parse_rawmap(cfg: &MapParserCfg, map: &RawMapAst) -> Result<MapAst, ParseMapError> {
+    let mut cells = Vec::with_capacity(map.len());
+
+    for ch in map.iter() {
+        let tile = match cfg.raw_map_tiles.iter().find(|(c, _)| c == ch) {
+            Some((_, tile)) => *tile,
+            None => return Err(ParseMapError::UnknownChar(*ch)),
+        };
+
+        let obj = match cfg.raw_map_objects.iter().find(|(c, _)| c == ch) {
+            Some((_, obj)) => Some(*obj),
+            None => None,
+        };
+
+        let cell = MapAstCell { tile, obj };
+
+        cells.push(cell);
+    }
+
+    let grid = Grid::new_from(map.get_width(), map.get_height(), cells);
+    Ok(grid)
+}
+
 /// All empty spaces are removed an can not be used
 /// If first line is empty, is removed,
 /// if last line is empty, is removed
-pub fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
+fn parse_map_str(map: &str) -> Result<RawMapAst, ParseMapError> {
     let mut lines: Vec<String> = map.split("\n").map(|line| line.replace(" ", "")).collect();
 
     if lines.is_empty() {
@@ -217,7 +194,7 @@ pub fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
 
     let width = lines[0].len() as i32;
     let height = lines.len() as i32;
-    let mut cells = vec![];
+    let mut cells = Vec::with_capacity((width * height) as usize);
 
     for (_y, line) in lines.iter().enumerate() {
         if line.len() != width as usize {
@@ -229,49 +206,28 @@ pub fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
         }
     }
 
-    let grid = ParseMapAst::new_from(width, height, cells);
+    let grid = RawMapAst::new_from(width, height, cells);
     Ok(grid)
 }
 
 pub fn parse_map_objects(
     ecs: &mut World,
-    pos: V2I,
+    source_pos: V2I,
     grid_id: Entity,
-    ast: ParseMapAst,
+    map_ast: MapAst,
 ) -> Result<(), ParseMapError> {
-    let mut changes: Vec<(Position, ObjectsType)> = vec![];
-    {
-        let cfg = ecs.fetch::<super::cfg::Cfg>();
-        for (index, cell) in ast.iter() {
-            let kind = cfg
-                .raw_map_objects
-                .iter()
-                .find(|(ch, _tp)| ch == cell)
-                .map(|(_, kind)| kind)
-                .cloned();
+    map_ast.iter().enumerate().for_each(|(index, c)| {
+        let mut local_pos = map_ast.index_to_coords(index as i32);
+        local_pos.x += source_pos.x;
+        local_pos.y += source_pos.y;
 
-            let kind = match kind {
-                Some(k) => k,
-                None => continue,
-            };
+        let pos = Position {
+            grid_id,
+            point: local_pos,
+        };
 
-            let mut local_pos = ast.index_to_coords(index);
-            local_pos.x += pos.x;
-            local_pos.y += pos.y;
-
-            changes.push((
-                Position {
-                    grid_id: grid_id,
-                    point: V2I::new(local_pos.x, local_pos.y),
-                },
-                kind,
-            ));
-        }
-    }
-
-    for (pos, kind) in changes {
-        match kind {
-            ObjectsType::Door { vertical } => {
+        match c.obj {
+            Some(ObjectsType::Door { vertical }) => {
                 let icon = if vertical { '|' } else { '-' };
                 ecs.create_entity()
                     .with(pos)
@@ -281,10 +237,10 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     })
-                    .with(kind)
+                    .with(ObjectsType::Door { vertical })
                     .build();
             }
-            ObjectsType::Cockpit => {
+            Some(ObjectsType::Cockpit) => {
                 ecs.create_entity()
                     .with(pos)
                     .with(Renderable {
@@ -293,10 +249,10 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     })
-                    .with(kind)
+                    .with(ObjectsType::Cockpit)
                     .build();
             }
-            ObjectsType::Engine => {
+            Some(ObjectsType::Engine) => {
                 ecs.create_entity()
                     .with(pos)
                     .with(Renderable {
@@ -305,11 +261,12 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     })
-                    .with(kind)
+                    .with(ObjectsType::Engine)
                     .build();
             }
+            None => {}
         }
-    }
+    });
 
     Ok(())
 }
@@ -320,7 +277,7 @@ mod test {
 
     #[test]
     fn test_parse_map_should_find_the_map_dimension() {
-        let map = parse_map(
+        let map = parse_map_str(
             r"
             #....#
             ______ 
@@ -334,7 +291,7 @@ mod test {
 
     #[test]
     fn test_parse_map_should_fail_for_invalid_maps() {
-        parse_map(
+        parse_map_str(
             r"
             ###
             # #

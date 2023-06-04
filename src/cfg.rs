@@ -1,5 +1,6 @@
 use crate::area::Tile;
 use crate::models::ObjectsType;
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -40,10 +41,15 @@ pub const SCREEN_W: i32 = 80;
 pub const SCREEN_H: i32 = 50;
 pub const SECTOR_SIZE: i32 = 11;
 
-#[derive(Component, Debug)]
-pub struct Cfg {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MapParserCfg {
     pub raw_map_tiles: Vec<(char, Tile)>,
     pub raw_map_objects: Vec<(char, ObjectsType)>,
+}
+
+#[derive(Component, Debug, Serialize, Deserialize, Clone)]
+pub struct Cfg {
+    pub map_parser: MapParserCfg,
 }
 
 impl Cfg {
@@ -66,9 +72,12 @@ impl Cfg {
             ('@', ObjectsType::Cockpit),
             ('!', ObjectsType::Door { vertical: true }),
         ];
+
         Cfg {
-            raw_map_tiles,
-            raw_map_objects,
+            map_parser: MapParserCfg {
+                raw_map_tiles,
+                raw_map_objects,
+            },
         }
     }
 }

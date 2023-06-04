@@ -2,10 +2,11 @@ use super::models::*;
 use crate::commons;
 use crate::commons::grid::{Coord, NGrid};
 use crate::commons::v2i::V2I;
+use serde::{Deserialize, Serialize};
 use specs::prelude::*;
 use specs_derive::*;
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum Tile {
     Ground,
     Floor,
@@ -142,12 +143,3 @@ impl Default for &Cell {
         &EMPTY_CELL
     }
 }
-
-// impl From<Grid<Cell>> for GMap {
-//     fn from(g: Grid<Cell>) -> Self {
-//         GMap {
-//             grid: NGrid::from_grid(g),
-//             layers: vec![],
-//         }
-//     }
-// }

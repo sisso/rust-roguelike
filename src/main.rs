@@ -61,13 +61,12 @@ fn main() -> rltk::BError {
     // initialize
     let cfg = cfg::Cfg::new();
 
-    let ship_map_ast = loader::parse_map(cfg::SHIP_MAP).expect("fail to load map");
-    let ship_grid =
-        loader::parse_map_tiles(&cfg.raw_map_tiles, &ship_map_ast).expect("fail to load map tiles");
+    let ship_map_ast = loader::parse_map(&cfg.map_parser, cfg::SHIP_MAP).expect("fail to load map");
+    let ship_grid = loader::new_grid_from_ast(&ship_map_ast);
 
-    let house_ast = loader::parse_map(cfg::HOUSE_MAP).expect("fail to load house map");
-    let house_area =
-        loader::parse_map_tiles(&cfg.raw_map_tiles, &house_ast).expect("fail to load map tiles");
+    let house_ast =
+        loader::parse_map(&cfg.map_parser, cfg::HOUSE_MAP).expect("fail to load house map");
+    let house_grid = loader::new_grid_from_ast(&house_ast);
 
     let spawn_x = ship_grid.get_width() / 2 - 5;
     let spawn_y = ship_grid.get_height() / 2;
@@ -91,7 +90,7 @@ fn main() -> rltk::BError {
         3,
         100,
         area::Tile::Ground,
-        vec![(house_pos, &house_area)],
+        vec![(house_pos, &house_grid)],
     );
     planets_zones.push((house_grid_id, SurfaceTileKind::Structure));
 

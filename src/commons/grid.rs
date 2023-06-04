@@ -83,6 +83,10 @@ impl<T> Grid<T> {
         &self.list[index as usize]
     }
 
+    pub fn get_opt(&self, index: i32) -> Option<&T> {
+        self.list.get(index as usize)
+    }
+
     pub fn get_at(&self, coord: Coord) -> &T {
         assert!(self.is_valid_coords(coord));
         let index = self.coords_to_index(coord);
@@ -155,6 +159,13 @@ impl<T> Grid<T> {
     pub fn size(&self) -> V2I {
         V2I::new(self.width, self.height)
     }
+
+    pub fn iter(&self) -> GridIterator<T> {
+        GridIterator {
+            grid: self,
+            current: 0,
+        }
+    }
 }
 
 impl<T: Clone> Grid<T> {
@@ -168,6 +179,26 @@ impl<T: Clone> Grid<T> {
                 self.set_at(Coord::new(nx, ny), cell.clone());
                 i += 1;
             }
+        }
+    }
+}
+
+pub struct GridIterator<'a, T> {
+    grid: &'a Grid<T>,
+    current: i32,
+}
+
+impl<'a, T> Iterator for GridIterator<'a, T> {
+    type Item = (i32, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.current;
+        match self.grid.get_opt(index) {
+            Some(value) => {
+                self.current += 1;
+                Some((index, value))
+            }
+            None => None,
         }
     }
 }

@@ -19,10 +19,7 @@ impl GridRef {
         })
     }
 
-    pub fn find_gmap_entity_mut<'a, 'b>(
-        storage: &'a mut WriteStorage<'b, GridRef>,
-        id: Entity,
-    ) -> Option<Entity> {
+    pub fn find_gmap_entity_mut(storage: &mut WriteStorage<GridRef>, id: Entity) -> Option<Entity> {
         let mut current_id = id;
         loop {
             let current_grid = storage.get(current_id)?;

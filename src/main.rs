@@ -8,6 +8,7 @@ use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::area::Area;
 use crate::commons::grid::{Grid, NGrid};
+use crate::commons::v2i;
 use crate::commons::v2i::V2I;
 use crate::models::*;
 use crate::ship::Ship;
@@ -84,16 +85,15 @@ fn main() -> rltk::BError {
         .map(|e| (e, SurfaceTileKind::Plain))
         .collect();
 
-    planets_zones.push((
-        loader::create_planet_zone_from(
-            &mut gs.ecs,
-            3,
-            100,
-            area::Tile::Ground,
-            vec![(V2I::new(0, 0), &house_area)],
-        ),
-        SurfaceTileKind::Structure,
-    ));
+    let house_pos = V2I::new(15, 15);
+    let house_grid_id = loader::create_planet_zone_from(
+        &mut gs.ecs,
+        3,
+        100,
+        area::Tile::Ground,
+        vec![(house_pos, &house_area)],
+    );
+    planets_zones.push((house_grid_id, SurfaceTileKind::Structure));
 
     log::debug!("planet zones id {:?}", planets_zones);
 
@@ -139,7 +139,10 @@ fn main() -> rltk::BError {
 
     gs.ecs.insert(Player::new(avatar_entity_id));
 
-    loader::parse_map_objects(&mut gs.ecs, ship_id, ship_map_ast)
+    // load objects
+    loader::parse_map_objects(&mut gs.ecs, v2i::ZERO, ship_id, ship_map_ast)
+        .expect("fail to load map objects");
+    loader::parse_map_objects(&mut gs.ecs, house_pos, house_grid_id, house_ast)
         .expect("fail to load map objects");
 
     sectors::update_bodies_list(&mut gs.ecs);

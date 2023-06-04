@@ -128,8 +128,8 @@ pub fn parse_map_tiles(
 ) -> Result<Grid<Cell>, ParseMapError> {
     let mut cells = vec![];
 
-    for i in 0..(map.width as usize * map.height as usize) {
-        let ch = map.cells[i];
+    for i in 0..(map.get_width() * map.get_height()) {
+        let ch = *map.get(i);
         let tile = match legend.iter().find(|(c, _)| c == &ch).map(|(_, tile)| tile) {
             Some(t) => t,
             None => return Err(ParseMapError::UnknownChar(ch)),
@@ -138,7 +138,7 @@ pub fn parse_map_tiles(
         cells.push(Cell { tile: tile.clone() })
     }
 
-    let grid = Grid::new_from(map.width, map.height, cells);
+    let grid = Grid::new_from(map.get_width(), map.get_height(), cells);
     Ok(grid)
 }
 
@@ -184,12 +184,7 @@ pub fn parse_map_tiles(
 //     gmap
 // }
 
-#[derive(Debug)]
-pub struct ParseMapAst {
-    pub width: i32,
-    pub height: i32,
-    pub cells: Vec<char>,
-}
+pub type ParseMapAst = Grid<char>;
 
 #[derive(Debug)]
 pub enum ParseMapError {
@@ -234,24 +229,20 @@ pub fn parse_map(map: &str) -> Result<ParseMapAst, ParseMapError> {
         }
     }
 
-    Ok(ParseMapAst {
-        width,
-        height,
-        cells: cells,
-    })
+    let grid = ParseMapAst::new_from(width, height, cells);
+    Ok(grid)
 }
 
 pub fn parse_map_objects(
     ecs: &mut World,
+    pos: V2I,
     grid_id: Entity,
     ast: ParseMapAst,
 ) -> Result<(), ParseMapError> {
     let mut changes: Vec<(Position, ObjectsType)> = vec![];
     {
         let cfg = ecs.fetch::<super::cfg::Cfg>();
-        let grids = &ecs.read_storage::<GridRef>();
-        let map = GridRef::find_area(grids, grid_id).unwrap();
-        for (index, cell) in ast.cells.iter().enumerate() {
+        for (index, cell) in ast.iter() {
             let kind = cfg
                 .raw_map_objects
                 .iter()
@@ -264,12 +255,14 @@ pub fn parse_map_objects(
                 None => continue,
             };
 
-            let pos = map.index_to_point2d(index);
+            let mut local_pos = ast.index_to_coords(index);
+            local_pos.x += pos.x;
+            local_pos.y += pos.y;
 
             changes.push((
                 Position {
                     grid_id: grid_id,
-                    point: V2I::new(pos.x, pos.y),
+                    point: V2I::new(local_pos.x, local_pos.y),
                 },
                 kind,
             ));
@@ -335,8 +328,8 @@ mod test {
             ",
         )
         .expect("fail to parse map");
-        assert_eq!(map.width, 6);
-        assert_eq!(map.height, 3);
+        assert_eq!(map.get_width(), 6);
+        assert_eq!(map.get_height(), 3);
     }
 
     #[test]

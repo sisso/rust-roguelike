@@ -431,7 +431,7 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
     let surface = match surfaces_storage.get(orbiting_id) {
         Some(surface) => surface,
         _ => {
-            std::mem::drop(surfaces_storage);
+            drop(surfaces_storage);
             state.ecs.insert(CockpitWindowState::new(SubWindow::Main));
             return;
         }
@@ -450,7 +450,7 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
     // process inputs
     match (ctx.key, get_key_index(ctx.key)) {
         (_, Some(index)) if index == 0 => {
-            std::mem::drop(surfaces_storage);
+            drop(surfaces_storage);
             state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
         }
         (_, Some(index)) if index == 1 => {
@@ -458,7 +458,7 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
                 crate::commons::grid::coords_to_index(surface.width as i32, place_coords);
             let target_id = surface.zones[selected_index as usize];
 
-            std::mem::drop(surfaces_storage);
+            drop(surfaces_storage);
             set_ship_command(
                 &mut state.ecs,
                 ship_id,
@@ -467,7 +467,10 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
                     place_coords: place_coords,
                 },
             );
-            state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
+            // reset cockipt window
+            state.ecs.insert(CockpitWindowState::new(SubWindow::Main));
+            // close
+            state.ecs.insert(Window::World);
         }
         (Some(VirtualKeyCode::Up), _) => {
             std::mem::drop(surfaces_storage);

@@ -67,7 +67,7 @@ impl<'a> System<'a> for FlyToSystem {
 
                 Command::Launch => {
                     // find ship grid
-                    let grid_id = GridRef::find_gmap_entity_mut(&mut grids, ship_id).unwrap();
+                    let grid_id = GridRef::find_gmap_entity(&mut grids, ship_id).unwrap();
 
                     // find what body we are landed
                     let surface_body_id =

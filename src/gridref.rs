@@ -19,7 +19,7 @@ impl GridRef {
         })
     }
 
-    pub fn find_gmap_entity_mut(storage: &mut WriteStorage<GridRef>, id: Entity) -> Option<Entity> {
+    pub fn find_gmap_entity(storage: &mut WriteStorage<GridRef>, id: Entity) -> Option<Entity> {
         let mut current_id = id;
         loop {
             let current_grid = storage.get(current_id)?;
@@ -40,15 +40,15 @@ impl GridRef {
         storage: &'a mut WriteStorage<'b, GridRef>,
         id: Entity,
     ) -> Option<&'a mut Area> {
-        let current_id = Self::find_gmap_entity_mut(storage, id)?;
+        let current_id = Self::find_gmap_entity(storage, id)?;
         match storage.get_mut(current_id) {
             Some(GridRef::GMap(gmap)) => Some(gmap),
             _ => None,
         }
     }
 
-    pub fn replace<'a, 'b>(
-        storage: &'a mut WriteStorage<'b, GridRef>,
+    pub fn replace(
+        storage: &mut WriteStorage<GridRef>,
         id: Entity,
         new_ref: GridRef,
     ) -> Option<GridRef> {
@@ -57,8 +57,8 @@ impl GridRef {
         previous
     }
 
-    pub fn extract<'a, 'b>(
-        storage: &'a mut WriteStorage<'b, GridRef>,
+    pub fn extract(
+        storage: &mut WriteStorage<GridRef>,
         from_grid_id: Entity,
         layer_id: Entity,
     ) -> Option<(Area, Coord)> {

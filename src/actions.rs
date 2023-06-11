@@ -1,23 +1,25 @@
-use crate::models::{ObjectsType, Player, Position};
-use crate::utils::find_objects_at;
-use crate::view::window::Window;
+use crate::models::{Dir, ObjectsType, Player, Position};
 use log::debug;
 
 use crate::gridref::GridRef;
 use specs::prelude::*;
+use specs::shred::RunWithPool;
 use specs_derive::*;
 
 pub mod actions_system;
 pub mod avatar_actions_system;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Action {
-    CheckCockpit,
+    Interact,
+    Move(Dir),
 }
 
 #[derive(Debug, Clone, Component)]
 pub struct EntityActions {
+    /// list of actions that a entity can do
     pub actions: Vec<Action>,
+    /// what the entity is assigned to do
     pub current: Option<Action>,
 }
 
@@ -54,35 +56,11 @@ pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
     }
 }
 
-// TOOD: merge with get_available_actions
-pub fn try_interact(ecs: &mut World) {
-    let mut apply = vec![];
-
-    {
-        let entities = ecs.entities();
-        let positions = ecs.read_storage::<Position>();
-        let avatar = ecs.fetch::<Player>();
-        let objects = ecs.read_storage::<ObjectsType>();
-
-        'outer: for (_, pos) in (avatar.get_avatarset(), &positions).join() {
-            let at_list = find_objects_at(&entities, &objects, &positions, pos);
-
-            for (_e, t) in at_list {
-                match t {
-                    ObjectsType::Cockpit => {
-                        apply.push(move |ecs: &mut World| {
-                            ecs.insert(Window::Cockpit);
-                        });
-                        break 'outer;
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-
-    for a in apply {
-        a(ecs);
+pub fn set_current_action(ecs: &mut World, action: Action) {
+    let player = ecs.fetch::<Player>();
+    let mut actions = ecs.write_storage::<EntityActions>();
+    for (_, entity_action) in (player.get_avatarset(), &mut actions).join() {
+        entity_action.current = Some(action.clone());
     }
 }
 
@@ -92,7 +70,7 @@ pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsType)>) -> Ve
     for (_, kind) in objects_at_cell {
         match kind {
             ObjectsType::Cockpit => {
-                actions.push(Action::CheckCockpit);
+                actions.push(Action::Interact);
             }
             _ => {}
         }

@@ -48,7 +48,7 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
             VirtualKeyCode::Numpad1 => actions::try_move_player(-1, 1, &mut gs.ecs),
             VirtualKeyCode::Numpad2 => actions::try_move_player(0, 1, &mut gs.ecs),
             VirtualKeyCode::Numpad3 => actions::try_move_player(1, 1, &mut gs.ecs),
-            VirtualKeyCode::I => actions::try_interact(&mut gs.ecs),
+            VirtualKeyCode::I => actions::set_current_action(&mut gs.ecs, Action::Interact),
             // VirtualKeyCode::W => gs.camera.y -= 1,
             // VirtualKeyCode::A => gs.camera.x -= 1,
             // VirtualKeyCode::D => gs.camera.x += 1,
@@ -226,7 +226,8 @@ impl ViewAction {
 
     fn map_to_keys(action: &Action) -> (char, &'static str) {
         match action {
-            Action::CheckCockpit => ('i', "check cockpit"),
+            Action::Interact => ('i', "check cockpit"),
+            _ => ('?', "unknown"),
         }
     }
 }

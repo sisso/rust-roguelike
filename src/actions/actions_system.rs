@@ -1,10 +1,12 @@
-use crate::actions::{Action, EntityActions};
+use crate::actions::{get_available_actions, Action, EntityActions};
 
 use crate::models::{ObjectsType, Player, Position};
-use crate::ship;
 use crate::utils::find_objects_at;
+use crate::{ship, unwrap_or_continue};
 
+use crate::view::window::Window;
 use specs::prelude::*;
+use specs::shred::Fetch;
 
 pub struct ActionsSystem {}
 
@@ -14,26 +16,24 @@ impl<'a> System<'a> for ActionsSystem {
         WriteStorage<'a, EntityActions>,
         ReadStorage<'a, ObjectsType>,
         ReadStorage<'a, Position>,
+        WriteExpect<'a, Window>,
     );
 
-    fn run(&mut self, (entities, mut actions, objects, positions): Self::SystemData) {
+    fn run(&mut self, (entities, mut actions, objects, positions, mut window): Self::SystemData) {
         for (_e, actions, pos) in (&entities, &mut actions, &positions).join() {
-            let objects_at = find_objects_at(&entities, &objects, &positions, pos);
-
-            match actions.current {
-                None => continue,
-                Some(Action::CheckCockpit) => {
-                    // match objects_at
-                    //     .iter()
-                    //     .find(|(_, ot)| *ot == ObjectsType::Cockpit)
-                    // {
-                    //     Some((_cockpit_entity, _)) => {
-                    //         ship::enter_cockpit(avatar);
-                    //     }
-                    //     None => {}
-                    // }
-                    log::warn!("check cockpit not implemented");
+            // take current action and check if can be executed
+            match actions.current.take() {
+                Some(action) => {
+                    let objects_at = find_objects_at(&entities, &objects, &positions, pos);
+                    let available_actions = get_available_actions(&objects_at);
+                    match available_actions.into_iter().find(|i| i == &action) {
+                        Some(Action::Interact) => {
+                            *window = Window::Cockpit;
+                        }
+                        _ => {}
+                    }
                 }
+                _ => {}
             }
         }
     }

@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+mod gird_string;
 pub mod grid;
 pub mod lineboundbox;
 pub mod prob;

@@ -7,7 +7,7 @@ use state::State;
 use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::area::Area;
-use crate::commons::grid::{Grid, NGrid};
+use crate::commons::grid::NGrid;
 use crate::commons::v2i;
 use crate::commons::v2i::V2I;
 use crate::models::*;

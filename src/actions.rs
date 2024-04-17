@@ -3,7 +3,6 @@ use log::debug;
 
 use crate::gridref::GridRef;
 use specs::prelude::*;
-use specs::shred::RunWithPool;
 use specs_derive::*;
 
 pub mod actions_system;

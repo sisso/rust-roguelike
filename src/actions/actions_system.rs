@@ -1,12 +1,10 @@
 use crate::actions::{get_available_actions, Action, EntityActions};
 
-use crate::models::{ObjectsType, Player, Position};
+use crate::models::{ObjectsType, Position};
 use crate::utils::find_objects_at;
-use crate::{ship, unwrap_or_continue};
 
 use crate::view::window::Window;
 use specs::prelude::*;
-use specs::shred::Fetch;
 
 pub struct ActionsSystem {}
 

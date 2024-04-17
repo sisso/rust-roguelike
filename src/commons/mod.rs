@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
-mod gird_string;
 pub mod grid;
+pub mod grid_string;
 pub mod lineboundbox;
 pub mod prob;
 pub mod random_grid;

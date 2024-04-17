@@ -8,8 +8,9 @@ use crate::actions::actions_system::ActionsSystem;
 use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::area::Area;
 use crate::commons::grid::NGrid;
-use crate::commons::v2i;
 use crate::commons::v2i::V2I;
+use crate::commons::{grid_string, v2i};
+use crate::loader::MapAstCell;
 use crate::models::*;
 use crate::ship::Ship;
 use crate::view::cockpit_window::CockpitWindowState;
@@ -61,11 +62,31 @@ fn main() -> rltk::BError {
     // initialize
     let cfg = cfg::Cfg::new();
 
-    let ship_map_ast = loader::parse_map(&cfg.map_parser, cfg::SHIP_MAP).expect("fail to load map");
+    let parser = |ch| {
+        let tile = cfg
+            .map_parser
+            .raw_map_tiles
+            .iter()
+            .find(|(c, tile)| *c == ch)
+            .map(|(_, tile)| *tile)?;
+
+        let obj = cfg
+            .map_parser
+            .raw_map_objects
+            .iter()
+            .find(|(c, tile)| *c == ch)
+            .map(|(_, obj)| *obj);
+
+        Some(MapAstCell {
+            tile: tile,
+            obj: obj,
+        })
+    };
+
+    let ship_map_ast = grid_string::parse_map(parser, cfg::SHIP_MAP).expect("fail to load map");
     let ship_grid = loader::new_grid_from_ast(&ship_map_ast);
 
-    let house_ast =
-        loader::parse_map(&cfg.map_parser, cfg::HOUSE_MAP).expect("fail to load house map");
+    let house_ast = grid_string::parse_map(parser, cfg::HOUSE_MAP).expect("fail to load house map");
     let house_grid = loader::new_grid_from_ast(&house_ast);
 
     let spawn_x = ship_grid.get_width() / 2 - 5;

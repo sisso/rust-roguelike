@@ -8,13 +8,9 @@ pub enum ParseMapError {
     UnknownTileAt([i32; 2]),
 }
 
-pub trait Parser<Tile> {
-    fn parse_tile(&self, ch: char) -> Option<Tile>;
-}
-
 pub fn parse_map<P, Tile>(parser: P, map_str: &str) -> Result<Grid<Tile>, ParseMapError>
 where
-    P: Parser<Tile>,
+    P: Fn(char) -> Option<Tile>,
 {
     let raw = parse_map_str(map_str)?;
     parse_rawmap(parser, &raw)
@@ -22,12 +18,12 @@ where
 
 fn parse_rawmap<P, Tile>(parser: P, map: &Grid<char>) -> Result<Grid<Tile>, ParseMapError>
 where
-    P: Parser<Tile>,
+    P: Fn(char) -> Option<Tile>,
 {
     let mut cells = Vec::with_capacity(map.len());
 
     for ch in map.iter() {
-        let tile = match parser.parse_tile(*ch) {
+        let tile = match parser(*ch) {
             Some(tile) => tile,
             None => return Err(ParseMapError::UnknownChar(*ch)),
         };
@@ -111,25 +107,11 @@ where
 mod test {
     use super::*;
 
-    struct TestParser;
-
     #[derive(PartialEq, Debug, Copy, Clone)]
     enum Tile {
         Unknown,
         Wall,
         Floor,
-    }
-
-    impl Parser<Tile> for TestParser {
-        fn parse_tile(&self, ch: char) -> Option<Tile> {
-            if ch == 'X' {
-                Some(Tile::Wall)
-            } else if ch == '.' {
-                Some(Tile::Floor)
-            } else {
-                Some(Tile::Unknown)
-            }
-        }
     }
 
     #[test]
@@ -138,7 +120,17 @@ mod test {
             X..X
             XXXX"#;
 
-        let grid = parse_map(TestParser, map).unwrap();
+        let parser = |ch| {
+            if ch == 'X' {
+                Some(Tile::Wall)
+            } else if ch == '.' {
+                Some(Tile::Floor)
+            } else {
+                Some(Tile::Unknown)
+            }
+        };
+
+        let grid = parse_map(parser, map).unwrap();
         assert_eq!(grid.get_width(), 4);
         assert_eq!(grid.get_height(), 3);
         assert_eq!(*grid.get_at([0, 0].into()), Tile::Wall);

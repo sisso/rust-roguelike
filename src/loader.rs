@@ -4,6 +4,7 @@ use crate::actions::EntityActions;
 use crate::area::{Area, Cell, Tile};
 use crate::cfg::MapParserCfg;
 use crate::commons::grid::{Grid, NGrid};
+use crate::commons::grid_string::ParseMapError;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::models::{
@@ -133,82 +134,6 @@ pub struct MapAstCell {
 }
 
 pub type MapAst = Grid<MapAstCell>;
-pub type RawMapAst = Grid<char>;
-
-#[derive(Debug)]
-pub enum ParseMapError {
-    UnknownChar(char),
-    FewLines,
-    InvalidLineWidth(String),
-}
-
-pub fn parse_map(cfg: &MapParserCfg, map: &str) -> Result<MapAst, ParseMapError> {
-    let raw = parse_map_str(map)?;
-    parse_rawmap(cfg, &raw)
-}
-
-fn parse_rawmap(cfg: &MapParserCfg, map: &RawMapAst) -> Result<MapAst, ParseMapError> {
-    let mut cells = Vec::with_capacity(map.len());
-
-    for ch in map.iter() {
-        let tile = match cfg.raw_map_tiles.iter().find(|(c, _)| c == ch) {
-            Some((_, tile)) => *tile,
-            None => return Err(ParseMapError::UnknownChar(*ch)),
-        };
-
-        let obj = match cfg.raw_map_objects.iter().find(|(c, _)| c == ch) {
-            Some((_, obj)) => Some(*obj),
-            None => None,
-        };
-
-        let cell = MapAstCell { tile, obj };
-
-        cells.push(cell);
-    }
-
-    let grid = Grid::new_from(map.get_width(), map.get_height(), cells);
-    Ok(grid)
-}
-
-/// All empty spaces are removed an can not be used
-/// If first line is empty, is removed,
-/// if last line is empty, is removed
-fn parse_map_str(map: &str) -> Result<RawMapAst, ParseMapError> {
-    let mut lines: Vec<String> = map.split("\n").map(|line| line.replace(" ", "")).collect();
-
-    if lines.is_empty() {
-        return Err(ParseMapError::FewLines);
-    }
-
-    if lines[0].is_empty() {
-        lines.remove(0);
-    }
-
-    if lines.is_empty() {
-        return Err(ParseMapError::FewLines);
-    }
-
-    if lines[lines.len() - 1].is_empty() {
-        lines.remove(lines.len() - 1);
-    }
-
-    let width = lines[0].len() as i32;
-    let height = lines.len() as i32;
-    let mut cells = Vec::with_capacity((width * height) as usize);
-
-    for (_y, line) in lines.iter().enumerate() {
-        if line.len() != width as usize {
-            return Err(ParseMapError::InvalidLineWidth(line.clone()));
-        }
-
-        for ch in line.chars() {
-            cells.push(ch)
-        }
-    }
-
-    let grid = RawMapAst::new_from(width, height, cells);
-    Ok(grid)
-}
 
 pub fn parse_map_objects(
     ecs: &mut World,
@@ -269,37 +194,4 @@ pub fn parse_map_objects(
     });
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_parse_map_should_find_the_map_dimension() {
-        let map = parse_map_str(
-            r"
-            #....#
-            ______ 
-            #....#
-            ",
-        )
-        .expect("fail to parse map");
-        assert_eq!(map.get_width(), 6);
-        assert_eq!(map.get_height(), 3);
-    }
-
-    #[test]
-    fn test_parse_map_should_fail_for_invalid_maps() {
-        parse_map_str(
-            r"
-            ###
-            # #
-            #
-            
-        ",
-        )
-        .err()
-        .expect("map didnt fail");
-    }
 }

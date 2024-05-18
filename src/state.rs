@@ -1,45 +1,31 @@
-use crate::actions::EntityActions;
 use crate::cfg::Cfg;
-use crate::gridref::GridRef;
-use crate::models::{
-    Avatar, Label, Location, ObjectsType, Player, Position, Sector, SectorBody, Surface,
-};
-use crate::ship::Ship;
+use crate::models::Player;
 use crate::view;
 use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
-use crate::view::{Renderable, Viewshed};
+use hecs::World;
 use rltk::BTerm as Rltk;
-use specs::prelude::*;
-use specs::World;
 
 pub struct State {
+    pub cfg: Cfg,
     pub ecs: World,
+    pub window: Window,
+    pub player: Player,
+    pub cockpit_window: CockpitWindowState,
 }
 
 impl State {
     pub fn new(cfg: Cfg) -> Self {
-        let mut gs = State { ecs: World::new() };
-        gs.ecs.register::<Cfg>();
-        gs.ecs.register::<Position>();
-        gs.ecs.register::<Renderable>();
-        gs.ecs.register::<Viewshed>();
-        gs.ecs.register::<ObjectsType>();
-        gs.ecs.register::<EntityActions>();
-        gs.ecs.register::<Window>();
-        gs.ecs.register::<Ship>();
-        gs.ecs.register::<Avatar>();
-        gs.ecs.register::<CockpitWindowState>();
-        gs.ecs.register::<Location>();
-        gs.ecs.register::<Surface>();
-        gs.ecs.register::<Sector>();
-        gs.ecs.register::<Label>();
-        gs.ecs.register::<SectorBody>();
-        gs.ecs.register::<GridRef>();
+        let mut world = World::new();
+        let player_id = world.reserve_entity();
 
-        gs.ecs.insert(cfg);
-
-        gs
+        State {
+            cfg,
+            ecs: world,
+            window: Window::World,
+            player: Player::new(player_id),
+            cockpit_window: Default::default(),
+        }
     }
 }
 
@@ -47,7 +33,7 @@ impl rltk::GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
-        let window = *self.ecs.fetch::<Window>();
+        let window = self.window;
 
         match window {
             Window::World => {

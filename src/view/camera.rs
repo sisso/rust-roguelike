@@ -1,14 +1,10 @@
 use crate::{cfg, commons, P2};
 
-use rltk::{Point};
-
-
-use specs::prelude::*;
-use specs_derive::*;
+use rltk::Point;
 
 pub type ScreenPoint = Point;
 
-#[derive(Component, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Camera {
     pub x: i32,
     pub y: i32,

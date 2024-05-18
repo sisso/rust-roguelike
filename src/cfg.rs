@@ -1,8 +1,6 @@
 use crate::area::Tile;
 use crate::models::ObjectsType;
 use serde::{Deserialize, Serialize};
-use specs::prelude::*;
-use specs_derive::*;
 
 pub const SHIP_MAP: &str = r"
 ___________________________
@@ -47,7 +45,7 @@ pub struct MapParserCfg {
     pub raw_map_objects: Vec<(char, ObjectsType)>,
 }
 
-#[derive(Component, Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Cfg {
     pub map_parser: MapParserCfg,
 }

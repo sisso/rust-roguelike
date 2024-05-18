@@ -2,8 +2,7 @@ pub mod systems;
 
 use crate::models::Player;
 use crate::P2;
-use specs::prelude::*;
-use specs_derive::*;
+use hecs::Entity;
 
 pub const FLY_SLEEP_TIME: u32 = 60;
 
@@ -15,7 +14,7 @@ pub enum Command {
     Launch,
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Ship {
     pub current_command: Command,
     pub move_calm_down: u32,

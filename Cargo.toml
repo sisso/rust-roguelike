@@ -7,10 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#rltk = "0.8.*"
 rltk = { git = "https://github.com/amethyst/bracket-lib.git" }
-specs = "0.18.0"
-specs-derive = "0.4.1"
+hecs = "0.10.5"
 log = "0.4"
 env_logger = "0.10.0"
 serde_json = "1.*"

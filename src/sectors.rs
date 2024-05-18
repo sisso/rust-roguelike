@@ -1,28 +1,21 @@
 use crate::{Location, Sector};
-use log::debug;
-use specs::prelude::*;
+use hecs::World;
+use log;
 
-pub fn update_bodies_list(ecs: &mut World) {
-    let objects = ecs.entities();
-    let locations = ecs.read_storage::<Location>();
-    let mut sectors = ecs.write_storage::<Sector>();
-
-    for (obj_id, location) in (&objects, &locations).join() {
+pub fn update_bodies_list(ecs: &World) {
+    for (obj_id, location) in &mut ecs.query::<&Location>() {
         match location {
-            Location::Sector {
-                sector_id,
-                ..
-            } => {
-                let sector = sectors.get_mut(*sector_id).unwrap();
-                debug!(
+            Location::Sector { sector_id, .. } => {
+                let mut sector = ecs.get::<&mut Sector>(*sector_id).unwrap();
+                log::debug!(
                     "adding {:?} at {:?} to sector {:?}",
-                    obj_id, location, sector_id
+                    obj_id,
+                    location,
+                    sector_id
                 );
                 sector.bodies.push(obj_id)
             }
-            _ => {
-                debug!("skipping {:?} at {:?}", obj_id, location);
-            }
+            _ => log::debug!("skipping {:?} at {:?}", obj_id, location),
         }
     }
 }

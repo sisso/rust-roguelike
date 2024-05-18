@@ -11,19 +11,16 @@ use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::P2;
 use crate::{actions, cfg};
+use hecs::{Entity, World};
 use rltk::{Rltk, VirtualKeyCode, RGB};
-use specs::prelude::*;
-use specs_derive::*;
 use std::collections::HashSet;
 
-#[derive(Component)]
 pub struct Viewshed {
     pub visible_tiles: Vec<rltk::Point>,
     pub know_tiles: HashSet<rltk::Point>,
     pub range: i32,
 }
 
-#[derive(Component)]
 pub struct Renderable {
     pub glyph: rltk::FontCharType,
     pub fg: RGB,
@@ -161,9 +158,11 @@ fn draw_map(
 }
 
 fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, ctx: &mut Rltk) {
-    let positions = ecs.read_storage::<Position>();
-    let renderables = ecs.read_storage::<Renderable>();
-    let mut objects = (&positions, &renderables).join().collect::<Vec<_>>();
+    let mut objects = ecs
+        .query::<(&Position, &Renderable)>()
+        .into_iter()
+        .map(|(_, c)| c)
+        .collect::<Vec<_>>();
     objects.sort_by(|&a, &b| a.1.priority.cmp(&b.1.priority));
 
     for (pos, render) in objects {

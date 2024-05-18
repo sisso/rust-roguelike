@@ -1,11 +1,10 @@
 extern crate core;
 
+use crate::actions::{actions_system, avatar_actions_system};
+use hecs::Entity;
 use rltk::Rltk;
-use specs::prelude::*;
 use state::State;
 
-use crate::actions::actions_system::ActionsSystem;
-use crate::actions::avatar_actions_system::FindAvatarActionsSystem;
 use crate::area::Area;
 use crate::commons::grid::NGrid;
 use crate::commons::v2i::V2I;
@@ -15,7 +14,6 @@ use crate::models::*;
 use crate::ship::Ship;
 use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
-use crate::visibility_system::VisibilitySystem;
 
 pub mod actions;
 pub mod area;
@@ -33,20 +31,11 @@ pub mod utils;
 pub mod view;
 pub mod visibility_system;
 
-pub fn run_systems(st: &mut State, _ctx: &mut Rltk) {
-    let mut s = VisibilitySystem {};
-    s.run_now(&st.ecs);
-
-    let mut s = FindAvatarActionsSystem {};
-    s.run_now(&st.ecs);
-
-    let mut s = ActionsSystem {};
-    s.run_now(&st.ecs);
-
-    let mut s = ship::systems::FlyToSystem {};
-    s.run_now(&st.ecs);
-
-    st.ecs.maintain();
+pub fn run_systems(st: &mut State, ctx: &mut Rltk) {
+    visibility_system::run(&st.ecs);
+    avatar_actions_system::run(&mut st.ecs);
+    actions_system::run(&mut st.ecs, &mut st.window);
+    ship::systems::run(&mut st.ecs);
 }
 
 fn main() -> rltk::BError {

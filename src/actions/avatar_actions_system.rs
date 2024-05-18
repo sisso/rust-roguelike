@@ -1,26 +1,12 @@
 use crate::actions::{get_available_actions, EntityActions};
+use hecs::World;
 
-use crate::models::{ObjectsType, Player, Position};
+use crate::models::Position;
 use crate::utils::find_objects_at;
 
-use specs::prelude::*;
-
-pub struct FindAvatarActionsSystem {}
-
-impl<'a> System<'a> for FindAvatarActionsSystem {
-    type SystemData = (
-        Entities<'a>,
-        ReadExpect<'a, Player>,
-        WriteStorage<'a, EntityActions>,
-        ReadStorage<'a, ObjectsType>,
-        ReadStorage<'a, Position>,
-    );
-
-    fn run(&mut self, (entities, avatar, mut actions, objects, positions): Self::SystemData) {
-        for (_, actions, pos) in (avatar.get_avatarset(), &mut actions, &positions).join() {
-            let objects_at = find_objects_at(&entities, &objects, &positions, pos);
-
-            actions.actions = get_available_actions(&objects_at);
-        }
+pub fn run(world: &mut World) {
+    for (_, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
+        let objects_at = find_objects_at(&world, pos);
+        actions.actions = get_available_actions(&objects_at);
     }
 }

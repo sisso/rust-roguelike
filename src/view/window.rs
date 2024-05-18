@@ -1,7 +1,4 @@
-use specs::prelude::*;
-use specs_derive::*;
-
-#[derive(Component, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum Window {
     World,
     Cockpit,

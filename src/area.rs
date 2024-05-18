@@ -2,9 +2,8 @@ use super::models::*;
 use crate::commons;
 use crate::commons::grid::{Coord, NGrid};
 use crate::commons::v2i::V2I;
+use hecs::Entity;
 use serde::{Deserialize, Serialize};
-use specs::prelude::*;
-use specs_derive::*;
 
 #[derive(PartialEq, Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum Tile {
@@ -109,18 +108,14 @@ struct ViewGrid<'a> {
 }
 
 impl<'a> ViewGrid<'a> {
-    pub fn create_view(
-        _locations: ReadStorage<'a, Location>,
-        _gmaps: ReadStorage<'a, Location>,
-        _entity: Entity,
-    ) -> ViewGrid<'a> {
+    pub fn create_view(_entity: Entity) -> ViewGrid<'a> {
         todo!()
     }
 }
 
 pub const EMPTY_CELL: Cell = Cell { tile: Tile::Space };
 
-#[derive(Component, Debug, Clone, Default, Copy)]
+#[derive(Debug, Clone, Default, Copy)]
 pub struct Cell {
     pub tile: Tile,
     // pub objects? // how will return ref?

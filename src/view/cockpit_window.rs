@@ -3,10 +3,9 @@ use crate::models::SurfaceTileKind;
 use crate::state::State;
 use crate::view::window::Window;
 use crate::{cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, Surface, P2};
+use hecs::{Entity, World};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
-use specs::prelude::*;
-use specs_derive::*;
 
 struct LocalInfo {
     pub avatar_id: Entity,
@@ -16,45 +15,42 @@ struct LocalInfo {
 }
 
 impl LocalInfo {
-    fn new(ecs: &World) -> LocalInfo {
-        let player = ecs.fetch::<Player>();
-        let avatar_id = player.get_avatar_id();
-        let pos_storage = ecs.read_storage::<Position>();
+    pub fn new(ecs: &World, avatar_id: Entity) -> LocalInfo {
+        let pos = ecs.get::<&Position>(avatar_id).expect("position not found");
+        let area = GridRef::find_area(ecs, pos.grid_id).expect("area not found");
 
-        let pos = pos_storage.get(avatar_id).expect("position not found");
-        let grid_id = pos.grid_id;
-
-        let grid_storage = &ecs.read_storage::<GridRef>();
-        let area = GridRef::find_area(grid_storage, grid_id).expect("area not found");
-
-        let cell_entity_id = area
+        let layer_id = area
             .get_layer_entity_at(&pos.point)
             .expect("invalid entity at position");
 
-        let ship_and_orbiting = ecs.read_storage::<Ship>().get(cell_entity_id).map(|_| {
-            match ecs.read_storage::<Location>().get(cell_entity_id) {
-                Some(Location::Orbit { target_id }) => (Some(cell_entity_id), Some(*target_id)),
-                _ => (Some(cell_entity_id), None),
-            }
-        });
-        let (ship_id, orbiting_id) = match ship_and_orbiting {
-            Some((a, b)) => (a, b),
-            None => (None, None),
+        // check if layer id is a ship, and if it is orbiting a object
+        let layer_is_ship = ecs.get::<&Ship>(layer_id).is_ok();
+        let (ship_id, orbiting_id) = if layer_is_ship {
+            let maybe_orbit_id = ecs.get::<&Location>(layer_id).ok().and_then(|i| match &*i {
+                Location::Orbit { target_id } => Some(*target_id),
+                _ => None,
+            });
+            (Some(layer_id), maybe_orbit_id)
+        } else {
+            (None, None)
         };
 
         LocalInfo {
             avatar_id,
-            grid_id,
+            grid_id: pos.grid_id,
             ship_id,
             orbiting_id,
         }
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum SubWindow {
+    #[default]
     Main,
-    Land { selected: P2 },
+    Land {
+        selected: P2,
+    },
 }
 
 /// list of commands that a cockpit can show
@@ -65,7 +61,7 @@ enum MenuOption {
     Launch,
 }
 
-#[derive(Component, Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct CockpitWindowState {
     pub sub_window: SubWindow,
     pub last_msg: Option<String>,
@@ -80,24 +76,10 @@ impl CockpitWindowState {
     }
 }
 
-impl Default for CockpitWindowState {
-    fn default() -> Self {
-        CockpitWindowState {
-            sub_window: SubWindow::Main,
-            last_msg: None,
-        }
-    }
-}
+pub fn draw(state: &State, ctx: &mut Rltk) {
+    let info = LocalInfo::new(&state.ecs, state.player.get_avatar_id());
 
-pub fn draw(state: &mut State, ctx: &mut Rltk) {
-    let info = LocalInfo::new(&state.ecs);
-
-    let sub_window = {
-        let wks = state.ecs.fetch::<CockpitWindowState>();
-        wks.sub_window.clone()
-    };
-
-    match sub_window {
+    match &state.cockpit_window {
         SubWindow::Main => draw_main(state, ctx, info),
         SubWindow::Land { .. } => draw_land_menu(
             state,
@@ -175,7 +157,7 @@ fn draw_msg(state: &State, ctx: &mut BTerm, border: i32, x: i32, y: i32) -> i32 
 }
 
 fn draw_actions(
-    state: &mut State,
+    state: &State,
     ctx: &mut BTerm,
     x: i32,
     mut y: i32,
@@ -206,7 +188,7 @@ fn draw_actions(
     y
 }
 
-fn draw_status(state: &mut State, ctx: &mut Rltk, ship_id: Entity, x: i32, mut y: i32) -> i32 {
+fn draw_status(state: &State, ctx: &mut Rltk, ship_id: Entity, x: i32, mut y: i32) -> i32 {
     let ship_storage = state.ecs.read_storage::<Ship>();
     let location_storage = state.ecs.read_storage::<Location>();
 
@@ -278,7 +260,7 @@ fn try_do_command(
 }
 
 /// return ne y value
-fn draw_sector_map(state: &mut State, ctx: &mut Rltk, x: i32, y: i32, ship_id: Entity) -> i32 {
+fn draw_sector_map(state: &State, ctx: &mut Rltk, x: i32, y: i32, ship_id: Entity) -> i32 {
     let entities = state.ecs.entities();
     let sectors = state.ecs.read_storage::<Sector>();
     let locations = state.ecs.read_storage::<Location>();
@@ -348,7 +330,7 @@ fn draw_sector_map(state: &mut State, ctx: &mut Rltk, x: i32, y: i32, ship_id: E
 }
 
 fn draw_orbiting_map(
-    state: &mut State,
+    state: &State,
     ctx: &mut Rltk,
     ship_id: Entity,
     x: i32,

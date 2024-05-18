@@ -1,3 +1,4 @@
+use hecs::{Entity, World};
 use std::collections::HashSet;
 
 use crate::actions::EntityActions;
@@ -13,10 +14,9 @@ use crate::models::{
 use crate::ship::Ship;
 use crate::view::{Renderable, Viewshed};
 use rltk::RGB;
-use specs::prelude::*;
 
 pub fn create_sector(world: &mut World) -> Entity {
-    world.create_entity().with(Sector::default()).build()
+    world.spawn((Sector::default(),))
 }
 
 pub fn create_planet_zone(world: &mut World, index: usize, size: i32, tile: Tile) -> Entity {
@@ -36,16 +36,21 @@ pub fn create_planet_zone_from(
         grid.merge(pos, other);
     }
 
-    let builder = world.create_entity();
-    let gmap = Area::new(NGrid::from_grid(grid), vec![builder.entity]);
-    let zone_id = builder
-        .with(Label {
-            name: format!("zone {}", index),
-        })
-        .with(GridRef::GMap(gmap))
-        .build();
+    let id = world.reserve_entity();
 
-    zone_id
+    let gmap = Area::new(NGrid::from_grid(grid), vec![id]);
+
+    world.spawn_at(
+        id,
+        (
+            Label {
+                name: format!("zone {}", index),
+            },
+            GridRef::GMap(gmap),
+        ),
+    );
+
+    id
 }
 
 pub fn create_planet(
@@ -57,20 +62,19 @@ pub fn create_planet(
 ) -> Entity {
     assert_eq!(width_and_height * width_and_height, zones.len() as i32);
 
-    world
-        .create_entity()
-        .with(SectorBody::Planet)
-        .with(location)
-        .with(Label {
+    world.spawn((
+        SectorBody::Planet,
+        location,
+        Label {
             name: label.to_string(),
-        })
-        .with(Surface {
+        },
+        Surface {
             width: width_and_height,
             height: width_and_height,
             tiles: zones.iter().map(|(_, t)| *t).collect(),
             zones: zones.iter().map(|(e, _)| *e).collect(),
-        })
-        .build()
+        },
+    ))
 }
 
 pub fn create_ship(
@@ -80,47 +84,47 @@ pub fn create_ship(
     location: Location,
     ship_grid: NGrid<Cell>,
 ) -> Entity {
-    let builder = world.create_entity();
-
-    let ship_id = builder.entity;
+    let ship_id = world.reserve_entity();
     let ship_gmap = Area::new(ship_grid, vec![ship_id]);
 
-    builder
-        .with(Label {
-            name: label.to_string(),
-        })
-        .with(ship)
-        .with(location)
-        .with(GridRef::GMap(ship_gmap))
-        .build();
+    world.spawn_at(
+        ship_id,
+        (
+            Label {
+                name: label.to_string(),
+            },
+            ship,
+            location,
+            GridRef::GMap(ship_gmap),
+        ),
+    );
 
     ship_id
 }
 
 pub fn create_avatar(world: &mut World, position: Position) -> Entity {
-    world
-        .create_entity()
-        .with(Avatar {})
-        .with(Label {
+    world.spawn((
+        Avatar {},
+        Label {
             name: "player".to_string(),
-        })
-        .with(position)
-        .with(Renderable {
+        },
+        position,
+        Renderable {
             glyph: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
             priority: 1,
-        })
-        .with(Viewshed {
+        },
+        Viewshed {
             visible_tiles: vec![],
             know_tiles: HashSet::new(),
             range: 16,
-        })
-        .with(EntityActions {
+        },
+        EntityActions {
             actions: vec![],
             current: None,
-        })
-        .build()
+        },
+    ))
 }
 
 pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
@@ -154,40 +158,40 @@ pub fn parse_map_objects(
         match c.obj {
             Some(ObjectsType::Door { vertical }) => {
                 let icon = if vertical { '|' } else { '-' };
-                ecs.create_entity()
-                    .with(pos)
-                    .with(Renderable {
+                ecs.spawn((
+                    pos,
+                    Renderable {
                         glyph: rltk::to_cp437(icon),
                         fg: RGB::named(rltk::CYAN),
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
-                    })
-                    .with(ObjectsType::Door { vertical })
-                    .build();
+                    },
+                    ObjectsType::Door { vertical },
+                ));
             }
             Some(ObjectsType::Cockpit) => {
-                ecs.create_entity()
-                    .with(pos)
-                    .with(Renderable {
+                ecs.spawn((
+                    pos,
+                    Renderable {
                         glyph: rltk::to_cp437('C'),
                         fg: RGB::named(rltk::BLUE),
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
-                    })
-                    .with(ObjectsType::Cockpit)
-                    .build();
+                    },
+                    ObjectsType::Cockpit,
+                ));
             }
             Some(ObjectsType::Engine) => {
-                ecs.create_entity()
-                    .with(pos)
-                    .with(Renderable {
+                ecs.spawn((
+                    pos,
+                    Renderable {
                         glyph: rltk::to_cp437('E'),
                         fg: RGB::named(rltk::RED),
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
-                    })
-                    .with(ObjectsType::Engine)
-                    .build();
+                    },
+                    ObjectsType::Engine,
+                ));
             }
             None => {}
         }

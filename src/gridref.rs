@@ -1,29 +1,29 @@
 use crate::commons::grid::Coord;
 use crate::Area;
-use specs::prelude::*;
-use specs_derive::*;
+use hecs::{Entity, Ref, RefMut, World};
 
 /// Entity that hold the gmap of the following object. To find the real grid the references must be
 /// followed until a GMap is found and them search on what layer index belong to this object
-#[derive(Component, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub enum GridRef {
     Ref(Entity),
     GMap(Area),
 }
 
 impl GridRef {
-    pub fn find_area<'a>(storage: &'a ReadStorage<'a, GridRef>, id: Entity) -> Option<&'a Area> {
-        storage.get(id).and_then(|i| match i {
-            GridRef::GMap(gmap) => Some(gmap),
-            GridRef::Ref(ref_id) => GridRef::find_area(storage, *ref_id),
-        })
+    pub fn find_area(world: &World, id: Entity) -> Option<Ref<Area>> {
+        let value = world.get::<&GridRef>(id).ok()?;
+        match &*value {
+            GridRef::GMap(_) => Some(Ref::map(value, |v| v.get_gmap().unwrap())),
+            GridRef::Ref(ref_id) => GridRef::find_area(world, *ref_id),
+        }
     }
 
-    pub fn find_gmap_entity(storage: &mut WriteStorage<GridRef>, id: Entity) -> Option<Entity> {
+    pub fn find_gmap_entity(world: &World, id: Entity) -> Option<Entity> {
         let mut current_id = id;
         loop {
-            let current_grid = storage.get(current_id)?;
-            match current_grid {
+            let current_grid = world.get::<&GridRef>(current_id).ok()?;
+            match &*current_grid {
                 GridRef::Ref(id) => {
                     current_id = *id;
                 }
@@ -36,39 +36,33 @@ impl GridRef {
         Some(current_id)
     }
 
-    pub fn find_gmap_mut<'a, 'b>(
-        storage: &'a mut WriteStorage<'b, GridRef>,
-        id: Entity,
-    ) -> Option<&'a mut Area> {
-        let current_id = Self::find_gmap_entity(storage, id)?;
-        match storage.get_mut(current_id) {
-            Some(GridRef::GMap(gmap)) => Some(gmap),
+    pub fn find_gmap_mut(world: &World, id: Entity) -> Option<RefMut<Area>> {
+        let current_id = Self::find_gmap_entity(world, id)?;
+        let value = world.get::<&mut GridRef>(current_id).ok()?;
+        match &*value {
+            GridRef::GMap(_) => Some(RefMut::map(value, |i| i.get_gmap_mut().unwrap())),
             _ => None,
         }
     }
 
-    pub fn replace(
-        storage: &mut WriteStorage<GridRef>,
-        id: Entity,
-        new_ref: GridRef,
-    ) -> Option<GridRef> {
-        let previous = storage.remove(id);
-        storage.insert(id, new_ref).unwrap();
+    pub fn replace(world: &mut World, id: Entity, new_ref: GridRef) -> Option<GridRef> {
+        let previous = world.remove_one::<GridRef>(id).ok();
+        world.insert_one(id, new_ref).unwrap();
         previous
     }
 
-    pub fn extract(
-        storage: &mut WriteStorage<GridRef>,
-        from_grid_id: Entity,
-        layer_id: Entity,
-    ) -> Option<(Area, Coord)> {
-        match storage.get_mut(from_grid_id)? {
-            GridRef::GMap(gmap) => gmap.remove_layer(layer_id),
+    pub fn extract(world: &World, from_grid_id: Entity, layer_id: Entity) -> Option<(Area, Coord)> {
+        Self::find_gmap_mut(world, from_grid_id).and_then(|mut gmap| gmap.remove_layer(layer_id))
+    }
+
+    pub fn get_gmap(&self) -> Option<&Area> {
+        match self {
+            GridRef::GMap(g) => Some(g),
             _ => None,
         }
     }
 
-    pub fn get_gmap(&self) -> Option<&Area> {
+    pub fn get_gmap_mut(&mut self) -> Option<&mut Area> {
         match self {
             GridRef::GMap(g) => Some(g),
             _ => None,

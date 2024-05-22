@@ -6,6 +6,7 @@ use crate::{cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, Sur
 use hecs::{Entity, World};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
+use std::cell::Ref;
 
 struct LocalInfo {
     pub avatar_id: Entity,
@@ -76,10 +77,10 @@ impl CockpitWindowState {
     }
 }
 
-pub fn draw(state: &State, ctx: &mut Rltk) {
+pub fn draw(state: &mut State, ctx: &mut Rltk) {
     let info = LocalInfo::new(&state.ecs, state.player.get_avatar_id());
 
-    match &state.cockpit_window {
+    match state.cockpit_window.sub_window {
         SubWindow::Main => draw_main(state, ctx, info),
         SubWindow::Land { .. } => draw_land_menu(
             state,
@@ -133,7 +134,7 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
             try_do_command(state, ctx, info.ship_id.unwrap(), commands.get(index))
         }
         (Some(VirtualKeyCode::Escape), _) => {
-            state.ecs.insert(Window::World);
+            state.window = Window::World;
             Ok(())
         }
         _ => Ok(()),
@@ -141,16 +142,14 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
 
     match executed {
         Err(msg) => {
-            let mut window_state = state.ecs.fetch_mut::<CockpitWindowState>();
-            window_state.last_msg = Some(msg);
+            state.cockpit_window.last_msg = Some(msg);
         }
         _ => {}
     }
 }
 
 fn draw_msg(state: &State, ctx: &mut BTerm, border: i32, x: i32, y: i32) -> i32 {
-    let window_state = state.ecs.fetch::<CockpitWindowState>();
-    if let Some(msg) = &window_state.last_msg {
+    if let Some(msg) = &state.cockpit_window.last_msg {
         ctx.print_color(x, cfg::SCREEN_H - border - 1, rltk::GRAY, rltk::RED, msg);
     }
     y
@@ -163,14 +162,16 @@ fn draw_actions(
     mut y: i32,
     commands: &Vec<MenuOption>,
 ) -> i32 {
-    let labels = state.ecs.read_storage::<Label>();
     for (i, command) in commands.iter().enumerate() {
         let command_str = match command {
             MenuOption::Land => "land".to_string(),
             MenuOption::FlyTo { target_id } => {
-                let label = labels.get(*target_id);
-                let name = label.map(|i| i.name.as_str()).unwrap_or("unknown");
-                format!("fly to {}", name)
+                let label = state.ecs.get::<&Label>(*target_id);
+                if let Ok(label) = label {
+                    format!("fly to {}", label.name)
+                } else {
+                    "fly to unknown".to_string()
+                }
             }
             MenuOption::Launch => "launch".to_string(),
         };
@@ -189,16 +190,25 @@ fn draw_actions(
 }
 
 fn draw_status(state: &State, ctx: &mut Rltk, ship_id: Entity, x: i32, mut y: i32) -> i32 {
-    let ship_storage = state.ecs.read_storage::<Ship>();
-    let location_storage = state.ecs.read_storage::<Location>();
+    let unknown = || {
+        ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship is the unknown");
+        y + 1
+    };
 
-    let ship = ship_storage.get(ship_id);
-    let location = location_storage.get(ship_id);
+    let ship_command = match state.ecs.get::<&Ship>(ship_id) {
+        Ok(ship) => &ship.current_command,
+        Err(_) => return unknown(),
+    };
+
+    let location = match state.ecs.get::<&Location>(ship_id) {
+        Ok(l) => l,
+        Err(_) => return unknown(),
+    };
 
     y += 1;
 
-    match (location, &ship.map(|i| i.current_command)) {
-        (Some(Location::Sector { pos, .. }), Some(ship::Command::FlyTo { .. })) => {
+    match (&*location, ship_command) {
+        (Location::Sector { pos, .. }, ship::Command::FlyTo { .. }) => {
             ctx.print_color(
                 x,
                 y,
@@ -208,15 +218,15 @@ fn draw_status(state: &State, ctx: &mut Rltk, ship_id: Entity, x: i32, mut y: i3
             );
             y += 1;
         }
-        (Some(Location::Sector { pos: _, .. }), Some(ship::Command::Idle)) => {
+        (Location::Sector { pos: _, .. }, (ship::Command::Idle)) => {
             ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship is drifting in space");
             y += 1;
         }
-        (Some(Location::Orbit { target_id: _, .. }), _) => {
+        (Location::Orbit { target_id: _, .. }, _) => {
             ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship is orbiting a object");
             y += 1;
         }
-        (Some(Location::BodySurfacePlace { .. }), _) => {
+        (Location::BodySurfacePlace { .. }, _) => {
             ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship landed");
             y += 1;
         }

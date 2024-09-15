@@ -2,13 +2,10 @@ use crate::gridref::GridRef;
 use crate::models::SurfaceTileKind;
 use crate::state::State;
 use crate::view::window::Window;
-use crate::{cfg, ship, Dir, Label, Location, Player, Position, Sector, Ship, Surface, P2};
+use crate::{cfg, ship, Dir, Label, Location, Position, Sector, Ship, Surface, P2};
 use hecs::{Entity, World};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
-use std::cell::Ref;
-use std::collections::HashSet;
-use std::fmt::Pointer;
 
 struct LocalInfo {
     pub avatar_id: Entity,
@@ -466,19 +463,19 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
         }
         (Some(VirtualKeyCode::Up), _) => {
             drop(surface);
-            set_selected_land_position(&mut state, surface_size, place_coords, Dir::N)
+            set_selected_land_position(state, surface_size, place_coords, Dir::N)
         }
         (Some(VirtualKeyCode::Right), _) => {
             drop(surface);
-            set_selected_land_position(&mut state, surface_size, place_coords, Dir::E)
+            set_selected_land_position(state, surface_size, place_coords, Dir::E)
         }
         (Some(VirtualKeyCode::Down), _) => {
             drop(surface);
-            set_selected_land_position(&mut state, surface_size, place_coords, Dir::S)
+            set_selected_land_position(state, surface_size, place_coords, Dir::S)
         }
         (Some(VirtualKeyCode::Left), _) => {
             drop(surface);
-            set_selected_land_position(&mut state, surface_size, place_coords, Dir::W)
+            set_selected_land_position(state, surface_size, place_coords, Dir::W)
         }
         _ => {}
     }

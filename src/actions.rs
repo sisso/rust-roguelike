@@ -1,4 +1,4 @@
-use crate::models::{Dir, ObjectsType, Player, Position};
+use crate::models::{Dir, ObjectsType, Position};
 use hecs::{Entity, World};
 
 use crate::gridref::GridRef;

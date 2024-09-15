@@ -11,7 +11,7 @@ pub fn run(world: &World) {
         viewshed.visible_tiles = rltk::field_of_view(
             rltk::Point::new(pos.point.x, pos.point.y),
             viewshed.range,
-            gridmap,
+            &*gridmap,
         );
         viewshed.visible_tiles.retain(|p| {
             p.x >= 0

@@ -82,8 +82,8 @@ fn main() -> rltk::BError {
     let spawn_y = ship_grid.get_height() / 2;
 
     let mut gs = State::new(cfg);
-    gs.ecs.insert(Window::World);
-    gs.ecs.insert(CockpitWindowState::default());
+    gs.ecs.spawn((Window::World,));
+    gs.ecs.spawn((CockpitWindowState::default(),));
 
     // load scenery
     let sector_id = loader::create_sector(&mut gs.ecs);
@@ -146,7 +146,7 @@ fn main() -> rltk::BError {
     );
     log::info!("avatar id: {:?}", avatar_entity_id);
 
-    gs.ecs.insert(Player::new(avatar_entity_id));
+    gs.ecs.spawn((Player::new(avatar_entity_id),));
 
     // load objects
     loader::parse_map_objects(&mut gs.ecs, v2i::ZERO, ship_id, ship_map_ast)

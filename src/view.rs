@@ -11,7 +11,7 @@ use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::P2;
 use crate::{actions, cfg};
-use hecs::{Entity, World};
+use hecs::{Entity, View, World};
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use std::collections::HashSet;
 
@@ -87,22 +87,19 @@ pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
 }
 
 pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
-    // merge all visible and know tiles from player
-    let viewshed = state.ecs.read_storage::<Viewshed>();
-    let avatars = state.ecs.fetch::<Player>();
-    let positions = state.ecs.read_storage::<Position>();
-    let views = (&viewshed, avatars.get_avatarset(), &positions)
-        .join()
-        .collect::<Vec<_>>();
-    let (v, _, pos) = views.iter().next().unwrap();
-    
+    let mut query = state.ecs.query::<&Player>();
+    let (player_id, player) = query.iter().next().expect("player not found");
+    let avatar_id = player.get_avatar_id();
+
+    let mut query = state.ecs.query_one::<(&Viewshed, &Position)>(avatar_id).expect("player avatar not found");
+    let (viewshed, pos) = query.get().expect("player not found");
+
     let camera = Camera::from_center(pos.point);
 
     // draw
-    let grids = &state.ecs.read_storage::<GridRef>();
-    let map = GridRef::find_area(grids, pos.grid_id).unwrap();
-    draw_map(&camera, &v.visible_tiles, &v.know_tiles, map, ctx);
-    draw_objects(&camera, &v.visible_tiles, &state.ecs, ctx);
+    let map = GridRef::find_area(&state.ecs, pos.grid_id).expect("area not found");
+    draw_map(&camera, &viewshed.visible_tiles, &viewshed.know_tiles, &map, ctx);
+    draw_objects(&camera, &viewshed.visible_tiles, &state.ecs, ctx);
 }
 
 impl Into<rltk::Point> for P2 {
@@ -162,8 +159,9 @@ fn draw_map(
 }
 
 fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, ctx: &mut Rltk) {
-    let mut objects = ecs
-        .query::<(&Position, &Renderable)>()
+    let mut query = ecs
+        .query::<(&Position, &Renderable)>();
+    let mut objects = query
         .into_iter()
         .map(|(_, c)| c)
         .collect::<Vec<_>>();

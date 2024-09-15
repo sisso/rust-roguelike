@@ -29,9 +29,8 @@ impl EntityActions {
     }
 }
 
-pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World, player: &Player) {
-    let avatar_id = player.get_avatar_id();
-    let pos = ecs
+pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World, avatar_id: Entity) {
+    let mut pos = ecs
         .get::<&mut Position>(avatar_id)
         .expect("Player has no position");
 

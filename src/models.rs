@@ -192,3 +192,12 @@ pub enum Location {
         grid_pos: P2,
     },
 }
+
+impl Location {
+    pub fn get_orbiting_body(&self) -> Option<Entity> {
+        match self {
+            Location::Orbit { target_id } => Some(*target_id),
+            _ => None,
+        }
+    }
+}

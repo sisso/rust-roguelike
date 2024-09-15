@@ -7,6 +7,8 @@ use hecs::{Entity, World};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
 use std::cell::Ref;
+use std::collections::HashSet;
+use std::fmt::Pointer;
 
 struct LocalInfo {
     pub avatar_id: Entity,
@@ -120,7 +122,7 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
             // orbiting map
             y = draw_orbiting_map(state, ctx, *ship_id, x, y, None);
             // actions
-            commands = list_commands(&state.ecs, *ship_id);
+            commands = list_commands(&state, *ship_id);
             y = draw_actions(state, ctx, x, y, &commands);
         }
         _ => {}
@@ -190,13 +192,13 @@ fn draw_actions(
 }
 
 fn draw_status(state: &State, ctx: &mut Rltk, ship_id: Entity, x: i32, mut y: i32) -> i32 {
-    let unknown = || {
+    let mut unknown = || {
         ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Ship is the unknown");
         y + 1
     };
 
     let ship_command = match state.ecs.get::<&Ship>(ship_id) {
-        Ok(ship) => &ship.current_command,
+        Ok(ship) => ship.current_command.clone(),
         Err(_) => return unknown(),
     };
 
@@ -246,9 +248,11 @@ fn try_do_command(
     command: Option<&MenuOption>,
 ) -> Result<(), String> {
     match command {
-        Some(MenuOption::Land) => state.ecs.insert(CockpitWindowState::new(SubWindow::Land {
-            selected: P2::new(0, 0),
-        })),
+        Some(MenuOption::Land) => {
+            state.cockpit_window = CockpitWindowState::new(SubWindow::Land {
+                selected: P2::new(0, 0),
+            });
+        }
 
         Some(MenuOption::FlyTo { target_id }) => set_ship_command(
             &mut state.ecs,
@@ -271,16 +275,15 @@ fn try_do_command(
 
 /// return ne y value
 fn draw_sector_map(state: &State, ctx: &mut Rltk, x: i32, y: i32, ship_id: Entity) -> i32 {
-    let entities = state.ecs.entities();
-    let sectors = state.ecs.read_storage::<Sector>();
-    let locations = state.ecs.read_storage::<Location>();
-    let labels = state.ecs.read_storage::<Label>();
+    let location = match state.ecs.get::<&Location>(ship_id) {
+        Ok(l) => l,
+        Err(_) => return y,
+    };
 
-    // get ship location
-    let (_ship_pos, ship_sector_id) = match locations.get(ship_id) {
-        Some(Location::Sector { pos, sector_id }) => (pos.clone(), *sector_id),
-        Some(Location::Orbit { target_id }) => {
-            match crate::locations::resolve_sector_pos(&locations, *target_id) {
+    let (_ship_pos, ship_sector_id) = match &*location {
+        Location::Sector { pos, sector_id } => (pos.clone(), *sector_id),
+        Location::Orbit { target_id } => {
+            match crate::locations::resolve_sector_pos(&state.ecs, *target_id) {
                 Some(value) => value,
                 None => return y,
             }
@@ -300,15 +303,13 @@ fn draw_sector_map(state: &State, ctx: &mut Rltk, x: i32, y: i32, ship_id: Entit
     }
 
     // draw objects
-    let sector = sectors.get(ship_sector_id).unwrap();
+    let sector = state
+        .ecs
+        .get::<&Sector>(ship_sector_id)
+        .expect("sector not found");
 
-    let mut bodies_bitset = BitSet::default();
-    sector.bodies.iter().for_each(|i| {
-        let _ = bodies_bitset.add(i.id());
-    });
-
-    for (e, _loc, _lab) in (&entities, &locations, &labels).join() {
-        let (pos, _) = match crate::locations::resolve_sector_pos(&locations, e) {
+    for e in sector.bodies.iter().cloned() {
+        let (pos, _) = match crate::locations::resolve_sector_pos(&state.ecs, e) {
             Some(value) => value,
             _ => continue,
         };
@@ -347,17 +348,20 @@ fn draw_orbiting_map(
     mut y: i32,
     selected: Option<P2>,
 ) -> i32 {
-    let locations_storage = state.ecs.read_storage::<Location>();
-    let orbiting_id = match locations_storage.get(ship_id) {
-        Some(Location::Orbit { target_id }) => target_id,
+    let orbiting_id = match state
+        .ecs
+        .get::<&Location>(ship_id)
+        .ok()
+        .and_then(|i| i.get_orbiting_body())
+    {
+        Some(id) => id,
         _ => return y,
     };
 
-    let surfaces_storage = state.ecs.read_storage::<Surface>();
-    let surface = match surfaces_storage.get(*orbiting_id) {
-        Some(surface) => surface,
-        _ => return y,
-    };
+    let surface = state
+        .ecs
+        .get::<&Surface>(orbiting_id)
+        .expect("surface not found");
 
     y += 1;
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Orbiting surface");
@@ -412,19 +416,17 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
     // status
     y = draw_status(state, ctx, ship_id, x, y);
     // orbiting map
-    let place_coords = match state.ecs.fetch::<CockpitWindowState>().sub_window {
-        SubWindow::Land { selected } => selected,
+    let place_coords = match &state.cockpit_window.sub_window {
+        SubWindow::Land { selected } => *selected,
         _ => panic!("unexpected subwindow"),
     };
     y = draw_orbiting_map(state, ctx, ship_id, x, y, Some(place_coords));
 
     // draw options to land
-    let surfaces_storage = state.ecs.read_storage::<Surface>();
-    let surface = match surfaces_storage.get(orbiting_id) {
+    let surface = match state.ecs.get::<&Surface>(orbiting_id).ok() {
         Some(surface) => surface,
         _ => {
-            drop(surfaces_storage);
-            state.ecs.insert(CockpitWindowState::new(SubWindow::Main));
+            state.cockpit_window = CockpitWindowState::new(SubWindow::Main);
             return;
         }
     };
@@ -442,15 +444,14 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
     // process inputs
     match (ctx.key, get_key_index(ctx.key)) {
         (_, Some(index)) if index == 0 => {
-            drop(surfaces_storage);
-            state.ecs.insert(CockpitWindowState::new(SubWindow::Main))
+            state.cockpit_window = CockpitWindowState::new(SubWindow::Main);
         }
         (_, Some(index)) if index == 1 => {
             let selected_index =
                 crate::commons::grid::coords_to_index(surface.width as i32, place_coords);
             let target_id = surface.zones[selected_index as usize];
 
-            drop(surfaces_storage);
+            drop(surface);
             set_ship_command(
                 &mut state.ecs,
                 ship_id,
@@ -459,33 +460,31 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
                     place_coords: place_coords,
                 },
             );
-            // reset cockipt window
-            state.ecs.insert(CockpitWindowState::new(SubWindow::Main));
-            // close
-            state.ecs.insert(Window::World);
+            // reset cockipt window and close
+            state.cockpit_window = CockpitWindowState::new(SubWindow::Main);
+            state.window = Window::World;
         }
         (Some(VirtualKeyCode::Up), _) => {
-            std::mem::drop(surfaces_storage);
-            set_selected_land_position(&mut state.ecs, surface_size, place_coords, Dir::N)
+            drop(surface);
+            set_selected_land_position(&mut state, surface_size, place_coords, Dir::N)
         }
         (Some(VirtualKeyCode::Right), _) => {
-            std::mem::drop(surfaces_storage);
-            set_selected_land_position(&mut state.ecs, surface_size, place_coords, Dir::E)
+            drop(surface);
+            set_selected_land_position(&mut state, surface_size, place_coords, Dir::E)
         }
         (Some(VirtualKeyCode::Down), _) => {
-            std::mem::drop(surfaces_storage);
-            set_selected_land_position(&mut state.ecs, surface_size, place_coords, Dir::S)
+            drop(surface);
+            set_selected_land_position(&mut state, surface_size, place_coords, Dir::S)
         }
         (Some(VirtualKeyCode::Left), _) => {
-            std::mem::drop(surfaces_storage);
-            set_selected_land_position(&mut state.ecs, surface_size, place_coords, Dir::W)
+            drop(surface);
+            set_selected_land_position(&mut state, surface_size, place_coords, Dir::W)
         }
-
         _ => {}
     }
 }
 
-fn set_selected_land_position(ecs: &mut World, surface_size: P2, mut current: P2, dir: Dir) {
+fn set_selected_land_position(state: &mut State, surface_size: P2, mut current: P2, dir: Dir) {
     let v = dir.as_vec();
     current.x += v.0;
     current.y += v.1;
@@ -503,15 +502,13 @@ fn set_selected_land_position(ecs: &mut World, surface_size: P2, mut current: P2
         current.y = 0;
     }
 
-    ecs.fetch_mut::<CockpitWindowState>().sub_window = SubWindow::Land { selected: current };
+    state.cockpit_window.sub_window = SubWindow::Land { selected: current };
 }
 
 fn set_ship_command(ecs: &mut World, ship_id: Entity, ship_command: ship::Command) {
     info!("update ship {:?} command to {:?}", ship_id, ship_command);
-    ecs.write_storage::<Ship>()
-        .get_mut(ship_id)
-        .unwrap()
-        .current_command = ship_command;
+    let mut ship = ecs.get::<&mut Ship>(ship_id).unwrap();
+    ship.current_command = ship_command;
 }
 
 pub fn get_key_index(key: Option<VirtualKeyCode>) -> Option<usize> {
@@ -530,23 +527,21 @@ pub fn get_key_index(key: Option<VirtualKeyCode>) -> Option<usize> {
     }
 }
 
-fn list_commands(ecs: &World, ship_id: Entity) -> Vec<MenuOption> {
-    let locations = ecs.read_storage::<Location>();
-    let sectors = ecs.read_storage::<Sector>();
-
-    // TODO: currently can be none when ship is landed
-    let location = match locations.get(ship_id) {
-        Some(loc) => loc,
-        None => {
-            return vec![];
-        }
-    };
-
+fn list_commands(state: &State, ship_id: Entity) -> Vec<MenuOption> {
     let mut commands = vec![];
 
-    match location {
+    // TODO: currently can be none when ship is landed
+    let location = match state.ecs.get::<&Location>(ship_id).ok() {
+        Some(loc) => loc,
+        None => return commands,
+    };
+
+    match &*location {
         Location::Sector { sector_id, .. } => {
-            let sector = sectors.get(*sector_id).unwrap();
+            let sector = state
+                .ecs
+                .get::<&Sector>(*sector_id)
+                .expect("sector not found");
             for body_id in &sector.bodies {
                 if *body_id == ship_id {
                     continue;

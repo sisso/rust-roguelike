@@ -29,23 +29,27 @@ pub struct Renderable {
 }
 
 pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
+    let avatar_id = gs.player.get_avatar_id();
+
     match ctx.key {
         None => {} // Nothing happened
         Some(key) => match key {
-            VirtualKeyCode::Left => actions::try_move_player(-1, 0, &mut gs.ecs),
-            VirtualKeyCode::Right => actions::try_move_player(1, 0, &mut gs.ecs),
-            VirtualKeyCode::Up => actions::try_move_player(0, -1, &mut gs.ecs),
-            VirtualKeyCode::Down => actions::try_move_player(0, 1, &mut gs.ecs),
-            VirtualKeyCode::Numpad7 => actions::try_move_player(-1, -1, &mut gs.ecs),
-            VirtualKeyCode::Numpad8 => actions::try_move_player(0, -1, &mut gs.ecs),
-            VirtualKeyCode::Numpad9 => actions::try_move_player(1, -1, &mut gs.ecs),
-            VirtualKeyCode::Numpad4 => actions::try_move_player(-1, 0, &mut gs.ecs),
-            VirtualKeyCode::Numpad5 => actions::try_move_player(0, 0, &mut gs.ecs),
-            VirtualKeyCode::Numpad6 => actions::try_move_player(1, 0, &mut gs.ecs),
-            VirtualKeyCode::Numpad1 => actions::try_move_player(-1, 1, &mut gs.ecs),
-            VirtualKeyCode::Numpad2 => actions::try_move_player(0, 1, &mut gs.ecs),
-            VirtualKeyCode::Numpad3 => actions::try_move_player(1, 1, &mut gs.ecs),
-            VirtualKeyCode::I => actions::set_current_action(&mut gs.ecs, Action::Interact),
+            VirtualKeyCode::Left => actions::try_move_player(-1, 0, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Right => actions::try_move_player(1, 0, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Up => actions::try_move_player(0, -1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Down => actions::try_move_player(0, 1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad7 => actions::try_move_player(-1, -1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad8 => actions::try_move_player(0, -1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad9 => actions::try_move_player(1, -1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad4 => actions::try_move_player(-1, 0, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad5 => actions::try_move_player(0, 0, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad6 => actions::try_move_player(1, 0, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad1 => actions::try_move_player(-1, 1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad2 => actions::try_move_player(0, 1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Numpad3 => actions::try_move_player(1, 1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::I => 
+                actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact)
+            ,
             // VirtualKeyCode::W => gs.camera.y -= 1,
             // VirtualKeyCode::A => gs.camera.x -= 1,
             // VirtualKeyCode::D => gs.camera.x += 1,
@@ -91,7 +95,7 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
         .join()
         .collect::<Vec<_>>();
     let (v, _, pos) = views.iter().next().unwrap();
-
+    
     let camera = Camera::from_center(pos.point);
 
     // draw

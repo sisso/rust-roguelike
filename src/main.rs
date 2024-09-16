@@ -139,14 +139,13 @@ fn main() -> rltk::BError {
 
     let avatar_entity_id = loader::create_avatar(
         &mut gs.ecs,
+        gs.player.get_avatar_id(),
         Position {
             grid_id: ship_id,
             point: (spawn_x, spawn_y).into(),
         },
     );
     log::info!("avatar id: {:?}", avatar_entity_id);
-
-    gs.ecs.spawn((Player::new(avatar_entity_id),));
 
     // load objects
     loader::parse_map_objects(&mut gs.ecs, v2i::ZERO, ship_id, ship_map_ast)

@@ -32,7 +32,8 @@ impl EntityActions {
 pub fn try_move_player(delta_x: i32, delta_y: i32, ecs: &mut World, avatar_id: Entity) {
     let mut pos = ecs
         .get::<&mut Position>(avatar_id)
-        .expect("Player has no position");
+        .map_err(|err| format!("fail to find avatar_id {avatar_id:?}: {err:?}"))
+        .unwrap();
 
     let area = GridRef::find_area(ecs, pos.grid_id).unwrap();
 

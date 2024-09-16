@@ -87,9 +87,7 @@ pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
 }
 
 pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
-    let mut query = state.ecs.query::<&Player>();
-    let (player_id, player) = query.iter().next().expect("player not found");
-    let avatar_id = player.get_avatar_id();
+    let avatar_id = state.player.get_avatar_id();
 
     let mut query = state.ecs.query_one::<(&Viewshed, &Position)>(avatar_id).expect("player avatar not found");
     let (viewshed, pos) = query.get().expect("player not found");

@@ -102,29 +102,34 @@ pub fn create_ship(
     ship_id
 }
 
-pub fn create_avatar(world: &mut World, position: Position) -> Entity {
-    world.spawn((
-        Avatar {},
-        Label {
-            name: "player".to_string(),
-        },
-        position,
-        Renderable {
-            glyph: rltk::to_cp437('@'),
-            fg: RGB::named(rltk::YELLOW),
-            bg: RGB::named(rltk::BLACK),
-            priority: 1,
-        },
-        Viewshed {
-            visible_tiles: vec![],
-            know_tiles: HashSet::new(),
-            range: 16,
-        },
-        EntityActions {
-            actions: vec![],
-            current: None,
-        },
-    ))
+pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
+    world
+        .insert(
+            avatar_id,
+            (
+                Avatar {},
+                Label {
+                    name: "player".to_string(),
+                },
+                position,
+                Renderable {
+                    glyph: rltk::to_cp437('@'),
+                    fg: RGB::named(rltk::YELLOW),
+                    bg: RGB::named(rltk::BLACK),
+                    priority: 1,
+                },
+                Viewshed {
+                    visible_tiles: vec![],
+                    know_tiles: HashSet::new(),
+                    range: 16,
+                },
+                EntityActions {
+                    actions: vec![],
+                    current: None,
+                },
+            ),
+        )
+        .unwrap();
 }
 
 pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {

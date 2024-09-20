@@ -20,8 +20,9 @@ pub fn run(world: &World) {
                 && p.y < gridmap.get_grid().get_height()
         });
 
+        let know_tiles = viewshed.know_tiles.entry(pos.grid_id).or_default();
         for pos in &viewshed.visible_tiles {
-            viewshed.know_tiles.insert(*pos);
+            know_tiles.insert(*pos);
         }
     }
 }

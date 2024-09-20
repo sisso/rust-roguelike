@@ -4,7 +4,7 @@ pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::area::{Area, Tile};
-use crate::gridref::GridRef;
+use crate::gridref::{GridId, GridRef};
 use crate::models::{ObjectsType, Player, Position};
 use crate::state::State;
 use crate::utils::find_objects_at;
@@ -13,11 +13,13 @@ use crate::P2;
 use crate::{actions, cfg};
 use hecs::{Entity, View, World};
 use rltk::{Rltk, VirtualKeyCode, RGB};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use crate::commons::grid::Dir;
+use crate::commons::v2i::V2I;
 
 pub struct Viewshed {
     pub visible_tiles: Vec<rltk::Point>,
-    pub know_tiles: HashSet<rltk::Point>,
+    pub know_tiles: HashMap<GridId, HashSet<rltk::Point>>,
     pub range: i32,
 }
 
@@ -28,25 +30,29 @@ pub struct Renderable {
     pub priority: i32,
 }
 
+fn set_action_move(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i32) {
+    actions::set_current_action(ecs, avatar_id, Action::Move(V2I::new(delta_x, delta_y)));
+}
+
 pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
     let avatar_id = gs.player.get_avatar_id();
 
     match ctx.key {
         None => {} // Nothing happened
         Some(key) => match key {
-            VirtualKeyCode::Left => actions::try_move_player(-1, 0, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Right => actions::try_move_player(1, 0, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Up => actions::try_move_player(0, -1, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Down => actions::try_move_player(0, 1, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad7 => actions::try_move_player(-1, -1, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad8 => actions::try_move_player(0, -1, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad9 => actions::try_move_player(1, -1, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad4 => actions::try_move_player(-1, 0, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad5 => actions::try_move_player(0, 0, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad6 => actions::try_move_player(1, 0, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad1 => actions::try_move_player(-1, 1, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad2 => actions::try_move_player(0, 1, &mut gs.ecs, avatar_id),
-            VirtualKeyCode::Numpad3 => actions::try_move_player(1, 1, &mut gs.ecs, avatar_id),
+            VirtualKeyCode::Left => set_action_move(&mut gs.ecs, avatar_id, -1, 0),
+            VirtualKeyCode::Right => set_action_move(&mut gs.ecs, avatar_id, 1, 0),
+            VirtualKeyCode::Up => set_action_move(&mut gs.ecs, avatar_id, 0, -1),
+            VirtualKeyCode::Down => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
+            VirtualKeyCode::Numpad7 => set_action_move(&mut gs.ecs, avatar_id, -1, -1),
+            VirtualKeyCode::Numpad8 => set_action_move(&mut gs.ecs, avatar_id, 0, -1),
+            VirtualKeyCode::Numpad9 => set_action_move(&mut gs.ecs, avatar_id, 1, -1),
+            VirtualKeyCode::Numpad4 => set_action_move(&mut gs.ecs, avatar_id, -1, 0),
+            VirtualKeyCode::Numpad5 => set_action_move(&mut gs.ecs, avatar_id, 0, 0),
+            VirtualKeyCode::Numpad6 => set_action_move(&mut gs.ecs, avatar_id, 1, 0),
+            VirtualKeyCode::Numpad1 => set_action_move(&mut gs.ecs, avatar_id, -1, 1),
+            VirtualKeyCode::Numpad2 => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
+            VirtualKeyCode::Numpad3 => set_action_move(&mut gs.ecs, avatar_id, 1, 1),
             VirtualKeyCode::I => 
                 actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact)
             ,
@@ -58,28 +64,6 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
         },
     }
 }
-
-// pub fn view_input(state: &mut State, ctx: &mut Rltk) {
-//     let chkey = match ctx.key {
-//         Some(VirtualKeyCode::I) => 'i',
-//         _ => return,
-//     };
-//
-//     let avatars = &state.ecs.read_storage::<Avatar>();
-//     let positions = &state.ecs.read_storage::<Position>();
-//     let actions_st = &mut state.ecs.write_storage::<EntityActions>();
-//
-//     for (avatar, position, actions) in (avatars, positions, actions_st).join() {
-//         let view_actions = map_actions_to_keys(&actions.actions);
-//
-//         match view_actions.iter().find(|va| va.ch == chkey) {
-//             Some(va) => {
-//                 actions.current = Some(va.action.clone());
-//             }
-//             _ => {}
-//         }
-//     }
-// }
 
 pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
     let mouse_pos = ctx.mouse_pos();
@@ -96,7 +80,7 @@ pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
 
     // draw
     let map = GridRef::find_area(&state.ecs, pos.grid_id).expect("area not found");
-    draw_map(&camera, &viewshed.visible_tiles, &viewshed.know_tiles, &map, ctx);
+    draw_map(&camera, &viewshed.visible_tiles, viewshed.know_tiles.get(&pos.grid_id), &map, ctx);
     draw_objects(&camera, &viewshed.visible_tiles, &state.ecs, ctx);
 }
 
@@ -112,7 +96,7 @@ impl Into<rltk::Point> for P2 {
 fn draw_map(
     camera: &Camera,
     visible_cells: &Vec<rltk::Point>,
-    know_cells: &HashSet<rltk::Point>,
+    know_cells: Option<&HashSet<rltk::Point>>,
     gmap: &Area,
     ctx: &mut Rltk,
 ) {
@@ -135,7 +119,7 @@ fn draw_map(
             .find(|p| c.point.x == p.x && c.point.y == p.y)
             .is_none()
         {
-            if know_cells.contains(&c.point.into()) {
+            if know_cells.map(|i| i.contains(&c.point.into())).unwrap_or(false) {
                 // if is know
                 fg = rltk::GRAY;
             } else {
@@ -199,7 +183,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
             ctx,
             tile.tile,
             &objects_at,
-            &map_actions_to_keys(&actions.actions)
+            &map_actions_to_keys(&actions.available)
                 .iter()
                 .map(ViewAction::to_tuple)
                 .collect::<Vec<_>>(),

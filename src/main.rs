@@ -1,6 +1,5 @@
 extern crate core;
 
-use crate::actions::{actions_system, avatar_actions_system};
 use hecs::Entity;
 use rltk::Rltk;
 use state::State;
@@ -33,8 +32,8 @@ pub mod visibility_system;
 
 pub fn run_systems(st: &mut State, ctx: &mut Rltk) {
     visibility_system::run(&st.ecs);
-    avatar_actions_system::run(&mut st.ecs);
-    actions_system::run(&mut st.ecs, &mut st.window);
+    actions::run_available_actions_system(&mut st.ecs);
+    actions::run_actions_system(&mut st.ecs, &mut st.window);
     ship::systems::run(&mut st.ecs);
 }
 

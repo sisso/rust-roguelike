@@ -10,6 +10,35 @@ pub enum Dir {
     W,
 }
 
+impl Dir {
+    pub fn as_vec(&self) -> (i32, i32) {
+        match self {
+            Dir::N => (0, -1),
+            Dir::S => (0, 1),
+            Dir::W => (-1, 0),
+            Dir::E => (1, 0),
+        }
+    }
+
+    pub fn inv(&self) -> Self {
+        match self {
+            Dir::N => Dir::S,
+            Dir::S => Dir::N,
+            Dir::E => Dir::W,
+            Dir::W => Dir::E,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Dir::N => "n",
+            Dir::S => "s",
+            Dir::E => "e",
+            Dir::W => "w",
+        }
+    }
+}
+
 pub const DIR_ALL: [Dir; 4] = [Dir::N, Dir::E, Dir::S, Dir::W];
 pub type Coord = V2I;
 pub type Index = i32;

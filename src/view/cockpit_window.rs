@@ -1,8 +1,9 @@
+use crate::commons::grid::Dir;
 use crate::gridref::GridRef;
 use crate::models::SurfaceTileKind;
 use crate::state::State;
 use crate::view::window::Window;
-use crate::{cfg, ship, Dir, Label, Location, Position, Sector, Ship, Surface, P2};
+use crate::{cfg, ship, Label, Location, Position, Sector, Ship, Surface, P2};
 use hecs::{Entity, World};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
@@ -15,7 +16,7 @@ struct LocalInfo {
 }
 
 impl LocalInfo {
-    pub fn new(ecs: &World, avatar_id: Entity) -> LocalInfo {
+    pub fn from(ecs: &World, avatar_id: Entity) -> LocalInfo {
         let pos = ecs.get::<&Position>(avatar_id).expect("position not found");
         let area = GridRef::find_area(ecs, pos.grid_id).expect("area not found");
 
@@ -76,8 +77,8 @@ impl CockpitWindowState {
     }
 }
 
-pub fn draw(state: &mut State, ctx: &mut Rltk) {
-    let info = LocalInfo::new(&state.ecs, state.player.get_avatar_id());
+pub fn draw(state: &mut State, ctx: &mut Rltk, _cockpit_id: Entity) {
+    let info = LocalInfo::from(&state.ecs, state.player.get_avatar_id());
 
     match state.cockpit_window.sub_window {
         SubWindow::Main => draw_main(state, ctx, info),
@@ -461,19 +462,19 @@ fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_i
             state.cockpit_window = CockpitWindowState::new(SubWindow::Main);
             state.window = Window::World;
         }
-        (Some(VirtualKeyCode::Up), _) => {
+        (Some(VirtualKeyCode::Up), _) | (Some(VirtualKeyCode::Numpad8), _) => {
             drop(surface);
             set_selected_land_position(state, surface_size, place_coords, Dir::N)
         }
-        (Some(VirtualKeyCode::Right), _) => {
+        (Some(VirtualKeyCode::Right), _) | (Some(VirtualKeyCode::Numpad6), _) => {
             drop(surface);
             set_selected_land_position(state, surface_size, place_coords, Dir::E)
         }
-        (Some(VirtualKeyCode::Down), _) => {
+        (Some(VirtualKeyCode::Down), _) | (Some(VirtualKeyCode::Numpad2), _) => {
             drop(surface);
             set_selected_land_position(state, surface_size, place_coords, Dir::S)
         }
-        (Some(VirtualKeyCode::Left), _) => {
+        (Some(VirtualKeyCode::Left), _) | (Some(VirtualKeyCode::Numpad4), _) => {
             drop(surface);
             set_selected_land_position(state, surface_size, place_coords, Dir::W)
         }

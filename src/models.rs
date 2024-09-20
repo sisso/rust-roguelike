@@ -3,7 +3,6 @@ use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
 use hecs::{Entity, World};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 pub type Index = usize;
 pub type P2 = V2I;
@@ -52,62 +51,20 @@ impl Default for GridPosition {
     }
 }
 
-impl Position {
-    // fn get_at(&self, dir: Dir) -> HasPos {
-    //     let mut p = self.clone();
-    //
-    //     match dir {
-    //         Dir::N => p.y -= 1,
-    //         Dir::S => p.y += 1,
-    //         Dir::W => p.x -= 1,
-    //         Dir::E => p.x += 1,
-    //     }
-    //
-    //     p
-    // }
-}
-
-#[derive(Clone, Copy, PartialEq, Debug, Hash, Eq)]
-pub enum Dir {
-    N,
-    E,
-    S,
-    W,
-}
-
-impl Dir {
-    pub fn inv(&self) -> Self {
-        match self {
-            Dir::N => Dir::S,
-            Dir::S => Dir::N,
-            Dir::E => Dir::W,
-            Dir::W => Dir::E,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Dir::N => "n",
-            Dir::S => "s",
-            Dir::E => "e",
-            Dir::W => "w",
-        }
-    }
-
-    pub fn as_vec(&self) -> (i32, i32) {
-        match self {
-            Dir::N => (0, -1),
-            Dir::S => (0, 1),
-            Dir::W => (-1, 0),
-            Dir::E => (1, 0),
-        }
-    }
-}
 #[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectsType {
     Door { vertical: bool },
     Engine,
     Cockpit,
+}
+
+impl ObjectsType {
+    pub fn can_interact(&self) -> bool {
+        match self {
+            ObjectsType::Cockpit => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

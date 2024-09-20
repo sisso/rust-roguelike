@@ -1,9 +1,7 @@
 use hecs::{Entity, World};
-use std::collections::HashSet;
 
 use crate::actions::EntityActions;
 use crate::area::{Area, Cell, Tile};
-use crate::cfg::MapParserCfg;
 use crate::commons::grid::{Grid, NGrid};
 use crate::commons::grid_string::ParseMapError;
 use crate::commons::v2i::V2I;
@@ -120,12 +118,12 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                 },
                 Viewshed {
                     visible_tiles: vec![],
-                    know_tiles: HashSet::new(),
+                    know_tiles: Default::default(),
                     range: 16,
                 },
                 EntityActions {
-                    actions: vec![],
-                    current: None,
+                    available: vec![],
+                    requested: None,
                 },
             ),
         )

@@ -2,16 +2,18 @@ use crate::commons::grid::Coord;
 use crate::Area;
 use hecs::{Entity, Ref, RefMut, World};
 
+pub type GridId = Entity;
+
 /// Entity that hold the gmap of the following object. To find the real grid the references must be
 /// followed until a GMap is found and them search on what layer index belong to this object
 #[derive(Debug, Clone)]
 pub enum GridRef {
-    Ref(Entity),
+    Ref(GridId),
     GMap(Area),
 }
 
 impl GridRef {
-    pub fn find_area(world: &World, id: Entity) -> Option<Ref<Area>> {
+    pub fn find_area(world: &World, id: GridId) -> Option<Ref<Area>> {
         let value = world.get::<&GridRef>(id).ok()?;
         match &*value {
             GridRef::GMap(_) => Some(Ref::map(value, |v| v.get_gmap().unwrap())),
@@ -19,7 +21,7 @@ impl GridRef {
         }
     }
 
-    pub fn find_gmap_entity(world: &World, id: Entity) -> Option<Entity> {
+    pub fn find_gmap_entity(world: &World, id: GridId) -> Option<GridId> {
         let mut current_id = id;
         loop {
             let current_grid = world.get::<&GridRef>(current_id).ok()?;

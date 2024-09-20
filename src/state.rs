@@ -43,10 +43,10 @@ impl rltk::GameState for State {
                 view::draw_gui(self, ctx);
             }
 
-            Window::Cockpit => {
+            Window::Cockpit { cockpit_id } => {
                 crate::run_systems(self, ctx);
                 view::draw_map_and_objects(self, ctx);
-                view::cockpit_window::draw(self, ctx);
+                view::cockpit_window::draw(self, ctx, cockpit_id);
             }
         }
     }

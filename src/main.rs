@@ -45,7 +45,7 @@ fn main() -> rltk::BError {
         .filter(None, log::LevelFilter::Debug)
         .init();
 
-    let context = RltkBuilder::simple80x50().with_title("Alien").build()?;
+    let context = RltkBuilder::simple80x50().with_title("Space RL").build()?;
 
     // initialize
     let cfg = cfg::Cfg::new();

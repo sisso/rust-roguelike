@@ -20,8 +20,10 @@ pub mod cfg;
 pub mod commons;
 pub mod events;
 pub mod gridref;
+mod health;
 pub mod loader;
 pub mod locations;
+mod mob;
 pub mod models;
 pub mod sectors;
 pub mod ship;
@@ -35,6 +37,7 @@ pub fn run_systems(st: &mut State, ctx: &mut Rltk) {
     actions::run_available_actions_system(&mut st.ecs);
     actions::run_actions_system(&mut st.ecs, &mut st.window);
     ship::systems::run(&mut st.ecs);
+    health::run_health_system(&mut st.ecs);
 }
 
 fn main() -> rltk::BError {
@@ -88,20 +91,22 @@ fn main() -> rltk::BError {
     let sector_id = loader::create_sector(&mut gs.ecs);
     log::debug!("sector id {:?}", sector_id);
 
+    let zone_size = 100;
+
     let mut planets_zones: Vec<(Entity, SurfaceTileKind)> = (0..3)
-        .map(|i| loader::create_planet_zone(&mut gs.ecs, i, 100, area::Tile::Ground))
+        .map(|i| loader::create_planet_zone(&mut gs.ecs, i, zone_size, area::Tile::Ground))
         .map(|e| (e, SurfaceTileKind::Plain))
         .collect();
 
-    let house_pos = V2I::new(15, 15);
-    let house_grid_id = loader::create_planet_zone_from(
+    let house_pos = V2I::new(zone_size / 2 + 30, zone_size / 2);
+    let planet_zone_house_grid_id = loader::create_planet_zone_from(
         &mut gs.ecs,
         3,
         100,
         area::Tile::Ground,
         vec![(house_pos, &house_grid)],
     );
-    planets_zones.push((house_grid_id, SurfaceTileKind::Structure));
+    planets_zones.push((planet_zone_house_grid_id, SurfaceTileKind::Structure));
 
     log::debug!("planet zones id {:?}", planets_zones);
 
@@ -146,10 +151,18 @@ fn main() -> rltk::BError {
     );
     log::info!("avatar id: {:?}", avatar_entity_id);
 
+    let mob_id = loader::create_mob(
+        &mut gs,
+        Position {
+            grid_id: planet_zone_house_grid_id,
+            point: V2I::new(10, 15),
+        },
+    );
+
     // load objects
     loader::parse_map_objects(&mut gs.ecs, v2i::ZERO, ship_id, ship_map_ast)
         .expect("fail to load map objects");
-    loader::parse_map_objects(&mut gs.ecs, house_pos, house_grid_id, house_ast)
+    loader::parse_map_objects(&mut gs.ecs, house_pos, planet_zone_house_grid_id, house_ast)
         .expect("fail to load map objects");
 
     sectors::update_bodies_list(&mut gs.ecs);

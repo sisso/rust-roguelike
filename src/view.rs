@@ -5,16 +5,15 @@ pub mod window;
 use crate::actions::{Action, EntityActions};
 use crate::area::{Area, Tile};
 use crate::gridref::{GridId, GridRef};
-use crate::models::{ObjectsType, Player, Position};
+use crate::models::{ObjectsKind, Position};
 use crate::state::State;
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::P2;
 use crate::{actions, cfg};
-use hecs::{Entity, View, World};
+use hecs::{Entity, World};
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use std::collections::{HashMap, HashSet};
-use crate::commons::grid::Dir;
 use crate::commons::v2i::V2I;
 
 pub struct Viewshed {
@@ -223,7 +222,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
 fn draw_gui_bottom_box(
     ctx: &mut Rltk,
     current_tile: Tile,
-    objects: &Vec<(Entity, ObjectsType)>,
+    objects: &Vec<(Entity, ObjectsKind)>,
     actions: &Vec<(char, &str)>,
 ) {
     let box_h = 6;
@@ -253,8 +252,8 @@ fn draw_gui_bottom_box(
     let mut j = inner_box_y + 1;
     for (_, k) in objects {
         let obj_str = match k {
-            ObjectsType::Door { .. } => "door",
-            ObjectsType::Cockpit => "cockpit",
+            ObjectsKind::Door { .. } => "door",
+            ObjectsKind::Cockpit => "cockpit",
             _ => continue,
         };
 

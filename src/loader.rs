@@ -6,10 +6,13 @@ use crate::commons::grid::{Grid, NGrid};
 use crate::commons::grid_string::ParseMapError;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
+use crate::health::Health;
+use crate::mob::Mob;
 use crate::models::{
-    Avatar, Label, Location, ObjectsType, Position, Sector, SectorBody, Surface, SurfaceTileKind,
+    Avatar, Label, Location, ObjectsKind, Position, Sector, SectorBody, Surface, SurfaceTileKind,
 };
 use crate::ship::Ship;
+use crate::state::State;
 use crate::view::{Renderable, Viewshed};
 use rltk::RGB;
 
@@ -130,6 +133,32 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
         .unwrap();
 }
 
+pub fn create_mob(state: &mut State, position: Position) -> Entity {
+    state.ecs.spawn((
+        Avatar {},
+        Label {
+            name: "mob".to_string(),
+        },
+        position,
+        Renderable {
+            glyph: rltk::to_cp437('m'),
+            fg: RGB::named(rltk::RED),
+            bg: RGB::named(rltk::BLACK),
+            priority: 1,
+        },
+        Viewshed {
+            visible_tiles: vec![],
+            know_tiles: Default::default(),
+            range: 16,
+        },
+        Mob {},
+        Health {
+            hp: 1,
+            ..Default::default()
+        },
+    ))
+}
+
 pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
     let cells = map_ast.iter().map(|e| Cell { tile: e.tile }).collect();
     Grid::new_from(map_ast.get_width(), map_ast.get_height(), cells)
@@ -137,7 +166,7 @@ pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
 
 pub struct MapAstCell {
     pub tile: Tile,
-    pub obj: Option<ObjectsType>,
+    pub obj: Option<ObjectsKind>,
 }
 
 pub type MapAst = Grid<MapAstCell>;
@@ -159,7 +188,7 @@ pub fn parse_map_objects(
         };
 
         match c.obj {
-            Some(ObjectsType::Door { vertical }) => {
+            Some(ObjectsKind::Door { vertical }) => {
                 let icon = if vertical { '|' } else { '-' };
                 ecs.spawn((
                     pos,
@@ -169,10 +198,10 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     },
-                    ObjectsType::Door { vertical },
+                    ObjectsKind::Door { vertical },
                 ));
             }
-            Some(ObjectsType::Cockpit) => {
+            Some(ObjectsKind::Cockpit) => {
                 ecs.spawn((
                     pos,
                     Renderable {
@@ -181,10 +210,10 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     },
-                    ObjectsType::Cockpit,
+                    ObjectsKind::Cockpit,
                 ));
             }
-            Some(ObjectsType::Engine) => {
+            Some(ObjectsKind::Engine) => {
                 ecs.spawn((
                     pos,
                     Renderable {
@@ -193,7 +222,7 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     },
-                    ObjectsType::Engine,
+                    ObjectsKind::Engine,
                 ));
             }
             None => {}

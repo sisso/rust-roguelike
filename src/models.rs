@@ -36,6 +36,15 @@ pub struct Position {
     pub point: Coord,
 }
 
+impl Position {
+    pub fn translate_by(&self, vec: V2I) -> Position {
+        Position {
+            grid_id: self.grid_id,
+            point: self.point.translate(vec.x, vec.y),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct GridPosition {
     pub grid_id: Option<Entity>,
@@ -52,16 +61,16 @@ impl Default for GridPosition {
 }
 
 #[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
-pub enum ObjectsType {
+pub enum ObjectsKind {
     Door { vertical: bool },
     Engine,
     Cockpit,
 }
 
-impl ObjectsType {
+impl ObjectsKind {
     pub fn can_interact(&self) -> bool {
         match self {
-            ObjectsType::Cockpit => true,
+            ObjectsKind::Cockpit => true,
             _ => false,
         }
     }

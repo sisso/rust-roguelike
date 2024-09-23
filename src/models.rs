@@ -60,11 +60,15 @@ impl Default for GridPosition {
     }
 }
 
+/// Quick way to identify an entity without having to check all kinds of components. For simple
+/// components, no other component needs to exists
 #[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum ObjectsKind {
     Door { vertical: bool },
     Engine,
     Cockpit,
+    Player,
+    Mob,
 }
 
 impl ObjectsKind {

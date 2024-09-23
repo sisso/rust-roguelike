@@ -1,6 +1,7 @@
 use crate::commons::grid::Coord;
 use crate::commons::recti;
 use crate::commons::v2i::V2I;
+use crate::game_log::{GameLog, Msg};
 use crate::gridref::GridRef;
 use crate::ship::Command;
 use crate::{Location, Position, Sector, SectorBody, Ship, Surface, SurfaceZone, P2};
@@ -17,8 +18,8 @@ fn clamp(value: i32, min: i32, max: i32) -> i32 {
     }
 }
 
-pub fn run(world: &mut World) {
-    let mut changes: Vec<Box<dyn FnOnce(&mut World)>> = vec![];
+pub fn run(world: &mut World, game_log: &mut GameLog) {
+    let mut changes: Vec<Box<dyn FnOnce(&mut World, &mut GameLog)>> = vec![];
 
     for (ship_id, ship) in world.query_mut::<&mut Ship>() {
         // update calm down
@@ -29,34 +30,40 @@ pub fn run(world: &mut World) {
         }
 
         match ship.current_command {
-            Command::FlyTo { target_id } => changes.push(Box::new(move |world: &mut World| {
-                do_ship_fly(world, ship_id, target_id);
-            })),
+            Command::FlyTo { target_id } => changes.push(Box::new(
+                move |world: &mut World, game_log: &mut GameLog| {
+                    do_ship_fly(world, ship_id, target_id);
+                },
+            )),
 
             Command::Land {
                 target_id,
                 place_coords,
             } => {
-                changes.push(Box::new(move |world: &mut World| {
-                    do_ship_landing(world, ship_id, target_id, place_coords);
-                }));
+                changes.push(Box::new(
+                    move |world: &mut World, game_log: &mut GameLog| {
+                        do_ship_landing(world, ship_id, target_id, place_coords, game_log);
+                    },
+                ));
             }
 
             Command::Launch => {
-                changes.push(Box::new(move |world: &mut World| {
-                    do_ship_launching(world, ship_id);
-                }));
+                changes.push(Box::new(
+                    move |world: &mut World, game_log: &mut GameLog| {
+                        do_ship_launching(world, ship_id, game_log);
+                    },
+                ));
             }
             _ => {}
         }
     }
 
     for change in changes {
-        change(world);
+        change(world, game_log);
     }
 }
 
-fn do_ship_launching(world: &mut World, ship_id: Entity) {
+fn do_ship_launching(world: &mut World, ship_id: Entity, game_log: &mut GameLog) {
     // find ship grid
     let grid_id = GridRef::find_gmap_entity(world, ship_id).unwrap();
 
@@ -86,95 +93,9 @@ fn do_ship_launching(world: &mut World, ship_id: Entity) {
             },
         )
         .expect("fail to insert orbit");
+
+    game_log.push(Msg::ShipLaunch);
 }
-// impl<'a> System<'a> for FlyToSystem {
-//     type SystemData = (
-//         Entities<'a>,
-//         WriteStorage<'a, Ship>,
-//         WriteStorage<'a, Location>,
-//         ReadStorage<'a, Sector>,
-//         ReadStorage<'a, SectorBody>,
-//         WriteStorage<'a, GridRef>,
-//         WriteStorage<'a, Position>,
-//         ReadStorage<'a, Surface>,
-//     );
-//
-//     fn run(
-//         &mut self,
-//         (entities, mut ships, mut locations, sectors, bodies, mut grids, mut positions, surfaces): Self::SystemData,
-//     ) {
-//         for (ship_id, ship) in (&entities, &mut ships).join() {
-//             // update calm down
-//             if ship.move_calm_down > 0 {
-//                 ship.move_calm_down -= 1;
-//                 debug!("calm down {:?}", ship.move_calm_down);
-//                 continue;
-//             }
-//
-//             // execute command
-//             match ship.current_command {
-//                 Command::FlyTo { target_id } => {
-//                     do_ship_fly(&mut locations, ship_id, ship, target_id)
-//                 }
-//
-//                 Command::Land {
-//                     target_id,
-//                     place_coords,
-//                 } => {
-//                     do_ship_landing(
-//                         &entities,
-//                         &mut locations,
-//                         &mut grids,
-//                         &mut positions,
-//                         ship_id,
-//                         ship,
-//                         target_id,
-//                         place_coords,
-//                     );
-//                 }
-//
-//                 Command::Launch => {
-//                     // find ship grid
-//                     let grid_id = GridRef::find_gmap_entity(&mut grids, ship_id).unwrap();
-//
-//                     // find what body we are landed
-//                     let surface_body_id =
-//                         Surface::find_surface_body(&entities, &surfaces, grid_id).unwrap();
-//
-//                     // update ship command to idle
-//                     ship.current_command = Command::Idle;
-//
-//                     // extract ship grid
-//                     let (grid, previous_coords) =
-//                         GridRef::extract(&mut grids, grid_id, ship_id).unwrap();
-//                     (&mut grids).insert(ship_id, GridRef::GMap(grid)).unwrap();
-//
-//                     // move objects inside ship grid back to ship
-//                     // TODO: move only objects in top of the removed grid
-//                     move_all_objects(
-//                         &entities,
-//                         &mut positions,
-//                         grid_id,
-//                         ship_id,
-//                         &previous_coords.inverse(),
-//                     );
-//
-//                     // change ship state
-//                     locations
-//                         .insert(
-//                             ship_id,
-//                             Location::Orbit {
-//                                 target_id: surface_body_id,
-//                             },
-//                         )
-//                         .expect("fail to insert orbit");
-//                 }
-//                 _ => {}
-//             }
-//         }
-//     }
-// }
-//
 
 fn set_ship_command(world: &mut World, ship_id: Entity, command: Command) {
     world
@@ -191,7 +112,13 @@ fn set_ship_command(world: &mut World, ship_id: Entity, command: Command) {
 ///
 /// Why do we move grid into target grid? Is easy to manage a single data structure NGrid that for
 /// each cell recursive find the parent so we can check what area belong that grid
-fn do_ship_landing(world: &mut World, ship_id: Entity, target_id: Entity, place_coords: P2) {
+fn do_ship_landing(
+    world: &mut World,
+    ship_id: Entity,
+    target_id: Entity,
+    place_coords: P2,
+    game_log: &mut GameLog,
+) {
     let ship_pos = {
         // update ship command to idle
         set_ship_command(world, ship_id, Command::Idle);
@@ -248,6 +175,8 @@ fn do_ship_landing(world: &mut World, ship_id: Entity, target_id: Entity, place_
             },
         )
         .expect("fail to update location");
+
+    game_log.push(Msg::ShipLand);
 }
 
 fn move_all_objects(world: &World, from_grid_id: Entity, to_grid_id: Entity, to_pos: V2I) {

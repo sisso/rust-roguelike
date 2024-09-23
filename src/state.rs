@@ -1,9 +1,11 @@
 use crate::cfg::Cfg;
+use crate::game_log::GameLog;
 use crate::models::Player;
 use crate::view;
 use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
 use hecs::World;
+use log::Level::Debug;
 use rltk::BTerm as Rltk;
 
 pub struct State {
@@ -12,6 +14,7 @@ pub struct State {
     pub window: Window,
     pub player: Player,
     pub cockpit_window: CockpitWindowState,
+    pub logs: GameLog,
 }
 
 impl State {
@@ -25,6 +28,7 @@ impl State {
             window: Window::World,
             player: Player::new(player_id),
             cockpit_window: Default::default(),
+            logs: Default::default(),
         }
     }
 }

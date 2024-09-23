@@ -128,6 +128,7 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                     available: vec![],
                     requested: None,
                 },
+                ObjectsKind::Player,
             ),
         )
         .unwrap();
@@ -156,6 +157,7 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
             hp: 1,
             ..Default::default()
         },
+        ObjectsKind::Mob,
     ))
 }
 
@@ -225,7 +227,9 @@ pub fn parse_map_objects(
                     ObjectsKind::Engine,
                 ));
             }
-            None => {}
+            other => {
+                log::warn!("unknown cell kind {:?}", other);
+            }
         }
     });
 

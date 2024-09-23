@@ -3,7 +3,6 @@ extern crate core;
 use hecs::Entity;
 use rltk::Rltk;
 use state::State;
-use std::ops::Add;
 
 use crate::area::Area;
 use crate::commons::grid::NGrid;
@@ -20,6 +19,7 @@ pub mod area;
 pub mod cfg;
 pub mod commons;
 pub mod events;
+mod game_log;
 pub mod gridref;
 mod health;
 pub mod loader;
@@ -36,9 +36,9 @@ pub mod visibility_system;
 pub fn run_systems(st: &mut State, ctx: &mut Rltk) {
     visibility_system::run(&st.ecs);
     actions::run_available_actions_system(&mut st.ecs);
-    actions::run_actions_system(&mut st.ecs, &mut st.window);
-    ship::systems::run(&mut st.ecs);
-    health::run_health_system(&mut st.ecs);
+    actions::run_actions_system(&mut st.ecs, &mut st.window, &mut st.logs);
+    ship::systems::run(&mut st.ecs, &mut st.logs);
+    health::run_health_system(&mut st.ecs, &mut st.logs);
 }
 
 fn main() -> rltk::BError {

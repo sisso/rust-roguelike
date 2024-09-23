@@ -333,18 +333,30 @@ fn draw_gui_bottom_box(
 }
 
 fn draw_log_box(state: &mut State, ctx: &mut Rltk, rect: RectI) {
-    let box_x = rect.get_x();
-    let box_y = rect.get_y();
-    let box_h = rect.get_height();
-    let box_w = rect.get_width();
     ctx.draw_box(
-        box_x,
-        box_y,
-        box_w,
-        box_h,
+        rect.get_x(),
+        rect.get_y(),
+        rect.get_width(),
+        rect.get_height(),
         RGB::named(rltk::WHITE),
         RGB::named(rltk::BLACK),
     );
+
+    let x = rect.get_x() + 1;
+    let mut y = rect.get_y() + 1;
+
+    let msgs = state.logs.list();
+    let free_space = (rect.get_height() - 1) as usize;
+    let slice_index = if msgs.len() > free_space {
+        msgs.len() - free_space
+    } else {
+        0
+    };
+
+    for log in &msgs[slice_index..] {
+        ctx.print_color(x, y, log.fg(), log.bg(), log.to_string());
+        y += 1;
+    }
 }
 
 #[cfg(test)]
@@ -365,6 +377,7 @@ mod test {
     #[test]
     fn test_camera_to_local_and_global() {
         let camera = Camera {
+            grid_id: None,
             x: 1,
             y: 1,
             w: 4,
@@ -379,6 +392,7 @@ mod test {
     #[test]
     fn test_camera_iterator() {
         let camera = Camera {
+            grid_id: None,
             x: 1,
             y: 1,
             w: 4,

@@ -1,11 +1,11 @@
 use crate::commons::v2i::V2I;
+use crate::game_log::{GameLog, Msg};
 use crate::gridref::GridRef;
 use crate::health::Health;
-use crate::mob;
-use crate::mob::Mob;
 use crate::models::{ObjectsKind, Position};
-use crate::utils::find_objects_at;
+use crate::utils::{find_mobs_at, find_objects_at};
 use crate::view::window::Window;
+use crate::{mob, utils};
 use hecs::{CommandBuffer, Entity, World};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -40,30 +40,6 @@ impl EntityActions {
     }
 }
 
-fn try_move_player(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i32) {
-    let mut pos = ecs
-        .get::<&mut Position>(avatar_id)
-        .map_err(|err| format!("fail to find avatar_id {avatar_id:?}: {err:?}"))
-        .unwrap();
-
-    let area = GridRef::find_area(ecs, pos.grid_id).unwrap();
-
-    let new_pos = pos.point.translate(delta_x, delta_y);
-    match area.get_grid().get_at(&new_pos) {
-        Some(cell) if !cell.tile.is_opaque() => {
-            log::debug!("{:?} move to position {:?}", avatar_id, new_pos);
-            pos.point = new_pos;
-        }
-        _ => {
-            log::debug!(
-                "{:?} try to move to invalid position {:?}",
-                avatar_id,
-                new_pos
-            );
-        }
-    }
-}
-
 pub fn set_current_action(ecs: &mut World, id: Entity, action: Action) {
     ecs.get::<&mut EntityActions>(id)
         .expect("Entity has no actions")
@@ -89,33 +65,24 @@ pub fn run_available_actions_system(world: &mut World) {
 
 fn run_action_assign_system(world: &mut World) {
     let mut buffer = CommandBuffer::new();
-
     for (e, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
         match actions.requested.take() {
-            Some(Action::Interact) => buffer.insert(e, (WantInteract,)),
-            Some(Action::Move(dir)) => {
-                let mut objects_at = mob::find_mobs_at(world, &pos.translate_by(dir));
-                if let Some(target_id) = objects_at.into_iter().into_iter().next() {
-                    buffer.insert(e, (WantAttack { target_id },))
-                } else {
-                    buffer.insert(e, (WantMove { dir },))
-                }
-            }
+            Some(Action::Interact) => buffer.insert_one(e, WantInteract),
+            Some(Action::Move(dir)) => buffer.insert_one(e, WantMove { dir }),
             None => {}
         }
     }
-
     buffer.run_on(world);
 }
 
-pub fn run_actions_system(world: &mut World, window: &mut Window) {
+pub fn run_actions_system(world: &mut World, window: &mut Window, game_log: &mut GameLog) {
     run_action_assign_system(world);
     run_action_wantinteract_system(world, window);
-    run_action_wantmove_system(world);
-    run_action_attack_system(world);
+    run_action_wantmove_system(world, game_log);
+    run_action_attack_system(world, game_log);
 }
 
-fn run_action_attack_system(world: &mut World) {
+fn run_action_attack_system(world: &mut World, logs: &mut GameLog) {
     let mut buffer = CommandBuffer::new();
     for (agressor_id, (WantAttack { target_id },)) in &mut world.query::<(&WantAttack,)>() {
         buffer.remove_one::<WantAttack>(agressor_id);
@@ -123,23 +90,46 @@ fn run_action_attack_system(world: &mut World) {
         let mut query = world.query_one::<&mut Health>(*target_id).unwrap();
         let target_health = query.get().unwrap();
         target_health.pending_damage.push(1);
+        logs.push(Msg::PlayerAttack {});
     }
     buffer.run_on(world);
 }
 
-fn run_action_wantmove_system(world: &mut World) {
-    let candidates = world
-        .query::<(&WantMove, &Position)>()
-        .iter()
-        .map(|(id, (WantMove { dir }, _))| (id, *dir))
-        .collect::<Vec<_>>();
+fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog) {
+    let mut query = world.query::<(&WantMove, &Position)>();
+    let candidates = query.iter().map(|(id, (WantMove { dir }, _))| (id, *dir));
 
     let mut buffer = CommandBuffer::new();
     for (id, dir) in candidates {
-        try_move_player(world, id, dir.x, dir.y);
         buffer.remove_one::<WantMove>(id);
+
+        let mut query = world.query_one::<&Position>(id).unwrap();
+        let pos = query.get().unwrap();
+        let next_pos = pos.translate_by(dir);
+
+        if can_move_into(world, id, &next_pos) {
+            let mob_on_next_cell = find_mobs_at(world, &next_pos);
+            if let Some(target_id) = mob_on_next_cell.into_iter().next() {
+                buffer.insert_one(id, WantAttack { target_id });
+            } else {
+                buffer.insert_one(id, next_pos);
+                game_log.push(Msg::PlayerMove);
+            }
+        } else {
+            game_log.push(Msg::PlayerFailMove);
+        }
     }
+
+    drop(query);
     buffer.run_on(world);
+}
+
+fn can_move_into(world: &World, e: Entity, pos: &Position) -> bool {
+    let area = GridRef::find_area(world, pos.grid_id).unwrap();
+    area.get_grid()
+        .get_at(&pos.point)
+        .map(|t| t.tile.is_opaque() == false)
+        .unwrap_or(false)
 }
 
 fn run_action_wantinteract_system(world: &mut World, window: &mut Window) {

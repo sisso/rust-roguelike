@@ -10,3 +10,11 @@ pub fn find_objects_at<'a>(world: &World, pos: &Position) -> Vec<(Entity, Object
     }
     result
 }
+
+pub fn find_mobs_at<'a>(world: &World, pos: &Position) -> Vec<Entity> {
+    find_objects_at(world, pos)
+        .into_iter()
+        .filter(|i| i.1 == ObjectsKind::Mob)
+        .map(|i| i.0)
+        .collect()
+}

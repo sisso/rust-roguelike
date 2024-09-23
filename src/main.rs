@@ -3,6 +3,7 @@ extern crate core;
 use hecs::Entity;
 use rltk::Rltk;
 use state::State;
+use std::ops::Add;
 
 use crate::area::Area;
 use crate::commons::grid::NGrid;
@@ -155,7 +156,7 @@ fn main() -> rltk::BError {
         &mut gs,
         Position {
             grid_id: planet_zone_house_grid_id,
-            point: V2I::new(10, 15),
+            point: house_pos + V2I::new(-10, 0),
         },
     );
 

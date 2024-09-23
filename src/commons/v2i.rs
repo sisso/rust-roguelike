@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 pub const ZERO: V2I = V2I { x: 0, y: 0 };
 
 #[derive(Clone, Copy, PartialEq, Debug, Hash, Eq, PartialOrd, Default)]
@@ -46,5 +48,13 @@ impl From<[i32; 2]> for V2I {
             x: array[0],
             y: array[1],
         }
+    }
+}
+
+impl Add for V2I {
+    type Output = V2I;
+
+    fn add(self, other: Self) -> Self::Output {
+        self.translate(other.x, other.y)
     }
 }

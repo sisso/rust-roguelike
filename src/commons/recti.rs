@@ -17,6 +17,14 @@ impl RectI {
         }
     }
 
+    pub fn get_x(&self) -> i32 {
+        self.topleft.x
+    }
+
+    pub fn get_y(&self) -> i32 {
+        self.topleft.y
+    }
+
     pub fn get_top_left(&self) -> V2I {
         self.topleft.clone()
     }

@@ -4,6 +4,8 @@ pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::area::{Area, Tile};
+use crate::commons::recti::RectI;
+use crate::commons::v2i::V2I;
 use crate::gridref::{GridId, GridRef};
 use crate::models::{ObjectsKind, Position};
 use crate::state::State;
@@ -12,9 +14,8 @@ use crate::view::camera::Camera;
 use crate::P2;
 use crate::{actions, cfg};
 use hecs::{Entity, World};
-use rltk::{Rltk, VirtualKeyCode, RGB};
+use rltk::{BTerm, Rect, Rltk, VirtualKeyCode, RGB};
 use std::collections::{HashMap, HashSet};
-use crate::commons::v2i::V2I;
 
 pub struct Viewshed {
     pub visible_tiles: Vec<rltk::Point>,
@@ -52,9 +53,9 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
             VirtualKeyCode::Numpad1 => set_action_move(&mut gs.ecs, avatar_id, -1, 1),
             VirtualKeyCode::Numpad2 => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
             VirtualKeyCode::Numpad3 => set_action_move(&mut gs.ecs, avatar_id, 1, 1),
-            VirtualKeyCode::I => 
+            VirtualKeyCode::I => {
                 actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact)
-            ,
+            }
             // VirtualKeyCode::W => gs.camera.y -= 1,
             // VirtualKeyCode::A => gs.camera.x -= 1,
             // VirtualKeyCode::D => gs.camera.x += 1,
@@ -69,17 +70,70 @@ pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
     ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
 }
 
-pub fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk) {
+pub fn draw_world(state: &mut State, ctx: &mut Rltk) {
+    draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
+    draw_gui(
+        state,
+        ctx,
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
+    );
+    draw_log_box(
+        state,
+        ctx,
+        RectI::new(
+            cfg::SCREEN_W / 4 + 1,
+            cfg::SCREEN_H - 10,
+            3 * cfg::SCREEN_W / 4 - 2,
+            9,
+        ),
+    );
+}
+
+pub fn draw_cockpit(state: &mut State, ctx: &mut Rltk, cockpit_id: Entity) {
+    draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
+    cockpit_window::draw(
+        state,
+        ctx,
+        cockpit_id,
+        RectI::new(2, 2, cfg::SCREEN_W - 5, cfg::SCREEN_H - 14),
+    );
+    draw_gui(
+        state,
+        ctx,
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
+    );
+    draw_log_box(
+        state,
+        ctx,
+        RectI::new(
+            cfg::SCREEN_W / 4 + 1,
+            cfg::SCREEN_H - 10,
+            3 * cfg::SCREEN_W / 4 - 2,
+            9,
+        ),
+    );
+}
+
+fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, rect: RectI) {
     let avatar_id = state.player.get_avatar_id();
 
-    let mut query = state.ecs.query_one::<(&Viewshed, &Position)>(avatar_id).expect("player avatar not found");
+    let mut query = state
+        .ecs
+        .query_one::<(&Viewshed, &Position)>(avatar_id)
+        .expect("player avatar not found");
     let (viewshed, pos) = query.get().expect("player not found");
 
-    let camera = Camera::from_center(pos.point);
+    let camera = Camera::from_center(pos.clone(), rect);
 
     // draw
     let map = GridRef::find_area(&state.ecs, pos.grid_id).expect("area not found");
-    draw_map(&camera, &viewshed.visible_tiles, viewshed.know_tiles.get(&pos.grid_id), &map, ctx);
+    draw_map(
+        &camera,
+        &viewshed.visible_tiles,
+        viewshed.know_tiles.get(&pos.grid_id),
+        &map,
+        ctx,
+    );
     draw_objects(&camera, &viewshed.visible_tiles, &state.ecs, ctx);
 }
 
@@ -118,7 +172,10 @@ fn draw_map(
             .find(|p| c.point.x == p.x && c.point.y == p.y)
             .is_none()
         {
-            if know_cells.map(|i| i.contains(&c.point.into())).unwrap_or(false) {
+            if know_cells
+                .map(|i| i.contains(&c.point.into()))
+                .unwrap_or(false)
+            {
                 // if is know
                 fg = rltk::GRAY;
             } else {
@@ -140,10 +197,10 @@ fn draw_map(
 }
 
 fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, ctx: &mut Rltk) {
-    let mut query = ecs
-        .query::<(&Position, &Renderable)>();
+    let mut query = ecs.query::<(&Position, &Renderable)>();
     let mut objects = query
         .into_iter()
+        .filter(|(_, (pos, _))| Some(pos.grid_id) == camera.grid_id)
         .map(|(_, c)| c)
         .collect::<Vec<_>>();
     objects.sort_by(|&a, &b| a.1.priority.cmp(&b.1.priority));
@@ -170,7 +227,7 @@ fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, 
     }
 }
 
-pub fn draw_gui(state: &State, ctx: &mut Rltk) {
+fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
     for (_avatar_id, (position, actions)) in state.ecs.query::<(&Position, &EntityActions)>().iter()
     {
         let gmap = GridRef::find_area(&state.ecs, position.grid_id).unwrap();
@@ -180,6 +237,7 @@ pub fn draw_gui(state: &State, ctx: &mut Rltk) {
 
         draw_gui_bottom_box(
             ctx,
+            rect.clone(),
             tile.tile,
             &objects_at,
             &map_actions_to_keys(&actions.available)
@@ -221,14 +279,15 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
 
 fn draw_gui_bottom_box(
     ctx: &mut Rltk,
+    rect: RectI,
     current_tile: Tile,
     objects: &Vec<(Entity, ObjectsKind)>,
     actions: &Vec<(char, &str)>,
 ) {
-    let box_h = 6;
-    let box_x = 0;
-    let box_y = cfg::SCREEN_H - box_h - 1;
-    let box_w = cfg::SCREEN_W - 1;
+    let box_x = rect.get_x();
+    let box_y = rect.get_y();
+    let box_h = rect.get_height();
+    let box_w = rect.get_width();
     ctx.draw_box(
         box_x,
         box_y,
@@ -271,6 +330,21 @@ fn draw_gui_bottom_box(
             y += 1;
         }
     }
+}
+
+fn draw_log_box(state: &mut State, ctx: &mut Rltk, rect: RectI) {
+    let box_x = rect.get_x();
+    let box_y = rect.get_y();
+    let box_h = rect.get_height();
+    let box_w = rect.get_width();
+    ctx.draw_box(
+        box_x,
+        box_y,
+        box_w,
+        box_h,
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
 }
 
 #[cfg(test)]

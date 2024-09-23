@@ -1,11 +1,15 @@
 use crate::{cfg, commons, P2};
+use hecs::Entity;
 
+use crate::commons::recti::RectI;
+use crate::models::Position;
 use rltk::Point;
 
 pub type ScreenPoint = Point;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Camera {
+    pub grid_id: Option<Entity>,
     pub x: i32,
     pub y: i32,
     pub w: i32,
@@ -18,24 +22,16 @@ pub struct CameraCell {
 }
 
 impl Camera {
-    pub fn new() -> Self {
-        Camera {
-            x: 0,
-            y: 0,
-            w: cfg::SCREEN_W,
-            h: cfg::SCREEN_H,
-        }
-    }
-
-    pub fn from_center(p: P2) -> Self {
-        let w = cfg::SCREEN_W;
-        let h = cfg::SCREEN_H;
+    pub fn from_center(pos: Position, size: RectI) -> Self {
+        let w = size.get_width();
+        let h = size.get_height();
 
         Camera {
-            x: p.x - w / 2,
-            y: p.y - h / 2,
-            w: w,
-            h: h,
+            grid_id: Some(pos.grid_id),
+            x: pos.point.x - w / 2,
+            y: pos.point.y - h / 2,
+            w,
+            h,
         }
     }
 

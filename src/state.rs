@@ -39,14 +39,12 @@ impl rltk::GameState for State {
             Window::World => {
                 view::player_input(self, ctx);
                 crate::run_systems(self, ctx);
-                view::draw_map_and_objects(self, ctx);
-                view::draw_gui(self, ctx);
+                view::draw_world(self, ctx);
             }
 
             Window::Cockpit { cockpit_id } => {
                 crate::run_systems(self, ctx);
-                view::draw_map_and_objects(self, ctx);
-                view::cockpit_window::draw(self, ctx, cockpit_id);
+                view::draw_cockpit(self, ctx, cockpit_id);
             }
         }
     }

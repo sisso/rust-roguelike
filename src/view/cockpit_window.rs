@@ -1,4 +1,5 @@
 use crate::commons::grid::Dir;
+use crate::commons::recti::RectI;
 use crate::gridref::GridRef;
 use crate::models::SurfaceTileKind;
 use crate::state::State;
@@ -77,34 +78,34 @@ impl CockpitWindowState {
     }
 }
 
-pub fn draw(state: &mut State, ctx: &mut Rltk, _cockpit_id: Entity) {
+pub fn draw(state: &mut State, ctx: &mut Rltk, _cockpit_id: Entity, rect: RectI) {
     let info = LocalInfo::from(&state.ecs, state.player.get_avatar_id());
 
     match state.cockpit_window.sub_window {
-        SubWindow::Main => draw_main(state, ctx, info),
+        SubWindow::Main => draw_main(state, ctx, info, rect),
         SubWindow::Land { .. } => draw_land_menu(
             state,
             ctx,
+            rect,
             info.ship_id.expect("no ship id to show landing screen"),
             info.orbiting_id,
         ),
     }
 }
 
-fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
+fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo, rect: RectI) {
     // frame
-    let border = 4;
     ctx.draw_box(
-        border,
-        border,
-        cfg::SCREEN_W - border * 2,
-        cfg::SCREEN_H - border * 2,
+        rect.get_x(),
+        rect.get_y(),
+        rect.get_width(),
+        rect.get_height(),
         RGB::named(rltk::WHITE),
         RGB::named(rltk::BLACK),
     );
 
-    let x = border + 2;
-    let mut y = border + 2;
+    let x = rect.get_x() + 2;
+    let mut y = rect.get_y() + 2;
 
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "The cockpit");
     y += 2;
@@ -126,7 +127,7 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo) {
         _ => {}
     }
     // draw messages
-    y = draw_msg(state, ctx, border, x, y);
+    y = draw_msg(state, ctx, 0, x, y);
 
     // process inputs
     let executed = match (ctx.key, get_key_index(ctx.key)) {
@@ -388,25 +389,30 @@ fn draw_orbiting_map(
     y
 }
 
-fn draw_land_menu(state: &mut State, ctx: &mut Rltk, ship_id: Entity, orbiting_id: Option<Entity>) {
+fn draw_land_menu(
+    state: &mut State,
+    ctx: &mut Rltk,
+    rect: RectI,
+    ship_id: Entity,
+    orbiting_id: Option<Entity>,
+) {
     let orbiting_id = match orbiting_id {
         Some(id) => id,
         None => return,
     };
 
     // frame
-    let border = 4;
     ctx.draw_box(
-        border,
-        border,
-        cfg::SCREEN_W - border * 2,
-        cfg::SCREEN_H - border * 2,
+        rect.get_x(),
+        rect.get_y(),
+        rect.get_width(),
+        rect.get_height(),
         RGB::named(rltk::WHITE),
         RGB::named(rltk::BLACK),
     );
 
-    let x = border + 2;
-    let mut y = border + 2;
+    let x = rect.get_x() + 2;
+    let mut y = rect.get_y() + 2;
 
     ctx.print_color(x, y, rltk::GRAY, rltk::BLACK, "Choose landing location");
     y += 2;

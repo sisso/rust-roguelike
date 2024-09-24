@@ -14,15 +14,21 @@ use crate::view::camera::Camera;
 use crate::P2;
 use crate::{actions, cfg};
 use hecs::{Entity, World};
-use rltk::{BTerm, Rect, Rltk, VirtualKeyCode, RGB};
+use rltk::{Rltk, VirtualKeyCode, RGB};
 use std::collections::{HashMap, HashSet};
 
-pub struct Viewshed {
+#[derive(Clone, Debug, Default)]
+pub struct Visibility {
     pub visible_tiles: Vec<rltk::Point>,
-    pub know_tiles: HashMap<GridId, HashSet<rltk::Point>>,
     pub range: i32,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct VisibilityMemory {
+    pub know_tiles: HashMap<GridId, HashSet<rltk::Point>>,
+}
+
+#[derive(Clone, Debug)]
 pub struct Renderable {
     pub glyph: rltk::FontCharType,
     pub fg: RGB,
@@ -119,9 +125,9 @@ fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, rect: RectI) {
 
     let mut query = state
         .ecs
-        .query_one::<(&Viewshed, &Position)>(avatar_id)
+        .query_one::<(&Visibility, &Position, &VisibilityMemory)>(avatar_id)
         .expect("player avatar not found");
-    let (viewshed, pos) = query.get().expect("player not found");
+    let (visibility, pos, memory) = query.get().expect("player not found");
 
     let camera = Camera::from_center(pos.clone(), rect);
 
@@ -129,12 +135,12 @@ fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, rect: RectI) {
     let map = GridRef::find_area(&state.ecs, pos.grid_id).expect("area not found");
     draw_map(
         &camera,
-        &viewshed.visible_tiles,
-        viewshed.know_tiles.get(&pos.grid_id),
+        &visibility.visible_tiles,
+        memory.know_tiles.get(&pos.grid_id),
         &map,
         ctx,
     );
-    draw_objects(&camera, &viewshed.visible_tiles, &state.ecs, ctx);
+    draw_objects(&camera, &visibility.visible_tiles, &state.ecs, ctx);
 }
 
 impl Into<rltk::Point> for P2 {

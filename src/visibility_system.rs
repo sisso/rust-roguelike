@@ -1,10 +1,12 @@
 use crate::gridref::GridRef;
 use crate::models::Position;
-use crate::view::Viewshed;
+use crate::view::{Visibility, VisibilityMemory};
 use hecs::World;
 
 pub fn run(world: &World) {
-    for (_, (viewshed, pos)) in &mut world.query::<(&mut Viewshed, &Position)>() {
+    for (_, (viewshed, pos, memory)) in
+        &mut world.query::<(&mut Visibility, &Position, Option<&mut VisibilityMemory>)>()
+    {
         let gridmap = GridRef::find_area(world, pos.grid_id).unwrap();
 
         viewshed.visible_tiles.clear();
@@ -20,9 +22,11 @@ pub fn run(world: &World) {
                 && p.y < gridmap.get_grid().get_height()
         });
 
-        let know_tiles = viewshed.know_tiles.entry(pos.grid_id).or_default();
-        for pos in &viewshed.visible_tiles {
-            know_tiles.insert(*pos);
+        if let Some(memory) = memory {
+            let know_tiles = memory.know_tiles.entry(pos.grid_id).or_default();
+            for pos in &viewshed.visible_tiles {
+                know_tiles.insert(*pos);
+            }
         }
     }
 }

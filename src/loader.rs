@@ -13,7 +13,7 @@ use crate::models::{
 };
 use crate::ship::Ship;
 use crate::state::State;
-use crate::view::{Renderable, Viewshed};
+use crate::view::{Renderable, Visibility, VisibilityMemory};
 use rltk::RGB;
 
 pub fn create_sector(world: &mut World) -> Entity {
@@ -119,11 +119,11 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                     bg: RGB::named(rltk::BLACK),
                     priority: 1,
                 },
-                Viewshed {
-                    visible_tiles: vec![],
-                    know_tiles: Default::default(),
+                Visibility {
                     range: 16,
+                    ..Default::default()
                 },
+                VisibilityMemory::default(),
                 EntityActions {
                     available: vec![],
                     requested: None,
@@ -147,10 +147,9 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
             bg: RGB::named(rltk::BLACK),
             priority: 1,
         },
-        Viewshed {
+        Visibility {
             visible_tiles: vec![],
-            know_tiles: Default::default(),
-            range: 16,
+            range: 14,
         },
         Mob {},
         Health {

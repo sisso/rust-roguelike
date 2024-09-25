@@ -3,19 +3,26 @@ use hecs::{Entity, World};
 use crate::actions::EntityActions;
 use crate::ai::Ai;
 use crate::area::{Area, Cell, Tile};
+use crate::cfg::Cfg;
 use crate::commons::grid::{Grid, NGrid};
 use crate::commons::grid_string::ParseMapError;
 use crate::commons::v2i::V2I;
+use crate::commons::{grid_string, v2i};
 use crate::gridref::GridRef;
 use crate::health::Health;
 use crate::mob::Mob;
 use crate::models::{
     Avatar, Label, Location, ObjectsKind, Position, Sector, SectorBody, Surface, SurfaceTileKind,
+    P2,
 };
 use crate::ship::Ship;
 use crate::state::State;
-use crate::view::{Renderable, Visibility, VisibilityMemory};
-use rltk::RGB;
+use crate::view::cockpit_window::CockpitWindowState;
+use crate::view::window::Window;
+use crate::view::Renderable;
+use crate::visibility::{Visibility, VisibilityMemory};
+use crate::{area, cfg, loader, sectors, ship};
+use rltk::{GameState, RGB};
 
 pub fn create_sector(world: &mut World) -> Entity {
     world.spawn((Sector::default(),))
@@ -240,4 +247,128 @@ pub fn parse_map_objects(
     });
 
     Ok(())
+}
+
+// TODO: remove this hack that require cfg to clone
+fn new_parser(cfg: Cfg) -> Box<dyn Fn(char) -> Option<MapAstCell>> {
+    let f = move |ch| {
+        let tile = cfg
+            .map_parser
+            .raw_map_tiles
+            .iter()
+            .find(|(c, tile)| *c == ch)
+            .map(|(_, tile)| *tile)?;
+
+        let obj = cfg
+            .map_parser
+            .raw_map_objects
+            .iter()
+            .find(|(c, tile)| *c == ch)
+            .map(|(_, obj)| *obj);
+
+        Some(MapAstCell {
+            tile: tile,
+            obj: obj,
+        })
+    };
+
+    Box::new(f)
+}
+
+pub fn start_game(state: &mut State) {
+    let parser = new_parser(state.cfg.clone());
+    let ship_map_ast = grid_string::parse_map(parser, cfg::SHIP_MAP).expect("fail to load map");
+    let ship_grid = new_grid_from_ast(&ship_map_ast);
+
+    let parser = new_parser(state.cfg.clone());
+    let house_ast = grid_string::parse_map(parser, cfg::HOUSE_MAP).expect("fail to load house map");
+    let house_grid = new_grid_from_ast(&house_ast);
+
+    let spawn_x = ship_grid.get_width() / 2 - 5;
+    let spawn_y = ship_grid.get_height() / 2;
+
+    // load scenery
+    let sector_id = create_sector(&mut state.ecs);
+    log::debug!("sector id {:?}", sector_id);
+
+    let zone_size = 100;
+
+    let mut planets_zones: Vec<(Entity, SurfaceTileKind)> = (0..3)
+        .map(|i| create_planet_zone(&mut state.ecs, i, zone_size, area::Tile::Ground))
+        .map(|e| (e, SurfaceTileKind::Plain))
+        .collect();
+
+    let house_pos = V2I::new(zone_size / 2 + 30, zone_size / 2);
+    let planet_zone_house_grid_id = create_planet_zone_from(
+        &mut state.ecs,
+        3,
+        100,
+        area::Tile::Ground,
+        vec![(house_pos, &house_grid)],
+    );
+    planets_zones.push((planet_zone_house_grid_id, SurfaceTileKind::Structure));
+
+    log::debug!("planet zones id {:?}", planets_zones);
+
+    let planet_id = create_planet(
+        &mut state.ecs,
+        "Planet X",
+        Location::Sector {
+            sector_id,
+            pos: P2::new(5, 0),
+        },
+        planets_zones,
+        2,
+    );
+    log::debug!("planet id {:?}", planet_id);
+
+    let ship_location = Location::Orbit {
+        target_id: planet_id,
+    };
+    // let ship_location = Location::Sector {
+    //     sector_id: sector_id,
+    //     pos: P2::new(0, 0),
+    // }
+    let ship_id = create_ship(
+        &mut state.ecs,
+        "ship",
+        Ship {
+            current_command: ship::Command::Idle,
+            move_calm_down: 0,
+        },
+        ship_location,
+        NGrid::from_grid(ship_grid),
+    );
+    log::debug!("ship id {:?}", ship_id);
+
+    let avatar_entity_id = create_avatar(
+        &mut state.ecs,
+        state.player.get_avatar_id(),
+        Position {
+            grid_id: ship_id,
+            point: (spawn_x, spawn_y).into(),
+        },
+    );
+    log::info!("avatar id: {:?}", avatar_entity_id);
+
+    _ = create_mob(
+        state,
+        Position {
+            grid_id: planet_zone_house_grid_id,
+            point: house_pos + V2I::new(-10, 0),
+        },
+    );
+
+    // load objects
+    parse_map_objects(&mut state.ecs, v2i::ZERO, ship_id, ship_map_ast)
+        .expect("fail to load map objects");
+    parse_map_objects(
+        &mut state.ecs,
+        house_pos,
+        planet_zone_house_grid_id,
+        house_ast,
+    )
+    .expect("fail to load map objects");
+
+    sectors::update_bodies_list(&mut state.ecs);
 }

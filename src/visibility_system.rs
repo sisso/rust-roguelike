@@ -2,7 +2,7 @@ use crate::commons::grid::BaseGrid;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::models::Position;
-use crate::view::{Visibility, VisibilityMemory};
+use crate::visibility::{Visibility, VisibilityMemory};
 use hecs::World;
 
 pub fn run(world: &World) {

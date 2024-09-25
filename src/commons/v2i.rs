@@ -1,4 +1,3 @@
-use crate::commons::grid::Coord;
 use std::ops::{Add, Sub};
 
 pub const ZERO: V2I = V2I { x: 0, y: 0 };

@@ -61,10 +61,21 @@ impl RectI {
     }
 
     pub fn center(&self) -> V2I {
-        return V2I::new(
+        V2I::new(
             self.topleft.x + self.get_width() / 2,
             self.topleft.y + self.get_height() / 2,
-        );
+        )
+    }
+
+    pub fn shrink(&self, amount: i32) -> RectI {
+        assert!(amount < self.get_width());
+        assert!(amount < self.get_height());
+        RectI::new(
+            self.topleft.x + amount,
+            self.topleft.y + amount,
+            self.bottomright.x - amount * 2,
+            self.bottomright.y - amount * 2,
+        )
     }
 }
 

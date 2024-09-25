@@ -1,9 +1,8 @@
 use crate::actions::{WantAttack, WantMove};
 use crate::commons::grid::{BaseGrid, Index};
 use crate::gridref::GridRef;
-use crate::mob::Mob;
 use crate::models::Position;
-use crate::view::Visibility;
+use crate::visibility::Visibility;
 use hecs::{CommandBuffer, Entity, World};
 
 #[derive(Clone, Default, Debug)]

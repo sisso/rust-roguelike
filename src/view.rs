@@ -1,33 +1,28 @@
 pub mod camera;
 pub mod cockpit_window;
+pub mod game_window;
+pub mod lose_window;
+pub mod main_menu_window;
 pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::area::{Area, Tile};
+use crate::cfg;
 use crate::commons::grid::BaseGrid;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
-use crate::gridref::{GridId, GridRef};
+use crate::gridref::GridRef;
 use crate::models::{ObjectsKind, Position};
 use crate::state::State;
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
-use crate::{actions, cfg};
-use crate::{ai, P2};
+use crate::visibility::{Visibility, VisibilityMemory};
+use crate::P2;
 use hecs::{Entity, World};
-use rltk::{Rltk, VirtualKeyCode, RGB};
-use std::collections::{HashMap, HashSet};
+use rltk::{BTerm, Rltk, RGB};
+use std::collections::HashSet;
 
-#[derive(Clone, Debug, Default)]
-pub struct Visibility {
-    pub visible_tiles: Vec<V2I>,
-    pub range: i32,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct VisibilityMemory {
-    pub know_tiles: HashMap<GridId, HashSet<V2I>>,
-}
+pub type Color = (u8, u8, u8);
 
 #[derive(Clone, Debug)]
 pub struct Renderable {
@@ -37,88 +32,18 @@ pub struct Renderable {
     pub priority: i32,
 }
 
-fn set_action_move(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i32) {
-    actions::set_current_action(ecs, avatar_id, Action::Move(V2I::new(delta_x, delta_y)));
-    ai::give_turn_to_ai(ecs);
+pub fn get_window_rect() -> RectI {
+    RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H)
 }
 
-pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
-    let avatar_id = gs.player.get_avatar_id();
-
-    match ctx.key {
-        None => {} // Nothing happened
-        Some(key) => match key {
-            VirtualKeyCode::Left => set_action_move(&mut gs.ecs, avatar_id, -1, 0),
-            VirtualKeyCode::Right => set_action_move(&mut gs.ecs, avatar_id, 1, 0),
-            VirtualKeyCode::Up => set_action_move(&mut gs.ecs, avatar_id, 0, -1),
-            VirtualKeyCode::Down => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
-            VirtualKeyCode::Numpad7 => set_action_move(&mut gs.ecs, avatar_id, -1, -1),
-            VirtualKeyCode::Numpad8 => set_action_move(&mut gs.ecs, avatar_id, 0, -1),
-            VirtualKeyCode::Numpad9 => set_action_move(&mut gs.ecs, avatar_id, 1, -1),
-            VirtualKeyCode::Numpad4 => set_action_move(&mut gs.ecs, avatar_id, -1, 0),
-            VirtualKeyCode::Numpad5 => set_action_move(&mut gs.ecs, avatar_id, 0, 0),
-            VirtualKeyCode::Numpad6 => set_action_move(&mut gs.ecs, avatar_id, 1, 0),
-            VirtualKeyCode::Numpad1 => set_action_move(&mut gs.ecs, avatar_id, -1, 1),
-            VirtualKeyCode::Numpad2 => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
-            VirtualKeyCode::Numpad3 => set_action_move(&mut gs.ecs, avatar_id, 1, 1),
-            VirtualKeyCode::I => {
-                actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact);
-            }
-            // VirtualKeyCode::W => gs.camera.y -= 1,
-            // VirtualKeyCode::A => gs.camera.x -= 1,
-            // VirtualKeyCode::D => gs.camera.x += 1,
-            // VirtualKeyCode::S => gs.camera.y += 1,
-            _ => {}
-        },
-    }
-}
-
-pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
-    let mouse_pos = ctx.mouse_pos();
-    ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
-}
-
-pub fn draw_world(state: &mut State, ctx: &mut Rltk) {
-    draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
-    draw_gui(
-        state,
-        ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
-    );
-    draw_log_box(
-        state,
-        ctx,
-        RectI::new(
-            cfg::SCREEN_W / 4 + 1,
-            cfg::SCREEN_H - 10,
-            3 * cfg::SCREEN_W / 4 - 2,
-            9,
-        ),
-    );
-}
-
-pub fn draw_cockpit(state: &mut State, ctx: &mut Rltk, cockpit_id: Entity) {
-    draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
-    cockpit_window::draw(
-        state,
-        ctx,
-        cockpit_id,
-        RectI::new(2, 2, cfg::SCREEN_W - 5, cfg::SCREEN_H - 14),
-    );
-    draw_gui(
-        state,
-        ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
-    );
-    draw_log_box(
-        state,
-        ctx,
-        RectI::new(
-            cfg::SCREEN_W / 4 + 1,
-            cfg::SCREEN_H - 10,
-            3 * cfg::SCREEN_W / 4 - 2,
-            9,
-        ),
+pub fn draw_rect(ctx: &mut Rltk, rect: &RectI, fg: Color, bg: Color) {
+    ctx.draw_box(
+        rect.get_x(),
+        rect.get_y(),
+        rect.get_width(),
+        rect.get_height(),
+        fg,
+        bg,
     );
 }
 
@@ -142,7 +67,7 @@ fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, rect: RectI) {
         &map,
         ctx,
     );
-    draw_objects(&camera, &visibility.visible_tiles, &state.ecs, ctx);
+    draw_map_objects(&camera, &visibility.visible_tiles, &state.ecs, ctx);
 }
 
 fn draw_map(
@@ -195,7 +120,7 @@ fn draw_map(
     }
 }
 
-fn draw_objects(camera: &Camera, visible_cells: &Vec<V2I>, ecs: &World, ctx: &mut Rltk) {
+fn draw_map_objects(camera: &Camera, visible_cells: &Vec<V2I>, ecs: &World, ctx: &mut Rltk) {
     let mut query = ecs.query::<(&Position, &Renderable)>();
     let mut objects = query
         .into_iter()
@@ -226,6 +151,30 @@ fn draw_objects(camera: &Camera, visible_cells: &Vec<V2I>, ecs: &World, ctx: &mu
     }
 }
 
+pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
+    let mouse_pos = ctx.mouse_pos();
+    ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
+}
+
+pub fn draw_game_window(state: &mut State, ctx: &mut Rltk) {
+    draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
+    draw_gui(
+        state,
+        ctx,
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
+    );
+    draw_log_box(
+        state,
+        ctx,
+        RectI::new(
+            cfg::SCREEN_W / 4 + 1,
+            cfg::SCREEN_H - 10,
+            3 * cfg::SCREEN_W / 4 - 2,
+            9,
+        ),
+    );
+}
+
 fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
     for (_avatar_id, (position, actions)) in state.ecs.query::<(&Position, &EntityActions)>().iter()
     {
@@ -247,6 +196,33 @@ fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
                 .map(ViewAction::to_tuple)
                 .collect::<Vec<_>>(),
         );
+    }
+}
+
+fn draw_log_box(state: &mut State, ctx: &mut Rltk, rect: RectI) {
+    ctx.draw_box(
+        rect.get_x(),
+        rect.get_y(),
+        rect.get_width(),
+        rect.get_height(),
+        RGB::named(rltk::WHITE),
+        RGB::named(rltk::BLACK),
+    );
+
+    let x = rect.get_x() + 1;
+    let mut y = rect.get_y() + 1;
+
+    let msgs = state.logs.list();
+    let free_space = (rect.get_height() - 1) as usize;
+    let slice_index = if msgs.len() > free_space {
+        msgs.len() - free_space
+    } else {
+        0
+    };
+
+    for log in &msgs[slice_index..] {
+        ctx.print_color(x, y, log.fg(), log.bg(), log.to_string());
+        y += 1;
     }
 }
 
@@ -331,33 +307,6 @@ fn draw_gui_bottom_box(
             ctx.print_color(x + 4, y, rltk::GRAY, rltk::BLACK, action);
             y += 1;
         }
-    }
-}
-
-fn draw_log_box(state: &mut State, ctx: &mut Rltk, rect: RectI) {
-    ctx.draw_box(
-        rect.get_x(),
-        rect.get_y(),
-        rect.get_width(),
-        rect.get_height(),
-        RGB::named(rltk::WHITE),
-        RGB::named(rltk::BLACK),
-    );
-
-    let x = rect.get_x() + 1;
-    let mut y = rect.get_y() + 1;
-
-    let msgs = state.logs.list();
-    let free_space = (rect.get_height() - 1) as usize;
-    let slice_index = if msgs.len() > free_space {
-        msgs.len() - free_space
-    } else {
-        0
-    };
-
-    for log in &msgs[slice_index..] {
-        ctx.print_color(x, y, log.fg(), log.bg(), log.to_string());
-        y += 1;
     }
 }
 

@@ -569,3 +569,28 @@ fn list_commands(state: &State, ship_id: Entity) -> Vec<MenuOption> {
 
     commands
 }
+
+pub fn draw_cockpit(state: &mut State, ctx: &mut Rltk, cockpit_id: Entity) {
+    super::draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
+    draw(
+        state,
+        ctx,
+        cockpit_id,
+        RectI::new(2, 2, cfg::SCREEN_W - 5, cfg::SCREEN_H - 14),
+    );
+    super::draw_gui(
+        state,
+        ctx,
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
+    );
+    super::draw_log_box(
+        state,
+        ctx,
+        RectI::new(
+            cfg::SCREEN_W / 4 + 1,
+            cfg::SCREEN_H - 10,
+            3 * cfg::SCREEN_W / 4 - 2,
+            9,
+        ),
+    );
+}

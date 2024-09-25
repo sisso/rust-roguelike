@@ -1,10 +1,10 @@
 extern crate core;
 
 use hecs::Entity;
-use rltk::Rltk;
 use state::State;
 
 use crate::area::Area;
+use crate::cfg::Cfg;
 use crate::commons::grid::NGrid;
 use crate::commons::v2i::V2I;
 use crate::commons::{grid_string, v2i};
@@ -15,6 +15,7 @@ use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
 
 pub mod actions;
+mod ai;
 pub mod area;
 pub mod cfg;
 pub mod commons;
@@ -33,14 +34,6 @@ pub mod utils;
 pub mod view;
 pub mod visibility_system;
 
-pub fn run_systems(st: &mut State, ctx: &mut Rltk) {
-    visibility_system::run(&st.ecs);
-    actions::run_available_actions_system(&mut st.ecs);
-    actions::run_actions_system(&mut st.ecs, &mut st.window, &mut st.logs);
-    ship::systems::run(&mut st.ecs, &mut st.logs);
-    health::run_health_system(&mut st.ecs, &mut st.logs);
-}
-
 fn main() -> rltk::BError {
     // setup
     use rltk::RltkBuilder;
@@ -54,30 +47,11 @@ fn main() -> rltk::BError {
     // initialize
     let cfg = cfg::Cfg::new();
 
-    let parser = |ch| {
-        let tile = cfg
-            .map_parser
-            .raw_map_tiles
-            .iter()
-            .find(|(c, tile)| *c == ch)
-            .map(|(_, tile)| *tile)?;
-
-        let obj = cfg
-            .map_parser
-            .raw_map_objects
-            .iter()
-            .find(|(c, tile)| *c == ch)
-            .map(|(_, obj)| *obj);
-
-        Some(MapAstCell {
-            tile: tile,
-            obj: obj,
-        })
-    };
-
+    let parser = new_parser(cfg.clone());
     let ship_map_ast = grid_string::parse_map(parser, cfg::SHIP_MAP).expect("fail to load map");
     let ship_grid = loader::new_grid_from_ast(&ship_map_ast);
 
+    let parser = new_parser(cfg.clone());
     let house_ast = grid_string::parse_map(parser, cfg::HOUSE_MAP).expect("fail to load house map");
     let house_grid = loader::new_grid_from_ast(&house_ast);
 
@@ -152,7 +126,7 @@ fn main() -> rltk::BError {
     );
     log::info!("avatar id: {:?}", avatar_entity_id);
 
-    let mob_id = loader::create_mob(
+    _ = loader::create_mob(
         &mut gs,
         Position {
             grid_id: planet_zone_house_grid_id,
@@ -169,6 +143,32 @@ fn main() -> rltk::BError {
     sectors::update_bodies_list(&mut gs.ecs);
 
     rltk::main_loop(context, gs)
+}
+
+// TODO: remove this hack that require cfg to clone
+fn new_parser(cfg: Cfg) -> Box<dyn Fn(char) -> Option<MapAstCell>> {
+    let f = move |ch| {
+        let tile = cfg
+            .map_parser
+            .raw_map_tiles
+            .iter()
+            .find(|(c, tile)| *c == ch)
+            .map(|(_, tile)| *tile)?;
+
+        let obj = cfg
+            .map_parser
+            .raw_map_objects
+            .iter()
+            .find(|(c, tile)| *c == ch)
+            .map(|(_, obj)| *obj);
+
+        Some(MapAstCell {
+            tile: tile,
+            obj: obj,
+        })
+    };
+
+    Box::new(f)
 }
 
 #[cfg(test)]

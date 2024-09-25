@@ -1,6 +1,7 @@
-use crate::models::{ObjectsKind, Position};
+use crate::models::Position;
 use hecs::{Entity, World};
 
+#[derive(Debug, Clone, Default)]
 pub struct Mob {}
 
 pub fn find_mobs_at(world: &World, pos: &Position) -> Vec<Entity> {

@@ -1,4 +1,5 @@
-use std::ops::Add;
+use crate::commons::grid::Coord;
+use std::ops::{Add, Sub};
 
 pub const ZERO: V2I = V2I { x: 0, y: 0 };
 
@@ -14,10 +15,7 @@ impl V2I {
     }
 
     pub fn translate(&self, dx: i32, dy: i32) -> V2I {
-        let new_x = self.x as i32 + dx;
-        let new_y = self.y as i32 + dy;
-
-        V2I::new(new_x, new_y)
+        V2I::new(self.x + dx, self.y + dy)
     }
 
     pub fn as_array(&self) -> [i32; 2] {
@@ -33,6 +31,19 @@ impl V2I {
             x: -self.x,
             y: -self.y,
         }
+    }
+
+    pub fn into_rlk_point(self) -> rltk::Point {
+        self.into()
+    }
+
+    pub fn distance(&self, v: V2I) -> f32 {
+        self.distance_sqr(v).sqrt()
+    }
+
+    pub fn distance_sqr(&self, v: V2I) -> f32 {
+        let delta = v - *self;
+        (delta.x * delta.x + delta.y * delta.y) as f32
     }
 }
 
@@ -55,6 +66,26 @@ impl Add for V2I {
     type Output = V2I;
 
     fn add(self, other: Self) -> Self::Output {
-        self.translate(other.x, other.y)
+        V2I::new(self.x + other.x, self.y + other.y)
+    }
+}
+
+impl Sub for V2I {
+    type Output = V2I;
+
+    fn sub(self, other: V2I) -> Self::Output {
+        V2I::new(self.x - other.x, self.y - other.y)
+    }
+}
+
+impl From<V2I> for rltk::Point {
+    fn from(value: V2I) -> Self {
+        rltk::Point::new(value.x, value.y)
+    }
+}
+
+impl From<rltk::Point> for V2I {
+    fn from(p: rltk::Point) -> Self {
+        V2I { x: p.x, y: p.y }
     }
 }

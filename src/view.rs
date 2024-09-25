@@ -4,6 +4,7 @@ pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::area::{Area, Tile};
+use crate::commons::grid::BaseGrid;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
 use crate::gridref::{GridId, GridRef};
@@ -11,21 +12,21 @@ use crate::models::{ObjectsKind, Position};
 use crate::state::State;
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
-use crate::P2;
 use crate::{actions, cfg};
+use crate::{ai, P2};
 use hecs::{Entity, World};
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, Default)]
 pub struct Visibility {
-    pub visible_tiles: Vec<rltk::Point>,
+    pub visible_tiles: Vec<V2I>,
     pub range: i32,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct VisibilityMemory {
-    pub know_tiles: HashMap<GridId, HashSet<rltk::Point>>,
+    pub know_tiles: HashMap<GridId, HashSet<V2I>>,
 }
 
 #[derive(Clone, Debug)]
@@ -38,6 +39,7 @@ pub struct Renderable {
 
 fn set_action_move(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i32) {
     actions::set_current_action(ecs, avatar_id, Action::Move(V2I::new(delta_x, delta_y)));
+    ai::give_turn_to_ai(ecs);
 }
 
 pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
@@ -60,7 +62,7 @@ pub fn player_input(gs: &mut State, ctx: &mut Rltk) {
             VirtualKeyCode::Numpad2 => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
             VirtualKeyCode::Numpad3 => set_action_move(&mut gs.ecs, avatar_id, 1, 1),
             VirtualKeyCode::I => {
-                actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact)
+                actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact);
             }
             // VirtualKeyCode::W => gs.camera.y -= 1,
             // VirtualKeyCode::A => gs.camera.x -= 1,
@@ -143,24 +145,15 @@ fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, rect: RectI) {
     draw_objects(&camera, &visibility.visible_tiles, &state.ecs, ctx);
 }
 
-impl Into<rltk::Point> for P2 {
-    fn into(self) -> rltk::Point {
-        rltk::Point {
-            x: self.x,
-            y: self.y,
-        }
-    }
-}
-
 fn draw_map(
     camera: &Camera,
-    visible_cells: &Vec<rltk::Point>,
-    know_cells: Option<&HashSet<rltk::Point>>,
+    visible_cells: &Vec<V2I>,
+    know_cells: Option<&HashSet<V2I>>,
     gmap: &Area,
     ctx: &mut Rltk,
 ) {
     for c in camera.list_cells() {
-        let cell = gmap.get_grid().get_at(&c.point);
+        let cell = gmap.get_grid().get_at_opt(c.point);
         let tile = cell.unwrap_or_default().tile;
 
         // calculate real tile
@@ -202,7 +195,7 @@ fn draw_map(
     }
 }
 
-fn draw_objects(camera: &Camera, visible_cells: &Vec<rltk::Point>, ecs: &World, ctx: &mut Rltk) {
+fn draw_objects(camera: &Camera, visible_cells: &Vec<V2I>, ecs: &World, ctx: &mut Rltk) {
     let mut query = ecs.query::<(&Position, &Renderable)>();
     let mut objects = query
         .into_iter()
@@ -238,7 +231,10 @@ fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
     {
         let gmap = GridRef::find_area(&state.ecs, position.grid_id).unwrap();
 
-        let tile = gmap.get_grid().get_at(&position.point).unwrap_or_default();
+        let tile = gmap
+            .get_grid()
+            .get_at_opt(position.point)
+            .unwrap_or_default();
         let objects_at = find_objects_at(&state.ecs, position);
 
         draw_gui_bottom_box(

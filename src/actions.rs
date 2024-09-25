@@ -1,3 +1,4 @@
+use crate::commons::grid::BaseGrid;
 use crate::commons::v2i::V2I;
 use crate::game_log::{GameLog, Msg};
 use crate::gridref::GridRef;
@@ -5,7 +6,6 @@ use crate::health::Health;
 use crate::models::{ObjectsKind, Position};
 use crate::utils::{find_mobs_at, find_objects_at};
 use crate::view::window::Window;
-use crate::{mob, utils};
 use hecs::{CommandBuffer, Entity, World};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -14,13 +14,17 @@ pub enum Action {
     Move(V2I),
 }
 
+#[derive(Clone, Debug)]
 pub struct WantInteract;
+
+#[derive(Clone, Debug)]
 pub struct WantMove {
-    dir: V2I,
+    pub(crate) dir: V2I,
 }
 
+#[derive(Clone, Debug)]
 pub struct WantAttack {
-    target_id: Entity,
+    pub target_id: Entity,
 }
 
 #[derive(Debug, Clone)]
@@ -75,14 +79,19 @@ fn run_action_assign_system(world: &mut World) {
     buffer.run_on(world);
 }
 
-pub fn run_actions_system(world: &mut World, window: &mut Window, game_log: &mut GameLog) {
+pub fn run_actions_system(
+    world: &mut World,
+    window: &mut Window,
+    game_log: &mut GameLog,
+    player_id: Entity,
+) {
     run_action_assign_system(world);
     run_action_wantinteract_system(world, window);
-    run_action_wantmove_system(world, game_log);
-    run_action_attack_system(world, game_log);
+    run_action_wantmove_system(world, game_log, player_id);
+    run_action_attack_system(world, game_log, player_id);
 }
 
-fn run_action_attack_system(world: &mut World, logs: &mut GameLog) {
+fn run_action_attack_system(world: &mut World, logs: &mut GameLog, player_id: Entity) {
     let mut buffer = CommandBuffer::new();
     for (agressor_id, (WantAttack { target_id },)) in &mut world.query::<(&WantAttack,)>() {
         buffer.remove_one::<WantAttack>(agressor_id);
@@ -90,12 +99,16 @@ fn run_action_attack_system(world: &mut World, logs: &mut GameLog) {
         let mut query = world.query_one::<&mut Health>(*target_id).unwrap();
         let target_health = query.get().unwrap();
         target_health.pending_damage.push(1);
-        logs.push(Msg::PlayerAttack {});
+        if player_id == agressor_id {
+            logs.push(Msg::PlayerAttack);
+        } else if *target_id == player_id {
+            logs.push(Msg::PlayerReceiveAttack);
+        }
     }
     buffer.run_on(world);
 }
 
-fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog) {
+fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_id: Entity) {
     let mut query = world.query::<(&WantMove, &Position)>();
     let candidates = query.iter().map(|(id, (WantMove { dir }, _))| (id, *dir));
 
@@ -108,15 +121,20 @@ fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog) {
         let next_pos = pos.translate_by(dir);
 
         if can_move_into(world, id, &next_pos) {
+            // TODO: must support mob attack a player
             let mob_on_next_cell = find_mobs_at(world, &next_pos);
             if let Some(target_id) = mob_on_next_cell.into_iter().next() {
                 buffer.insert_one(id, WantAttack { target_id });
             } else {
                 buffer.insert_one(id, next_pos);
-                game_log.push(Msg::PlayerMove);
+                if id == player_id {
+                    game_log.push(Msg::PlayerMove);
+                }
             }
         } else {
-            game_log.push(Msg::PlayerFailMove);
+            if id == player_id {
+                game_log.push(Msg::PlayerFailMove);
+            }
         }
     }
 
@@ -127,7 +145,7 @@ fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog) {
 fn can_move_into(world: &World, e: Entity, pos: &Position) -> bool {
     let area = GridRef::find_area(world, pos.grid_id).unwrap();
     area.get_grid()
-        .get_at(&pos.point)
+        .get_at_opt(pos.point)
         .map(|t| t.tile.is_opaque() == false)
         .unwrap_or(false)
 }

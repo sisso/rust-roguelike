@@ -1,7 +1,8 @@
 #[derive(Clone, Debug)]
 pub enum Msg {
-    PlayerAttack {},
-    Died {},
+    PlayerAttack,
+    PlayerReceiveAttack,
+    Died,
     ShipLand,
     ShipLaunch,
     PlayerMove,
@@ -15,8 +16,9 @@ impl Msg {
             Msg::Died { .. } => format!("mob dies"),
             Msg::ShipLand => format!("ship landed into planet"),
             Msg::ShipLaunch => format!("ship launch into space"),
-            Msg::PlayerMove => "player move".to_string(),
-            Msg::PlayerFailMove => "player fail to move".to_string(),
+            Msg::PlayerMove => "move".to_string(),
+            Msg::PlayerFailMove => "fail to move".to_string(),
+            Msg::PlayerReceiveAttack => "receive damage".to_string(),
         }
     }
 

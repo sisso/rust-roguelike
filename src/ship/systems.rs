@@ -1,4 +1,4 @@
-use crate::commons::grid::Coord;
+use crate::commons::grid::{BaseGrid, Coord};
 use crate::commons::recti;
 use crate::commons::v2i::V2I;
 use crate::game_log::{GameLog, Msg};

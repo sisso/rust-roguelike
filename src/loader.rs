@@ -1,6 +1,7 @@
 use hecs::{Entity, World};
 
 use crate::actions::EntityActions;
+use crate::ai::Ai;
 use crate::area::{Area, Cell, Tile};
 use crate::commons::grid::{Grid, NGrid};
 use crate::commons::grid_string::ParseMapError;
@@ -39,7 +40,7 @@ pub fn create_planet_zone_from(
 
     let id = world.reserve_entity();
 
-    let gmap = Area::new(NGrid::from_grid(grid), vec![id]);
+    let gmap = Area::from(id, grid);
 
     world.spawn_at(
         id,
@@ -129,6 +130,10 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                     requested: None,
                 },
                 ObjectsKind::Player,
+                Health {
+                    hp: 10,
+                    ..Default::default()
+                },
             ),
         )
         .unwrap();
@@ -151,12 +156,13 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
             visible_tiles: vec![],
             range: 14,
         },
-        Mob {},
+        Mob::default(),
         Health {
             hp: 1,
             ..Default::default()
         },
         ObjectsKind::Mob,
+        Ai::default(),
     ))
 }
 
@@ -165,6 +171,7 @@ pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
     Grid::new_from(map_ast.get_width(), map_ast.get_height(), cells)
 }
 
+#[derive(Debug, Clone)]
 pub struct MapAstCell {
     pub tile: Tile,
     pub obj: Option<ObjectsKind>,

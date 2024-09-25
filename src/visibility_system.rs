@@ -1,3 +1,5 @@
+use crate::commons::grid::BaseGrid;
+use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::models::Position;
 use crate::view::{Visibility, VisibilityMemory};
@@ -13,8 +15,11 @@ pub fn run(world: &World) {
         viewshed.visible_tiles = rltk::field_of_view(
             rltk::Point::new(pos.point.x, pos.point.y),
             viewshed.range,
-            &*gridmap,
-        );
+            gridmap.get_grid(),
+        )
+        .into_iter()
+        .map(|rlp| V2I::from(rlp))
+        .collect();
         viewshed.visible_tiles.retain(|p| {
             p.x >= 0
                 && p.x < gridmap.get_grid().get_width()

@@ -1,8 +1,9 @@
 use super::models::*;
 use crate::commons;
-use crate::commons::grid::{Coord, NGrid};
+use crate::commons::grid::{BaseGrid, Coord, Grid, NGrid};
 use crate::commons::v2i::V2I;
 use hecs::Entity;
+use rltk::SmallVec;
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Copy, Clone, Debug, Deserialize, Serialize)]
@@ -54,6 +55,11 @@ impl Area {
     pub fn new(grid: NGrid<Cell>, layers: Vec<Entity>) -> Self {
         Self { grid, layers }
     }
+
+    pub fn from(id: Entity, grid: Grid<Cell>) -> Self {
+        Self::new(NGrid::from_grid(grid), vec![id])
+    }
+
     pub fn get_layer_entity_at(&self, coord: &Coord) -> Option<Entity> {
         self.grid
             .get_layer(coord)
@@ -81,38 +87,6 @@ impl Area {
     }
 }
 
-impl rltk::Algorithm2D for Area {
-    fn dimensions(&self) -> rltk::Point {
-        let size = self.grid.get_size();
-        rltk::Point::new(size.x, size.y)
-    }
-
-    fn in_bounds(&self, pos: rltk::Point) -> bool {
-        self.grid.is_valid(&V2I::new(pos.x, pos.y))
-    }
-}
-
-impl rltk::BaseMap for Area {
-    fn is_opaque(&self, idx: usize) -> bool {
-        let w = self.grid.get_width();
-        let c = commons::grid::index_to_coord(w, idx as i32);
-        self.grid
-            .get_at(&c)
-            .map(|i| i.tile.is_opaque())
-            .unwrap_or(true)
-    }
-}
-
-struct ViewGrid<'a> {
-    grids: Vec<(Entity, P2, &'a Area)>,
-}
-
-impl<'a> ViewGrid<'a> {
-    pub fn create_view(_entity: Entity) -> ViewGrid<'a> {
-        todo!()
-    }
-}
-
 pub const EMPTY_CELL: Cell = Cell { tile: Tile::Space };
 
 #[derive(Debug, Clone, Default, Copy)]
@@ -136,5 +110,38 @@ impl commons::grid::GridCell for Cell {
 impl Default for &Cell {
     fn default() -> Self {
         &EMPTY_CELL
+    }
+}
+
+impl rltk::Algorithm2D for NGrid<Cell> {
+    fn dimensions(&self) -> rltk::Point {
+        self.get_size().into_rlk_point()
+    }
+
+    fn in_bounds(&self, pos: rltk::Point) -> bool {
+        self.is_valid_coords(V2I::from(pos))
+    }
+}
+
+impl rltk::BaseMap for NGrid<Cell> {
+    fn is_opaque(&self, idx: usize) -> bool {
+        let coords = self.index_to_coords(idx as i32);
+        self.get_at_opt(coords)
+            .map(|i| i.tile.is_opaque())
+            .unwrap_or(true)
+    }
+
+    fn get_available_exits(&self, idx: usize) -> SmallVec<[(usize, f32); 10]> {
+        self.get_8_neighbours(self.index_to_coords(idx as i32))
+            .into_iter()
+            .filter(|coord| !self.get_at(*coord).tile.is_opaque())
+            .map(|coord| (self.coords_to_index(coord) as usize, 1.0))
+            .collect()
+    }
+
+    fn get_pathing_distance(&self, id1: usize, id2: usize) -> f32 {
+        let c1 = self.index_to_coords(id1 as i32);
+        let c2 = self.index_to_coords(id2 as i32);
+        c1.distance_sqr(c2)
     }
 }

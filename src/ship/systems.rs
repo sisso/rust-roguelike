@@ -42,7 +42,7 @@ pub fn run(world: &mut World, game_log: &mut GameLog) {
             } => {
                 changes.push(Box::new(
                     move |world: &mut World, game_log: &mut GameLog| {
-                        do_ship_landing(world, ship_id, target_id, place_coords, game_log);
+                        do_ship_landing(world, ship_id, target_id, place_coords, Some(game_log));
                     },
                 ));
             }
@@ -112,12 +112,12 @@ fn set_ship_command(world: &mut World, ship_id: Entity, command: Command) {
 ///
 /// Why do we move grid into target grid? Is easy to manage a single data structure NGrid that for
 /// each cell recursive find the parent so we can check what area belong that grid
-fn do_ship_landing(
+pub fn do_ship_landing(
     world: &mut World,
     ship_id: Entity,
     target_id: Entity,
     place_coords: P2,
-    game_log: &mut GameLog,
+    game_log: Option<&mut GameLog>,
 ) {
     let ship_pos = {
         // update ship command to idle
@@ -176,7 +176,9 @@ fn do_ship_landing(
         )
         .expect("fail to update location");
 
-    game_log.push(Msg::ShipLand);
+    if let Some(game_log) = game_log {
+        game_log.push(Msg::ShipLand);
+    }
 }
 
 fn move_all_objects(world: &World, from_grid_id: Entity, to_grid_id: Entity, to_pos: V2I) {

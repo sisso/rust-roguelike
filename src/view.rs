@@ -12,6 +12,7 @@ use crate::commons::grid::BaseGrid;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
+use crate::health::{Health, Hp};
 use crate::models::{ObjectsKind, Position};
 use crate::state::State;
 use crate::utils::find_objects_at;
@@ -19,7 +20,7 @@ use crate::view::camera::Camera;
 use crate::visibility::{Visibility, VisibilityMemory};
 use crate::P2;
 use hecs::{Entity, World};
-use rltk::{BTerm, Rltk, RGB};
+use rltk::{BTerm, Rect, Rltk, TextAlign, RGB};
 use std::collections::HashSet;
 
 pub type Color = (u8, u8, u8);
@@ -161,22 +162,33 @@ pub fn draw_game_window(state: &mut State, ctx: &mut Rltk) {
     draw_gui(
         state,
         ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
-    );
-    draw_log_box(
-        state,
-        ctx,
-        RectI::new(
-            cfg::SCREEN_W / 4 + 1,
-            cfg::SCREEN_H - 10,
-            3 * cfg::SCREEN_W / 4 - 2,
-            9,
-        ),
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, 9),
     );
 }
 
 fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
-    for (_avatar_id, (position, actions)) in state.ecs.query::<(&Position, &EntityActions)>().iter()
+    let width4 = rect.get_width() / 4;
+    draw_info_box(
+        &state,
+        ctx,
+        RectI::new(rect.get_x(), rect.get_y(), width4, rect.get_height()),
+    );
+
+    draw_log_box(
+        state,
+        ctx,
+        RectI::new(
+            rect.get_x() + width4,
+            rect.get_y(),
+            3 * width4,
+            rect.get_height(),
+        ),
+    );
+}
+
+fn draw_info_box(state: &State, ctx: &mut BTerm, rect: RectI) {
+    for (_avatar_id, (position, actions, health)) in
+        &mut state.ecs.query::<(&Position, &EntityActions, &Health)>()
     {
         let gmap = GridRef::find_area(&state.ecs, position.grid_id).unwrap();
 
@@ -195,11 +207,12 @@ fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
                 .iter()
                 .map(ViewAction::to_tuple)
                 .collect::<Vec<_>>(),
+            (health.hp, health.max_hp),
         );
     }
 }
 
-fn draw_log_box(state: &mut State, ctx: &mut Rltk, rect: RectI) {
+fn draw_log_box(state: &State, ctx: &mut Rltk, rect: RectI) {
     ctx.draw_box(
         rect.get_x(),
         rect.get_y(),
@@ -261,6 +274,7 @@ fn draw_gui_bottom_box(
     current_tile: Tile,
     objects: &Vec<(Entity, ObjectsKind)>,
     actions: &Vec<(char, &str)>,
+    player_health: (Hp, Hp),
 ) {
     let box_x = rect.get_x();
     let box_y = rect.get_y();
@@ -275,8 +289,21 @@ fn draw_gui_bottom_box(
         RGB::named(rltk::BLACK),
     );
 
-    let inner_box_x = box_x + 1;
-    let inner_box_y = box_y + 1;
+    let text_x = box_x + 1;
+    let mut text_y = box_y + 1;
+
+    ctx.printer(
+        text_x,
+        text_y,
+        format!(
+            "#[gray]HP: #[red]{}#[gray]/#[red]{}",
+            player_health.0, player_health.1
+        ),
+        TextAlign::Left,
+        None,
+    );
+    text_y += 1;
+
     let tile_str = match current_tile {
         Tile::Ground => "ground",
         Tile::Floor => "floor",
@@ -284,9 +311,9 @@ fn draw_gui_bottom_box(
         Tile::Space => "space",
         Tile::OutOfMap => "oom",
     };
-    ctx.print_color(inner_box_x, inner_box_y, rltk::GRAY, rltk::BLACK, tile_str);
+    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
+    text_y += 1;
 
-    let mut j = inner_box_y + 1;
     for (_, k) in objects {
         let obj_str = match k {
             ObjectsKind::Door { .. } => "door",
@@ -294,19 +321,15 @@ fn draw_gui_bottom_box(
             _ => continue,
         };
 
-        ctx.print_color(inner_box_x, j, rltk::GRAY, rltk::BLACK, obj_str);
-        j += 1;
+        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, obj_str);
+        text_y += 1;
     }
 
-    {
-        let x = inner_box_x;
-        let mut y = inner_box_y + 2;
-        for (chr, action) in actions {
-            ctx.print_color(x, y, rltk::RED, rltk::BLACK, chr);
-            ctx.print_color(x + 1, y, rltk::GRAY, rltk::BLACK, " - ");
-            ctx.print_color(x + 4, y, rltk::GRAY, rltk::BLACK, action);
-            y += 1;
-        }
+    for (chr, action) in actions {
+        ctx.print_color(text_x, text_y, rltk::RED, rltk::BLACK, chr);
+        ctx.print_color(text_x + 1, text_y, rltk::GRAY, rltk::BLACK, " - ");
+        ctx.print_color(text_x + 4, text_y, rltk::GRAY, rltk::BLACK, action);
+        text_y += 1;
     }
 }
 

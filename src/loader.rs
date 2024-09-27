@@ -139,6 +139,7 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                 ObjectsKind::Player,
                 Health {
                     hp: 10,
+                    max_hp: 10,
                     ..Default::default()
                 },
             ),
@@ -166,6 +167,7 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
         Mob::default(),
         Health {
             hp: 1,
+            max_hp: 1,
             ..Default::default()
         },
         ObjectsKind::Mob,
@@ -275,7 +277,13 @@ fn new_parser(cfg: Cfg) -> Box<dyn Fn(char) -> Option<MapAstCell>> {
     Box::new(f)
 }
 
-pub fn start_game(state: &mut State) {
+pub enum NewGameParams {
+    Normal,
+    Orbiting,
+    Landed,
+}
+
+pub fn start_game(state: &mut State, params: &NewGameParams) {
     let parser = new_parser(state.cfg.clone());
     let ship_map_ast = grid_string::parse_map(parser, cfg::SHIP_MAP).expect("fail to load map");
     let ship_grid = new_grid_from_ast(&ship_map_ast);
@@ -294,19 +302,19 @@ pub fn start_game(state: &mut State) {
     let zone_size = 100;
 
     let mut planets_zones: Vec<(Entity, SurfaceTileKind)> = (0..3)
-        .map(|i| create_planet_zone(&mut state.ecs, i, zone_size, area::Tile::Ground))
+        .map(|i| create_planet_zone(&mut state.ecs, i, zone_size, Tile::Ground))
         .map(|e| (e, SurfaceTileKind::Plain))
         .collect();
 
     let house_pos = V2I::new(zone_size / 2 + 30, zone_size / 2);
     let planet_zone_house_grid_id = create_planet_zone_from(
         &mut state.ecs,
-        3,
+        0,
         100,
-        area::Tile::Ground,
+        Tile::Ground,
         vec![(house_pos, &house_grid)],
     );
-    planets_zones.push((planet_zone_house_grid_id, SurfaceTileKind::Structure));
+    planets_zones.insert(0, (planet_zone_house_grid_id, SurfaceTileKind::Structure));
 
     log::debug!("planet zones id {:?}", planets_zones);
 
@@ -317,18 +325,21 @@ pub fn start_game(state: &mut State) {
             sector_id,
             pos: P2::new(5, 0),
         },
-        planets_zones,
+        planets_zones.clone(),
         2,
     );
     log::debug!("planet id {:?}", planet_id);
 
-    let ship_location = Location::Orbit {
-        target_id: planet_id,
+    let ship_location = match params {
+        NewGameParams::Normal => Location::Sector {
+            sector_id: sector_id,
+            pos: P2::new(0, 0),
+        },
+        NewGameParams::Orbiting | NewGameParams::Landed => Location::Orbit {
+            target_id: planet_id,
+        },
     };
-    // let ship_location = Location::Sector {
-    //     sector_id: sector_id,
-    //     pos: P2::new(0, 0),
-    // }
+
     let ship_id = create_ship(
         &mut state.ecs,
         "ship",
@@ -351,14 +362,6 @@ pub fn start_game(state: &mut State) {
     );
     log::info!("avatar id: {:?}", avatar_entity_id);
 
-    _ = create_mob(
-        state,
-        Position {
-            grid_id: planet_zone_house_grid_id,
-            point: house_pos + V2I::new(-10, 0),
-        },
-    );
-
     // load objects
     parse_map_objects(&mut state.ecs, v2i::ZERO, ship_id, ship_map_ast)
         .expect("fail to load map objects");
@@ -369,6 +372,32 @@ pub fn start_game(state: &mut State) {
         house_ast,
     )
     .expect("fail to load map objects");
+
+    // spawn custom objects
+    _ = create_mob(
+        state,
+        Position {
+            grid_id: planet_zone_house_grid_id,
+            point: house_pos + V2I::new(-10, 0),
+        },
+    );
+
+    // extra changes
+    match params {
+        NewGameParams::Landed => {
+            let surface_id = planets_zones[0].0;
+            let landing_coords = V2I::new(zone_size / 2, zone_size / 2);
+
+            ship::systems::do_ship_landing(
+                &mut state.ecs,
+                ship_id,
+                surface_id,
+                landing_coords,
+                None,
+            );
+        }
+        _ => {}
+    }
 
     sectors::update_bodies_list(&mut state.ecs);
 }

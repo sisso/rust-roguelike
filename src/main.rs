@@ -1,18 +1,11 @@
 extern crate core;
 
-use hecs::Entity;
 use state::State;
 
 use crate::area::Area;
 use crate::cfg::Cfg;
-use crate::commons::grid::NGrid;
-use crate::commons::v2i::V2I;
-use crate::commons::{grid_string, v2i};
-use crate::loader::MapAstCell;
 use crate::models::*;
 use crate::ship::Ship;
-use crate::view::cockpit_window::CockpitWindowState;
-use crate::view::window::Window;
 
 pub mod actions;
 mod ai;
@@ -43,12 +36,19 @@ fn main() -> rltk::BError {
         .filter(None, log::LevelFilter::Debug)
         .init();
 
+    prepare_text_pallet();
+
     let context = RltkBuilder::simple80x50().with_title("Space RL").build()?;
 
     // initialize
     let cfg = Cfg::new();
     let state = State::new(cfg);
     rltk::main_loop(context, state)
+}
+
+fn prepare_text_pallet() {
+    rltk::register_palette_color("red", rltk::RED);
+    rltk::register_palette_color("gray", rltk::GRAY);
 }
 
 #[cfg(test)]

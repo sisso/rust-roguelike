@@ -4,6 +4,7 @@ use crate::actions::EntityActions;
 use crate::ai::Ai;
 use crate::area::{Area, Cell, Tile};
 use crate::cfg::Cfg;
+use crate::combat::{CombatStats, Dice};
 use crate::commons::grid::{Grid, NGrid};
 use crate::commons::grid_string::ParseMapError;
 use crate::commons::v2i::V2I;
@@ -142,6 +143,11 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                     max_hp: 10,
                     ..Default::default()
                 },
+                CombatStats {
+                    attack: Dice::new(2, 0),
+                    defense: Dice::new(2, 0),
+                    damage: Dice::new(1, 0),
+                },
             ),
         )
         .unwrap();
@@ -172,6 +178,11 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
         },
         ObjectsKind::Mob,
         Ai::default(),
+        CombatStats {
+            attack: Dice::new(1, 0),
+            defense: Dice::new(1, 0),
+            damage: Dice::new(1, 0),
+        },
     ))
 }
 

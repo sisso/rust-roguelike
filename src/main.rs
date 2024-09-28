@@ -11,6 +11,7 @@ pub mod actions;
 mod ai;
 pub mod area;
 pub mod cfg;
+mod combat;
 pub mod commons;
 pub mod events;
 mod game_log;

@@ -5,7 +5,9 @@ use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
 use crate::{actions, ai, health, ship, view, visibility_system};
 use hecs::World;
-use rltk::{BTerm as Rltk, BTerm};
+use rand::prelude::StdRng;
+use rand::SeedableRng;
+use rltk::BTerm as Rltk;
 
 pub struct State {
     pub cfg: Cfg,
@@ -14,6 +16,7 @@ pub struct State {
     pub player: Player,
     pub cockpit_window: CockpitWindowState,
     pub logs: GameLog,
+    pub rng: StdRng,
 }
 
 impl State {
@@ -28,6 +31,7 @@ impl State {
             player: Player::new(player_id),
             cockpit_window: Default::default(),
             logs: Default::default(),
+            rng: SeedableRng::seed_from_u64(0),
         };
         state.clear();
         state
@@ -49,6 +53,7 @@ impl State {
             &mut self.ecs,
             &mut self.window,
             &mut self.logs,
+            &mut self.rng,
             self.player.get_avatar_id(),
         );
         ship::systems::run(&mut self.ecs, &mut self.logs);

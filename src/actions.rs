@@ -1,3 +1,5 @@
+use crate::combat;
+use crate::combat::{CombatResult, CombatStats};
 use crate::commons::grid::BaseGrid;
 use crate::commons::v2i::V2I;
 use crate::game_log::{GameLog, Msg};
@@ -7,6 +9,7 @@ use crate::models::{ObjectsKind, Position};
 use crate::utils::{find_mobs_at, find_objects_at};
 use crate::view::window::Window;
 use hecs::{CommandBuffer, Entity, World};
+use rand::rngs::StdRng;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
@@ -83,26 +86,79 @@ pub fn run_actions_system(
     world: &mut World,
     window: &mut Window,
     game_log: &mut GameLog,
+    rng: &mut StdRng,
     player_id: Entity,
 ) {
     run_action_assign_system(world);
     run_action_wantinteract_system(world, window);
     run_action_wantmove_system(world, game_log, player_id);
-    run_action_attack_system(world, game_log, player_id);
+    run_action_attack_system(world, game_log, rng, player_id);
 }
 
-fn run_action_attack_system(world: &mut World, logs: &mut GameLog, player_id: Entity) {
+fn run_action_attack_system(
+    world: &mut World,
+    logs: &mut GameLog,
+    rng: &mut StdRng,
+    player_id: Entity,
+) {
     let mut buffer = CommandBuffer::new();
-    for (agressor_id, (WantAttack { target_id },)) in &mut world.query::<(&WantAttack,)>() {
-        buffer.remove_one::<WantAttack>(agressor_id);
+    for (
+        attacker_id,
+        (
+            WantAttack {
+                target_id: defender_id,
+            },
+            attack_combat_status,
+        ),
+    ) in &mut world.query::<(&WantAttack, &CombatStats)>()
+    {
+        buffer.remove_one::<WantAttack>(attacker_id);
 
-        let mut query = world.query_one::<&mut Health>(*target_id).unwrap();
-        let target_health = query.get().unwrap();
-        target_health.pending_damage.push(1);
-        if player_id == agressor_id {
-            logs.push(Msg::PlayerAttack);
-        } else if *target_id == player_id {
-            logs.push(Msg::PlayerReceiveAttack);
+        let mut query = world.query_one::<&CombatStats>(*defender_id).unwrap();
+        let defender_attack_status = query.get();
+
+        let cs = combat::execute_attack(rng, attack_combat_status, defender_attack_status);
+
+        match cs {
+            CombatResult::AttackHit {
+                hit_roll,
+                hit_require,
+                damage_roll,
+            } => {
+                let mut query = world.query_one::<&mut Health>(*defender_id).unwrap();
+                let target_health = query.get().unwrap();
+                target_health.pending_damage.push(1);
+
+                if player_id == attacker_id {
+                    logs.push(Msg::PlayerAttack {
+                        hit_roll,
+                        hit_require,
+                        damage: damage_roll,
+                    });
+                } else if *defender_id == player_id {
+                    logs.push(Msg::PlayerReceiveAttack {
+                        hit_roll,
+                        hit_require,
+                        damage: damage_roll,
+                    });
+                }
+            }
+            CombatResult::Defend {
+                hit_roll,
+                hit_require,
+            } => {
+                if player_id == attacker_id {
+                    logs.push(Msg::PlayerMissAttack {
+                        hit_roll,
+                        hit_require,
+                    });
+                } else if *defender_id == player_id {
+                    logs.push(Msg::PlayerReceiveMissAttack {
+                        hit_roll,
+                        hit_require,
+                    });
+                }
+            }
         }
     }
     buffer.run_on(world);

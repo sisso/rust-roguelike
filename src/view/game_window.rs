@@ -27,7 +27,15 @@ pub struct GameWindowState {
 }
 
 pub fn run_window(state: &mut State, ctx: &mut Rltk) {
-    let game_area = RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H);
+    let left_colum_width = 10;
+    let bottom_bar_height = 9;
+
+    let game_area = RectI::new(
+        left_colum_width,
+        0,
+        cfg::SCREEN_W - left_colum_width,
+        cfg::SCREEN_H - bottom_bar_height,
+    );
     match &state.window_manage.game_state.sub_window {
         SubWindow::Normal => {
             process_input(state, ctx);
@@ -38,16 +46,16 @@ pub fn run_window(state: &mut State, ctx: &mut Rltk) {
         _ => {}
     }
 
-    view::draw_map_and_objects(state, ctx, game_area.clone());
+    view::draw_map_and_objects(state, ctx, game_area);
     view::draw_gui(
         state,
         ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, 9),
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, bottom_bar_height),
     );
 
     match &state.window_manage.game_state.sub_window {
         SubWindow::Info { target } => {
-            draw_info_at(state, ctx, target.clone(), game_area.clone());
+            draw_info_at(state, ctx, target.clone(), game_area);
         }
         _ => {}
     }
@@ -57,7 +65,7 @@ fn draw_info_at(state: &mut State, ctx: &mut Rltk, pos: Coord, rect: RectI) {
     let player_pos = utils::get_position(&state.ecs, state.player.get_avatar_id()).unwrap();
     // TODO: add camera to state
     let camera = Camera::from_center(player_pos, rect);
-    let marker_pos = camera.global_to_screen(pos);
+    let marker_pos = camera.world_to_screen(pos);
     ctx.print_color(marker_pos.x, marker_pos.y, rltk::GRAY, rltk::BLACK, "X");
 }
 

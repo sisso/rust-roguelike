@@ -35,8 +35,8 @@ pub const HOUSE_MAP: &str = r"
 ###-#####
 ";
 
-pub const SCREEN_W: i32 = 80;
-pub const SCREEN_H: i32 = 50;
+pub const SCREEN_W: i32 = 120;
+pub const SCREEN_H: i32 = 100;
 pub const SECTOR_SIZE: i32 = 11;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

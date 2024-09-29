@@ -39,7 +39,10 @@ fn main() -> rltk::BError {
 
     prepare_text_pallet();
 
-    let context = RltkBuilder::simple80x50().with_title("Space RL").build()?;
+    let context = RltkBuilder::simple(cfg::SCREEN_W, cfg::SCREEN_H)
+        .unwrap()
+        .with_title("Space RL")
+        .build()?;
 
     // initialize
     let cfg = Cfg::new();

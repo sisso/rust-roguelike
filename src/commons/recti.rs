@@ -1,6 +1,6 @@
 use super::v2i::V2I;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub struct RectI {
     topleft: V2I,
     bottomright: V2I,
@@ -23,6 +23,10 @@ impl RectI {
 
     pub fn get_y(&self) -> i32 {
         self.topleft.y
+    }
+
+    pub fn get_xy(&self) -> V2I {
+        V2I::new(self.topleft.x, self.topleft.y)
     }
 
     pub fn get_top_left(&self) -> V2I {

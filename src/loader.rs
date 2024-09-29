@@ -263,7 +263,7 @@ pub fn parse_map_objects(
 }
 
 // TODO: remove this hack that require cfg to clone
-fn new_parser(cfg: Cfg) -> Box<dyn Fn(char) -> Option<MapAstCell>> {
+pub fn new_parser(cfg: Cfg) -> Box<dyn Fn(char) -> Option<MapAstCell>> {
     let f = move |ch| {
         let tile = cfg
             .map_parser

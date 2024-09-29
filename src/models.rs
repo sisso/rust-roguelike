@@ -30,7 +30,7 @@ impl Player {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub struct Position {
     pub grid_id: Entity,
     pub point: Coord,

@@ -6,7 +6,7 @@ use rltk::{Rltk, VirtualKeyCode, RGB};
 
 pub fn run(state: &mut State, ctx: &mut Rltk) {
     let menu_rect = view::get_window_rect().shrink(2);
-    view::draw_rect(ctx, &menu_rect, rltk::WHITE, rltk::BLACK);
+    view::draw_rect(ctx, menu_rect, rltk::WHITE, rltk::BLACK);
 
     let internal_rect = menu_rect.shrink(2);
     let mut y = internal_rect.get_y() + 1;

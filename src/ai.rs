@@ -69,7 +69,7 @@ mod test {
     use crate::area::Area;
     use crate::commons::grid::BaseGrid;
     use crate::commons::grid_string;
-    use crate::new_parser;
+    use crate::loader::new_parser;
     use crate::{cfg, loader};
     use hecs::Entity;
 

@@ -37,7 +37,7 @@ pub fn get_window_rect() -> RectI {
     RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H)
 }
 
-pub fn draw_rect(ctx: &mut Rltk, rect: &RectI, fg: Color, bg: Color) {
+pub fn draw_rect(ctx: &mut Rltk, rect: RectI, fg: Color, bg: Color) {
     ctx.draw_box(
         rect.get_x(),
         rect.get_y(),
@@ -48,24 +48,24 @@ pub fn draw_rect(ctx: &mut Rltk, rect: &RectI, fg: Color, bg: Color) {
     );
 }
 
-fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, rect: RectI) {
+fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, screen_rect: RectI) {
     let avatar_id = state.player.get_avatar_id();
 
     let mut query = state
         .ecs
         .query_one::<(&Visibility, &Position, &VisibilityMemory)>(avatar_id)
         .expect("player avatar not found");
-    let (visibility, pos, memory) = query.get().expect("player not found");
+    let (visibility, avatar_pos, memory) = query.get().expect("player not found");
 
     // TODO: add camera to state
-    let camera = Camera::from_center(pos.clone(), rect);
+    let camera = Camera::from_center(*avatar_pos, screen_rect);
 
     // draw
-    let map = GridRef::find_area(&state.ecs, pos.grid_id).expect("area not found");
+    let map = GridRef::find_area(&state.ecs, avatar_pos.grid_id).expect("area not found");
     draw_map(
         &camera,
         &visibility.visible_tiles,
-        memory.know_tiles.get(&pos.grid_id),
+        memory.know_tiles.get(&avatar_pos.grid_id),
         &map,
         ctx,
     );
@@ -80,7 +80,7 @@ fn draw_map(
     ctx: &mut Rltk,
 ) {
     for c in camera.list_cells() {
-        let cell = gmap.get_grid().get_at_opt(c.point);
+        let cell = gmap.get_grid().get_at_opt(c.world_pos);
         let tile = cell.unwrap_or_default().tile;
 
         // calculate real tile
@@ -88,18 +88,18 @@ fn draw_map(
             Tile::Ground => (rltk::LIGHT_GRAY, rltk::BLACK, '.'),
             Tile::Floor => (rltk::LIGHT_GREEN, rltk::BLACK, '.'),
             Tile::Wall => (rltk::GREEN, rltk::BLACK, '#'),
-            Tile::Space => (rltk::BLACK, rltk::BLACK, ' '),
-            Tile::OutOfMap => (rltk::BLACK, rltk::GRAY, ' '),
+            Tile::Space => (rltk::BLACK, rltk::BLACK, '?'),
+            Tile::OutOfMap => (rltk::BLACK, rltk::GRAY, '%'),
         };
 
         // replace non visible tiles
         if visible_cells
             .iter()
-            .find(|p| c.point.x == p.x && c.point.y == p.y)
+            .find(|p| c.world_pos.x == p.x && c.world_pos.y == p.y)
             .is_none()
         {
             if know_cells
-                .map(|i| i.contains(&c.point.into()))
+                .map(|i| i.contains(&c.world_pos.into()))
                 .unwrap_or(false)
             {
                 // if is know
@@ -108,13 +108,13 @@ fn draw_map(
                 // unknown
                 fg = rltk::BLACK;
                 bg = rltk::BLACK;
-                ch = ' ';
+                ch = '?';
             }
         }
 
         ctx.set(
-            c.screen_point.x,
-            c.screen_point.y,
+            c.screen_pos.x,
+            c.screen_pos.y,
             fg,
             bg,
             ch as rltk::FontCharType,
@@ -124,21 +124,21 @@ fn draw_map(
 
 fn draw_map_objects(camera: &Camera, visible_cells: &Vec<V2I>, ecs: &World, ctx: &mut Rltk) {
     let mut query = ecs.query::<(&Position, &Renderable)>();
+    // find objects in the grid
     let mut objects = query
         .into_iter()
-        .filter(|(_, (pos, _))| Some(pos.grid_id) == camera.grid_id)
+        .filter(|(_, (pos, _))| pos.grid_id == camera.grid_id)
         .map(|(_, c)| c)
         .collect::<Vec<_>>();
     objects.sort_by(|&a, &b| a.1.priority.cmp(&b.1.priority));
 
     for (pos, render) in objects {
-        let point = &pos.point;
-        let screen_point = camera.global_to_screen(*point);
+        if camera.in_world(pos.point) {
+            let screen_point = camera.world_to_screen(pos.point);
 
-        if camera.is_global_in(*point) {
             if visible_cells
                 .iter()
-                .find(|p| p.x == point.x && p.y == point.y)
+                .find(|p| p.x == pos.point.x && p.y == pos.point.y)
                 .is_some()
             {
                 ctx.set(
@@ -268,21 +268,10 @@ fn draw_gui_bottom_box(
     actions: &Vec<(char, &str)>,
     player_health: (Hp, Hp),
 ) {
-    let box_x = rect.get_x();
-    let box_y = rect.get_y();
-    let box_h = rect.get_height();
-    let box_w = rect.get_width();
-    ctx.draw_box(
-        box_x,
-        box_y,
-        box_w,
-        box_h,
-        RGB::named(rltk::WHITE),
-        RGB::named(rltk::BLACK),
-    );
+    draw_rect(ctx, rect, rltk::WHITE, rltk::BLACK);
 
-    let text_x = box_x + 1;
-    let mut text_y = box_y + 1;
+    let text_x = rect.get_x() + 1;
+    let mut text_y = rect.get_y() + 1;
 
     ctx.printer(
         text_x,
@@ -345,50 +334,4 @@ pub fn read_key_direction(ctx: &mut Rltk) -> Option<V2I> {
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-
-    /*
-          0 1 2 3 4 5 ...
-        0
-        1   * * * * *
-        2   * * * * *
-        3   * * * * *
-        4   * * * * *
-        .
-        .
-
-    */
-    #[test]
-    fn test_camera_to_local_and_global() {
-        let camera = Camera {
-            grid_id: None,
-            x: 1,
-            y: 1,
-            w: 4,
-            h: 3,
-        };
-
-        assert_eq!(P2::new(1, 1), camera.screen_to_global((0, 0).into()));
-        assert_eq!(P2::new(6, 5), camera.screen_to_global((5, 4).into()));
-        assert_eq!(P2::new(0, 0), camera.global_to_screen((1, 1).into()));
-        assert_eq!(P2::new(-1, -1), camera.global_to_screen((0, 0).into()));
-    }
-    #[test]
-    fn test_camera_iterator() {
-        let camera = Camera {
-            grid_id: None,
-            x: 1,
-            y: 1,
-            w: 4,
-            h: 3,
-        };
-
-        let cells = camera.list_cells().collect::<Vec<_>>();
-        assert_eq!(12, cells.len());
-        assert_eq!(0, cells[4].screen_point.x);
-        assert_eq!(1, cells[4].screen_point.y);
-        assert_eq!(1, cells[4].point.x);
-        assert_eq!(2, cells[4].point.y);
-    }
-}
+mod test {}

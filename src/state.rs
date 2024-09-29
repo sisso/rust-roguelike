@@ -2,7 +2,8 @@ use crate::cfg::Cfg;
 use crate::game_log::GameLog;
 use crate::models::Player;
 use crate::view::cockpit_window::CockpitWindowState;
-use crate::view::window::Window;
+use crate::view::game_window::ShootWindowState;
+use crate::view::window::{Window, WindowManage};
 use crate::{actions, ai, health, ship, view, visibility_system};
 use hecs::World;
 use rand::prelude::StdRng;
@@ -12,9 +13,11 @@ use rltk::BTerm as Rltk;
 pub struct State {
     pub cfg: Cfg,
     pub ecs: World,
-    pub window: Window,
+    // pub window: Window,
+    pub window_manage: WindowManage,
     pub player: Player,
-    pub cockpit_window: CockpitWindowState,
+    // pub cockpit_window: CockpitWindowState,
+    // pub shoot_window_state: ShootWindowState,
     pub logs: GameLog,
     pub rng: StdRng,
 }
@@ -27,9 +30,11 @@ impl State {
         let mut state = State {
             cfg,
             ecs: world,
-            window: Window::MainMenu,
+            // window: Window::MainMenu,
+            window_manage: WindowManage::default(),
             player: Player::new(player_id),
-            cockpit_window: Default::default(),
+            // cockpit_window: Default::default(),
+            // shoot_window_state: Default::default(),
             logs: Default::default(),
             rng: SeedableRng::seed_from_u64(0),
         };
@@ -51,7 +56,7 @@ impl State {
         actions::run_available_actions_system(&mut self.ecs);
         actions::run_actions_system(
             &mut self.ecs,
-            &mut self.window,
+            &mut self.window_manage,
             &mut self.logs,
             &mut self.rng,
             self.player.get_avatar_id(),
@@ -65,13 +70,12 @@ impl rltk::GameState for State {
     fn tick(&mut self, ctx: &mut Rltk) {
         ctx.cls();
 
-        let window = self.window;
+        self.run_game_loop_systems();
 
-        match window {
+        match self.window_manage.get_window() {
             Window::World => view::game_window::run_main_window(self, ctx),
-
+            Window::WorldShoot => view::game_window::run_shoot_window(self, ctx),
             Window::Cockpit { cockpit_id } => {
-                self.run_game_loop_systems();
                 view::cockpit_window::draw_cockpit(self, ctx, cockpit_id);
             }
             Window::MainMenu => {

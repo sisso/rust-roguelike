@@ -7,7 +7,7 @@ use crate::gridref::GridRef;
 use crate::health::Health;
 use crate::models::{ObjectsKind, Position};
 use crate::utils::{find_mobs_at, find_objects_at};
-use crate::view::window::Window;
+use crate::view::window::{Window, WindowManage};
 use hecs::{CommandBuffer, Entity, World};
 use rand::rngs::StdRng;
 
@@ -15,10 +15,8 @@ use rand::rngs::StdRng;
 pub enum Action {
     Interact,
     Move(V2I),
+    SearchToShoot,
 }
-
-#[derive(Clone, Debug)]
-pub struct WantInteract;
 
 #[derive(Clone, Debug)]
 pub struct WantMove {
@@ -70,11 +68,21 @@ pub fn run_available_actions_system(world: &mut World) {
     }
 }
 
-fn run_action_assign_system(world: &mut World) {
+fn run_action_assign_system(world: &mut World, window_manage: &mut WindowManage) {
     let mut buffer = CommandBuffer::new();
     for (e, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
         match actions.requested.take() {
-            Some(Action::Interact) => buffer.insert_one(e, WantInteract),
+            Some(Action::Interact) => {
+                let objects_at = find_objects_at(world, &pos);
+                match objects_at.into_iter().find(|(_, k)| k.can_interact()) {
+                    Some((id, _)) => {
+                        // change window to cockpit
+                        window_manage.set_window(Window::Cockpit { cockpit_id: id });
+                    }
+                    None => log::warn!("{e:?} try to interact but not object has interaction"),
+                }
+            }
+            Some(Action::SearchToShoot) => window_manage.set_window(Window::WorldShoot),
             Some(Action::Move(dir)) => buffer.insert_one(e, WantMove { dir }),
             None => {}
         }
@@ -84,13 +92,13 @@ fn run_action_assign_system(world: &mut World) {
 
 pub fn run_actions_system(
     world: &mut World,
-    window: &mut Window,
+    // window: &mut Window,
+    window_manage: &mut WindowManage,
     game_log: &mut GameLog,
     rng: &mut StdRng,
     player_id: Entity,
 ) {
-    run_action_assign_system(world);
-    run_action_wantinteract_system(world, window);
+    run_action_assign_system(world, window_manage);
     run_action_wantmove_system(world, game_log, player_id);
     run_action_attack_system(world, game_log, rng, player_id);
 }
@@ -204,21 +212,4 @@ fn can_move_into(world: &World, e: Entity, pos: &Position) -> bool {
         .get_at_opt(pos.point)
         .map(|t| t.tile.is_opaque() == false)
         .unwrap_or(false)
-}
-
-fn run_action_wantinteract_system(world: &mut World, window: &mut Window) {
-    let mut buffer = CommandBuffer::new();
-    for (e, (_, pos)) in &mut world.query::<(&WantInteract, &Position)>() {
-        let objects_at = find_objects_at(world, &pos);
-        match objects_at.into_iter().find(|(_, k)| k.can_interact()) {
-            Some((id, _)) => {
-                // change window to cockpit
-                *window = Window::Cockpit { cockpit_id: id };
-            }
-            None => log::warn!("{e:?} try to interact but not object has interaction"),
-        }
-
-        buffer.remove_one::<WantInteract>(e);
-    }
-    buffer.run_on(world);
 }

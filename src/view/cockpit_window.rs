@@ -81,7 +81,7 @@ impl CockpitWindowState {
 pub fn draw(state: &mut State, ctx: &mut Rltk, _cockpit_id: Entity, rect: RectI) {
     let info = LocalInfo::from(&state.ecs, state.player.get_avatar_id());
 
-    match state.cockpit_window.sub_window {
+    match state.window_manage.cockpit_window.sub_window {
         SubWindow::Main => draw_main(state, ctx, info, rect),
         SubWindow::Land { .. } => draw_land_menu(
             state,
@@ -135,7 +135,7 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo, rect: RectI) {
             try_do_command(state, ctx, info.ship_id.unwrap(), commands.get(index))
         }
         (Some(VirtualKeyCode::Escape), _) => {
-            state.window = Window::World;
+            state.window_manage.set_window(Window::World);
             Ok(())
         }
         _ => Ok(()),
@@ -143,14 +143,14 @@ fn draw_main(state: &mut State, ctx: &mut Rltk, info: LocalInfo, rect: RectI) {
 
     match executed {
         Err(msg) => {
-            state.cockpit_window.last_msg = Some(msg);
+            state.window_manage.cockpit_window.last_msg = Some(msg);
         }
         _ => {}
     }
 }
 
 fn draw_msg(state: &State, ctx: &mut BTerm, border: i32, x: i32, y: i32) -> i32 {
-    if let Some(msg) = &state.cockpit_window.last_msg {
+    if let Some(msg) = &state.window_manage.cockpit_window.last_msg {
         ctx.print_color(x, cfg::SCREEN_H - border - 1, rltk::GRAY, rltk::RED, msg);
     }
     y
@@ -248,7 +248,7 @@ fn try_do_command(
 ) -> Result<(), String> {
     match command {
         Some(MenuOption::Land) => {
-            state.cockpit_window = CockpitWindowState::new(SubWindow::Land {
+            state.window_manage.cockpit_window = CockpitWindowState::new(SubWindow::Land {
                 selected: P2::new(0, 0),
             });
         }
@@ -420,7 +420,7 @@ fn draw_land_menu(
     // status
     y = draw_status(state, ctx, ship_id, x, y);
     // orbiting map
-    let place_coords = match &state.cockpit_window.sub_window {
+    let place_coords = match &state.window_manage.cockpit_window.sub_window {
         SubWindow::Land { selected } => *selected,
         _ => panic!("unexpected subwindow"),
     };
@@ -430,7 +430,7 @@ fn draw_land_menu(
     let surface = match state.ecs.get::<&Surface>(orbiting_id).ok() {
         Some(surface) => surface,
         _ => {
-            state.cockpit_window = CockpitWindowState::new(SubWindow::Main);
+            state.window_manage.cockpit_window = CockpitWindowState::new(SubWindow::Main);
             return;
         }
     };
@@ -448,7 +448,7 @@ fn draw_land_menu(
     // process inputs
     match (ctx.key, get_key_index(ctx.key)) {
         (_, Some(index)) if index == 0 => {
-            state.cockpit_window = CockpitWindowState::new(SubWindow::Main);
+            state.window_manage.cockpit_window = CockpitWindowState::new(SubWindow::Main);
         }
         (_, Some(index)) if index == 1 => {
             let selected_index =
@@ -465,8 +465,8 @@ fn draw_land_menu(
                 },
             );
             // reset cockipt window and close
-            state.cockpit_window = CockpitWindowState::new(SubWindow::Main);
-            state.window = Window::World;
+            state.window_manage.cockpit_window = CockpitWindowState::new(SubWindow::Main);
+            state.window_manage.set_window(Window::World);
         }
         (Some(VirtualKeyCode::Up), _) | (Some(VirtualKeyCode::Numpad8), _) => {
             drop(surface);
@@ -506,7 +506,7 @@ fn set_selected_land_position(state: &mut State, surface_size: P2, mut current: 
         current.y = 0;
     }
 
-    state.cockpit_window.sub_window = SubWindow::Land { selected: current };
+    state.window_manage.cockpit_window.sub_window = SubWindow::Land { selected: current };
 }
 
 fn set_ship_command(ecs: &mut World, ship_id: Entity, ship_command: ship::Command) {
@@ -581,16 +581,6 @@ pub fn draw_cockpit(state: &mut State, ctx: &mut Rltk, cockpit_id: Entity) {
     super::draw_gui(
         state,
         ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W / 4, 9),
-    );
-    super::draw_log_box(
-        state,
-        ctx,
-        RectI::new(
-            cfg::SCREEN_W / 4 + 1,
-            cfg::SCREEN_H - 10,
-            3 * cfg::SCREEN_W / 4 - 2,
-            9,
-        ),
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, 9),
     );
 }

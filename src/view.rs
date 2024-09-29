@@ -7,8 +7,7 @@ pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::area::{Area, Tile};
-use crate::cfg;
-use crate::commons::grid::BaseGrid;
+use crate::commons::grid::{BaseGrid, Coord};
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
@@ -19,8 +18,9 @@ use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::visibility::{Visibility, VisibilityMemory};
 use crate::P2;
+use crate::{actions, cfg};
 use hecs::{Entity, World};
-use rltk::{BTerm, Rect, Rltk, TextAlign, RGB};
+use rltk::{BTerm, Rect, Rltk, TextAlign, VirtualKeyCode, RGB};
 use std::collections::HashSet;
 
 pub type Color = (u8, u8, u8);
@@ -330,6 +330,28 @@ fn draw_gui_bottom_box(
         ctx.print_color(text_x + 1, text_y, rltk::GRAY, rltk::BLACK, " - ");
         ctx.print_color(text_x + 4, text_y, rltk::GRAY, rltk::BLACK, action);
         text_y += 1;
+    }
+}
+
+pub fn read_key_direction(ctx: &mut Rltk) -> Option<V2I> {
+    match ctx.key {
+        Some(key) => match key {
+            VirtualKeyCode::Left | VirtualKeyCode::A => Some(V2I::new(-1, 0)),
+            VirtualKeyCode::Right | VirtualKeyCode::D => Some(V2I::new(1, 0)),
+            VirtualKeyCode::Up | VirtualKeyCode::W => Some(V2I::new(0, -1)),
+            VirtualKeyCode::Down | VirtualKeyCode::S => Some(V2I::new(0, 1)),
+            VirtualKeyCode::Numpad7 => Some(V2I::new(-1, -1)),
+            VirtualKeyCode::Numpad8 => Some(V2I::new(0, -1)),
+            VirtualKeyCode::Numpad9 => Some(V2I::new(1, -1)),
+            VirtualKeyCode::Numpad4 => Some(V2I::new(-1, 0)),
+            VirtualKeyCode::Numpad5 => Some(V2I::new(0, 0)),
+            VirtualKeyCode::Numpad6 => Some(V2I::new(1, 0)),
+            VirtualKeyCode::Numpad1 => Some(V2I::new(-1, 1)),
+            VirtualKeyCode::Numpad2 => Some(V2I::new(0, 1)),
+            VirtualKeyCode::Numpad3 => Some(V2I::new(1, 1)),
+            _ => None,
+        },
+        None => None,
     }
 }
 

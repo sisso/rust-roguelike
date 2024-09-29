@@ -1,14 +1,28 @@
 use crate::actions::Action;
+use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
 use crate::state::State;
 use crate::{actions, ai};
 use hecs::{Entity, World};
 use rltk::{Rltk, VirtualKeyCode};
 
+#[derive(Debug, Default)]
+pub struct ShootWindowState {
+    pub target: Option<Coord>,
+}
+
 pub fn run_main_window(state: &mut State, ctx: &mut Rltk) {
     player_input(state, ctx);
-    state.run_game_loop_systems();
     super::draw_game_window(state, ctx);
+}
+
+pub fn run_shoot_window(state: &mut State, ctx: &mut Rltk) {
+    player_shoot_input(state, ctx);
+    super::draw_game_window(state, ctx);
+}
+
+fn player_shoot_input(state: &mut State, ctx: &mut Rltk) {
+    todo!()
 }
 
 fn set_action_move(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i32) {
@@ -19,24 +33,18 @@ fn set_action_move(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i3
 fn player_input(gs: &mut State, ctx: &mut Rltk) {
     let avatar_id = gs.player.get_avatar_id();
 
+    if let Some(dir) = crate::view::read_key_direction(ctx) {
+        set_action_move(&mut gs.ecs, avatar_id, dir.x, dir.y);
+    }
+
     match ctx.key {
         None => {} // Nothing happened
         Some(key) => match key {
-            VirtualKeyCode::Left => set_action_move(&mut gs.ecs, avatar_id, -1, 0),
-            VirtualKeyCode::Right => set_action_move(&mut gs.ecs, avatar_id, 1, 0),
-            VirtualKeyCode::Up => set_action_move(&mut gs.ecs, avatar_id, 0, -1),
-            VirtualKeyCode::Down => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
-            VirtualKeyCode::Numpad7 => set_action_move(&mut gs.ecs, avatar_id, -1, -1),
-            VirtualKeyCode::Numpad8 => set_action_move(&mut gs.ecs, avatar_id, 0, -1),
-            VirtualKeyCode::Numpad9 => set_action_move(&mut gs.ecs, avatar_id, 1, -1),
-            VirtualKeyCode::Numpad4 => set_action_move(&mut gs.ecs, avatar_id, -1, 0),
-            VirtualKeyCode::Numpad5 => set_action_move(&mut gs.ecs, avatar_id, 0, 0),
-            VirtualKeyCode::Numpad6 => set_action_move(&mut gs.ecs, avatar_id, 1, 0),
-            VirtualKeyCode::Numpad1 => set_action_move(&mut gs.ecs, avatar_id, -1, 1),
-            VirtualKeyCode::Numpad2 => set_action_move(&mut gs.ecs, avatar_id, 0, 1),
-            VirtualKeyCode::Numpad3 => set_action_move(&mut gs.ecs, avatar_id, 1, 1),
             VirtualKeyCode::I => {
                 actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact);
+            }
+            VirtualKeyCode::F => {
+                actions::set_current_action(&mut gs.ecs, avatar_id, Action::SearchToShoot);
             }
             // VirtualKeyCode::W => gs.camera.y -= 1,
             // VirtualKeyCode::A => gs.camera.x -= 1,

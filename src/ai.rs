@@ -19,7 +19,9 @@ pub fn give_turn_to_ai(world: &mut World) {
 }
 
 pub fn run_ai_mob_system(world: &mut World, player_id: Entity) {
-    let player_pos = world.query_one_mut::<&Position>(player_id).unwrap().clone();
+    let Ok(player_pos) = world.query_one_mut::<&Position>(player_id).cloned() else {
+        return;
+    };
     let mut buffer = CommandBuffer::new();
 
     for (e, (pos, view, _)) in &mut world.query::<(&Position, &Visibility, &HasATurn)>() {

@@ -47,15 +47,15 @@ pub fn run(state: &mut State, ctx: &mut Rltk) {
         match key {
             VirtualKeyCode::Key1 => {
                 loader::start_game(state, &NewGameParams::Normal);
-                state.window = Window::World;
+                state.window_manage.set_window(Window::World);
             }
             VirtualKeyCode::Key2 => {
                 loader::start_game(state, &NewGameParams::Orbiting);
-                state.window = Window::World;
+                state.window_manage.set_window(Window::World);
             }
             VirtualKeyCode::Key3 => {
                 loader::start_game(state, &NewGameParams::Landed);
-                state.window = Window::World;
+                state.window_manage.set_window(Window::World);
             }
             _ => {}
         }

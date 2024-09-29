@@ -2,7 +2,7 @@ use crate::cfg::Cfg;
 use crate::game_log::GameLog;
 use crate::models::Player;
 use crate::view::cockpit_window::CockpitWindowState;
-use crate::view::game_window::ShootWindowState;
+use crate::view::game_window::GameWindowState;
 use crate::view::window::{Window, WindowManage};
 use crate::{actions, ai, health, ship, view, visibility_system};
 use hecs::World;
@@ -73,8 +73,7 @@ impl rltk::GameState for State {
         self.run_game_loop_systems();
 
         match self.window_manage.get_window() {
-            Window::World => view::game_window::run_main_window(self, ctx),
-            Window::WorldShoot => view::game_window::run_shoot_window(self, ctx),
+            Window::World => view::game_window::run_window(self, ctx),
             Window::Cockpit { cockpit_id } => {
                 view::cockpit_window::draw_cockpit(self, ctx, cockpit_id);
             }

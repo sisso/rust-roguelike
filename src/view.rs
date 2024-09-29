@@ -57,6 +57,7 @@ fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, rect: RectI) {
         .expect("player avatar not found");
     let (visibility, pos, memory) = query.get().expect("player not found");
 
+    // TODO: add camera to state
     let camera = Camera::from_center(pos.clone(), rect);
 
     // draw
@@ -155,15 +156,6 @@ fn draw_map_objects(camera: &Camera, visible_cells: &Vec<V2I>, ecs: &World, ctx:
 pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
     let mouse_pos = ctx.mouse_pos();
     ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
-}
-
-pub fn draw_game_window(state: &mut State, ctx: &mut Rltk) {
-    draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
-    draw_gui(
-        state,
-        ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, 9),
-    );
 }
 
 fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
@@ -335,23 +327,20 @@ fn draw_gui_bottom_box(
 
 pub fn read_key_direction(ctx: &mut Rltk) -> Option<V2I> {
     match ctx.key {
-        Some(key) => match key {
-            VirtualKeyCode::Left | VirtualKeyCode::A => Some(V2I::new(-1, 0)),
-            VirtualKeyCode::Right | VirtualKeyCode::D => Some(V2I::new(1, 0)),
-            VirtualKeyCode::Up | VirtualKeyCode::W => Some(V2I::new(0, -1)),
-            VirtualKeyCode::Down | VirtualKeyCode::S => Some(V2I::new(0, 1)),
-            VirtualKeyCode::Numpad7 => Some(V2I::new(-1, -1)),
-            VirtualKeyCode::Numpad8 => Some(V2I::new(0, -1)),
-            VirtualKeyCode::Numpad9 => Some(V2I::new(1, -1)),
-            VirtualKeyCode::Numpad4 => Some(V2I::new(-1, 0)),
-            VirtualKeyCode::Numpad5 => Some(V2I::new(0, 0)),
-            VirtualKeyCode::Numpad6 => Some(V2I::new(1, 0)),
-            VirtualKeyCode::Numpad1 => Some(V2I::new(-1, 1)),
-            VirtualKeyCode::Numpad2 => Some(V2I::new(0, 1)),
-            VirtualKeyCode::Numpad3 => Some(V2I::new(1, 1)),
-            _ => None,
-        },
-        None => None,
+        Some(VirtualKeyCode::Left) | Some(VirtualKeyCode::A) => Some(V2I::new(-1, 0)),
+        Some(VirtualKeyCode::Right) | Some(VirtualKeyCode::D) => Some(V2I::new(1, 0)),
+        Some(VirtualKeyCode::Up) | Some(VirtualKeyCode::W) => Some(V2I::new(0, -1)),
+        Some(VirtualKeyCode::Down) | Some(VirtualKeyCode::S) => Some(V2I::new(0, 1)),
+        Some(VirtualKeyCode::Numpad7) => Some(V2I::new(-1, -1)),
+        Some(VirtualKeyCode::Numpad8) => Some(V2I::new(0, -1)),
+        Some(VirtualKeyCode::Numpad9) => Some(V2I::new(1, -1)),
+        Some(VirtualKeyCode::Numpad4) => Some(V2I::new(-1, 0)),
+        Some(VirtualKeyCode::Numpad5) => Some(V2I::new(0, 0)),
+        Some(VirtualKeyCode::Numpad6) => Some(V2I::new(1, 0)),
+        Some(VirtualKeyCode::Numpad1) => Some(V2I::new(-1, 1)),
+        Some(VirtualKeyCode::Numpad2) => Some(V2I::new(0, 1)),
+        Some(VirtualKeyCode::Numpad3) => Some(V2I::new(1, 1)),
+        _ => None,
     }
 }
 

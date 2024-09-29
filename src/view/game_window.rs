@@ -1,28 +1,88 @@
 use crate::actions::Action;
 use crate::commons::grid::Coord;
+use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
+use crate::models::Position;
 use crate::state::State;
-use crate::{actions, ai};
+use crate::view::camera::Camera;
+use crate::{actions, ai, cfg, utils, view};
 use hecs::{Entity, World};
-use rltk::{Rltk, VirtualKeyCode};
+use rltk::{BTerm, Rltk, VirtualKeyCode};
+
+#[derive(Clone, Debug, Default)]
+pub enum SubWindow {
+    #[default]
+    Normal,
+    Fire {
+        target: Coord,
+    },
+    Info {
+        target: Coord,
+    },
+}
 
 #[derive(Debug, Default)]
-pub struct ShootWindowState {
-    pub target: Option<Coord>,
+pub struct GameWindowState {
+    pub sub_window: SubWindow,
 }
 
-pub fn run_main_window(state: &mut State, ctx: &mut Rltk) {
-    player_input(state, ctx);
-    super::draw_game_window(state, ctx);
+pub fn run_window(state: &mut State, ctx: &mut Rltk) {
+    let game_area = RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H);
+    match &state.window_manage.game_state.sub_window {
+        SubWindow::Normal => {
+            process_input(state, ctx);
+        }
+        SubWindow::Info { target } => {
+            process_info_input(state, ctx);
+        }
+        _ => {}
+    }
+
+    view::draw_map_and_objects(state, ctx, game_area.clone());
+    view::draw_gui(
+        state,
+        ctx,
+        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, 9),
+    );
+
+    match &state.window_manage.game_state.sub_window {
+        SubWindow::Info { target } => {
+            draw_info_at(state, ctx, target.clone(), game_area.clone());
+        }
+        _ => {}
+    }
 }
 
-pub fn run_shoot_window(state: &mut State, ctx: &mut Rltk) {
-    player_shoot_input(state, ctx);
-    super::draw_game_window(state, ctx);
+fn draw_info_at(state: &mut State, ctx: &mut Rltk, pos: Coord, rect: RectI) {
+    let player_pos = utils::get_position(&state.ecs, state.player.get_avatar_id()).unwrap();
+    // TODO: add camera to state
+    let camera = Camera::from_center(player_pos, rect);
+    let marker_pos = camera.global_to_screen(pos);
+    ctx.print_color(marker_pos.x, marker_pos.y, rltk::GRAY, rltk::BLACK, "X");
 }
 
-fn player_shoot_input(state: &mut State, ctx: &mut Rltk) {
-    todo!()
+fn process_info_input(gs: &mut State, ctx: &mut Rltk) {
+    if let Some(dir) = view::read_key_direction(ctx) {
+        match &mut gs.window_manage.game_state.sub_window {
+            SubWindow::Info { target: position } => {
+                *position = *position + dir;
+            }
+            _ => {
+                log::warn!("invalid game state subwindow");
+            }
+        }
+    }
+
+    match ctx.key {
+        None => {} // Nothing happened
+        Some(key) => match key {
+            VirtualKeyCode::X | VirtualKeyCode::Escape => {
+                log::info!("switching game window to normal");
+                gs.window_manage.game_state.sub_window = SubWindow::Normal;
+            }
+            _ => {}
+        },
+    }
 }
 
 fn set_action_move(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i32) {
@@ -30,27 +90,31 @@ fn set_action_move(ecs: &mut World, avatar_id: Entity, delta_x: i32, delta_y: i3
     ai::give_turn_to_ai(ecs);
 }
 
-fn player_input(gs: &mut State, ctx: &mut Rltk) {
+fn process_input(gs: &mut State, ctx: &mut Rltk) {
     let avatar_id = gs.player.get_avatar_id();
 
-    if let Some(dir) = crate::view::read_key_direction(ctx) {
+    if let Some(dir) = view::read_key_direction(ctx) {
         set_action_move(&mut gs.ecs, avatar_id, dir.x, dir.y);
     }
 
     match ctx.key {
-        None => {} // Nothing happened
-        Some(key) => match key {
-            VirtualKeyCode::I => {
-                actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact);
-            }
-            VirtualKeyCode::F => {
-                actions::set_current_action(&mut gs.ecs, avatar_id, Action::SearchToShoot);
-            }
-            // VirtualKeyCode::W => gs.camera.y -= 1,
-            // VirtualKeyCode::A => gs.camera.x -= 1,
-            // VirtualKeyCode::D => gs.camera.x += 1,
-            // VirtualKeyCode::S => gs.camera.y += 1,
-            _ => {}
-        },
+        Some(VirtualKeyCode::I) => {
+            actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact);
+        }
+        Some(VirtualKeyCode::X) => {
+            let player_pos = utils::get_position(&gs.ecs, avatar_id).unwrap();
+            log::info!("switching game window to info");
+            gs.window_manage.game_state.sub_window = SubWindow::Info {
+                target: player_pos.point,
+            };
+        }
+        Some(VirtualKeyCode::F) => {
+            // actions::set_current_action(&mut gs.ecs, avatar_id, Action::SearchToShoot);
+        }
+        // VirtualKeyCode::W => gs.camera.y -= 1,
+        // VirtualKeyCode::A => gs.camera.x -= 1,
+        // VirtualKeyCode::D => gs.camera.x += 1,
+        // VirtualKeyCode::S => gs.camera.y += 1,
+        _ => {}
     }
 }

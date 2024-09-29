@@ -18,3 +18,7 @@ pub fn find_mobs_at<'a>(world: &World, pos: &Position) -> Vec<Entity> {
         .map(|i| i.0)
         .collect()
 }
+
+pub fn get_position(world: &World, id: Entity) -> Option<Position> {
+    world.query_one::<&Position>(id).unwrap().get().cloned()
+}

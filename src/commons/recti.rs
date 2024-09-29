@@ -1,6 +1,6 @@
 use super::v2i::V2I;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RectI {
     topleft: V2I,
     bottomright: V2I,

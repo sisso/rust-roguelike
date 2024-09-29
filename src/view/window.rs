@@ -1,5 +1,5 @@
 use crate::view::cockpit_window::CockpitWindowState;
-use crate::view::game_window::ShootWindowState;
+use crate::view::game_window::GameWindowState;
 use hecs::Entity;
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -11,14 +11,13 @@ pub enum Window {
     Cockpit {
         cockpit_id: Entity,
     },
-    WorldShoot,
 }
 
 #[derive(Debug, Default)]
 pub struct WindowManage {
     window: Window,
     pub cockpit_window: CockpitWindowState,
-    pub shoot_state: ShootWindowState,
+    pub game_state: GameWindowState,
 }
 
 impl WindowManage {
@@ -28,5 +27,7 @@ impl WindowManage {
 
     pub fn set_window(&mut self, window: Window) {
         self.window = window;
+        self.cockpit_window = CockpitWindowState::default();
+        self.game_state = Default::default();
     }
 }

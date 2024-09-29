@@ -15,7 +15,6 @@ use rand::rngs::StdRng;
 pub enum Action {
     Interact,
     Move(V2I),
-    SearchToShoot,
 }
 
 #[derive(Clone, Debug)]
@@ -82,7 +81,6 @@ fn run_action_assign_system(world: &mut World, window_manage: &mut WindowManage)
                     None => log::warn!("{e:?} try to interact but not object has interaction"),
                 }
             }
-            Some(Action::SearchToShoot) => window_manage.set_window(Window::WorldShoot),
             Some(Action::Move(dir)) => buffer.insert_one(e, WantMove { dir }),
             None => {}
         }

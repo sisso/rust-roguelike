@@ -35,8 +35,8 @@ impl Camera {
         }
     }
 
-    pub fn global_rect(&self) -> commons::recti::RectI {
-        commons::recti::RectI::new(self.x, self.y, self.w, self.h)
+    pub fn global_rect(&self) -> RectI {
+        RectI::new(self.x, self.y, self.w, self.h)
     }
 
     pub fn global_center(&self) -> P2 {

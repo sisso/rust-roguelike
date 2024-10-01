@@ -4,7 +4,8 @@ use crate::models::Player;
 use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::game_window::GameWindowState;
 use crate::view::window::{Window, WindowManage};
-use crate::{actions, ai, health, ship, view, visibility_system};
+use crate::view::ScreenLayout;
+use crate::{actions, ai, cfg, health, ship, view, visibility_system};
 use hecs::World;
 use rand::prelude::StdRng;
 use rand::SeedableRng;
@@ -13,13 +14,11 @@ use rltk::BTerm as Rltk;
 pub struct State {
     pub cfg: Cfg,
     pub ecs: World,
-    // pub window: Window,
     pub window_manage: WindowManage,
     pub player: Player,
-    // pub cockpit_window: CockpitWindowState,
-    // pub shoot_window_state: ShootWindowState,
     pub logs: GameLog,
     pub rng: StdRng,
+    pub screen_layout: ScreenLayout,
 }
 
 impl State {
@@ -37,6 +36,7 @@ impl State {
             // shoot_window_state: Default::default(),
             logs: Default::default(),
             rng: SeedableRng::seed_from_u64(0),
+            screen_layout: ScreenLayout::new(cfg::SCREEN_W, cfg::SCREEN_H),
         };
         state.clear();
         state

@@ -17,13 +17,74 @@ use crate::state::State;
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::visibility::{Visibility, VisibilityMemory};
-use crate::P2;
 use crate::{actions, cfg};
+use crate::{view, P2};
 use hecs::{Entity, World};
 use rltk::{BTerm, Rect, Rltk, TextAlign, VirtualKeyCode, RGB};
 use std::collections::HashSet;
 
 pub type Color = (u8, u8, u8);
+
+#[derive(Debug, Clone)]
+pub struct ScreenLayout {
+    screen_width: i32,
+    screen_height: i32,
+    left_column_width: i32,
+    bottom_bar_height: i32,
+    info_box_width: i32,
+}
+
+impl ScreenLayout {
+    pub fn new(screen_width: i32, screen_height: i32) -> Self {
+        let left_column_width = 30;
+        let bottom_bar_height = 9;
+        let info_box_width = left_column_width;
+
+        ScreenLayout {
+            screen_width,
+            screen_height,
+            left_column_width,
+            bottom_bar_height,
+            info_box_width,
+        }
+    }
+
+    pub fn get_main_area_rect(&self) -> RectI {
+        RectI::new(
+            self.left_column_width,
+            0,
+            self.screen_width - self.left_column_width,
+            self.screen_height - self.bottom_bar_height,
+        )
+    }
+
+    pub fn get_left_rect(&self) -> RectI {
+        RectI::new(
+            0,
+            0,
+            self.info_box_width - 1,
+            self.screen_height - self.bottom_bar_height - 1,
+        )
+    }
+
+    pub fn get_logs_rect(&self) -> RectI {
+        RectI::new(
+            self.info_box_width,
+            self.screen_height - self.bottom_bar_height,
+            self.screen_width - self.info_box_width - 1,
+            self.bottom_bar_height - 1,
+        )
+    }
+
+    pub fn get_info_rect(&self) -> RectI {
+        RectI::new(
+            0,
+            self.screen_height - self.bottom_bar_height,
+            self.info_box_width - 1,
+            self.bottom_bar_height - 1,
+        )
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Renderable {
@@ -37,7 +98,7 @@ pub fn get_window_rect() -> RectI {
     RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H)
 }
 
-pub fn draw_rect(ctx: &mut Rltk, rect: RectI, fg: Color, bg: Color) {
+pub fn draw_rect(ctx: &mut Rltk, rect: RectI, fg: Color, bg: Color, title: Option<&str>) {
     ctx.draw_box(
         rect.get_x(),
         rect.get_y(),
@@ -46,9 +107,19 @@ pub fn draw_rect(ctx: &mut Rltk, rect: RectI, fg: Color, bg: Color) {
         fg,
         bg,
     );
+
+    if let Some(title) = title {
+        ctx.print_color(
+            rect.get_x() + 2,
+            rect.get_y(),
+            rltk::GRAY,
+            rltk::BLACK,
+            title,
+        );
+    }
 }
 
-fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, screen_rect: RectI) {
+fn draw_map_and_objects(state: &State, ctx: &mut Rltk) {
     let avatar_id = state.player.get_avatar_id();
 
     let mut query = state
@@ -58,7 +129,7 @@ fn draw_map_and_objects(state: &mut State, ctx: &mut Rltk, screen_rect: RectI) {
     let (visibility, avatar_pos, memory) = query.get().expect("player not found");
 
     // TODO: add camera to state
-    let camera = Camera::from_center(*avatar_pos, screen_rect);
+    let camera = Camera::from_center(*avatar_pos, state.screen_layout.get_main_area_rect());
 
     // draw
     let map = GridRef::find_area(&state.ecs, avatar_pos.grid_id).expect("area not found");
@@ -158,27 +229,25 @@ pub fn draw_mouse(_state: &mut State, ctx: &mut Rltk) {
     ctx.set_bg(mouse_pos.0, mouse_pos.1, RGB::named(rltk::MAGENTA));
 }
 
-fn draw_gui(state: &State, ctx: &mut Rltk, rect: RectI) {
-    let width4 = rect.get_width() / 4;
-    draw_info_box(
-        &state,
-        ctx,
-        RectI::new(rect.get_x(), rect.get_y(), width4, rect.get_height()),
-    );
+/// Default screen include map and gui
+pub fn draw_default(state: &State, ctx: &mut Rltk) {
+    draw_map_and_objects(state, ctx);
+    draw_info_box(&state, ctx);
+    draw_log_box(state, ctx);
+    draw_left_column(state, ctx);
+}
 
-    draw_log_box(
-        state,
+fn draw_left_column(state: &State, ctx: &mut Rltk) {
+    draw_rect(
         ctx,
-        RectI::new(
-            rect.get_x() + width4,
-            rect.get_y(),
-            3 * width4,
-            rect.get_height(),
-        ),
+        state.screen_layout.get_left_rect(),
+        rltk::GRAY,
+        rltk::BLACK,
+        Some("Status"),
     );
 }
 
-fn draw_info_box(state: &State, ctx: &mut BTerm, rect: RectI) {
+fn draw_info_box(state: &State, ctx: &mut BTerm) {
     for (_avatar_id, (position, actions, health)) in
         &mut state.ecs.query::<(&Position, &EntityActions, &Health)>()
     {
@@ -192,7 +261,7 @@ fn draw_info_box(state: &State, ctx: &mut BTerm, rect: RectI) {
 
         draw_gui_bottom_box(
             ctx,
-            rect.clone(),
+            state.screen_layout.get_info_rect(),
             tile.tile,
             &objects_at,
             &map_actions_to_keys(&actions.available)
@@ -204,15 +273,9 @@ fn draw_info_box(state: &State, ctx: &mut BTerm, rect: RectI) {
     }
 }
 
-fn draw_log_box(state: &State, ctx: &mut Rltk, rect: RectI) {
-    ctx.draw_box(
-        rect.get_x(),
-        rect.get_y(),
-        rect.get_width(),
-        rect.get_height(),
-        RGB::named(rltk::WHITE),
-        RGB::named(rltk::BLACK),
-    );
+fn draw_log_box(state: &State, ctx: &mut Rltk) {
+    let rect = state.screen_layout.get_logs_rect();
+    draw_rect(ctx, rect, rltk::GRAY, rltk::BLACK, Some("Log"));
 
     let x = rect.get_x() + 1;
     let mut y = rect.get_y() + 1;
@@ -268,7 +331,7 @@ fn draw_gui_bottom_box(
     actions: &Vec<(char, &str)>,
     player_health: (Hp, Hp),
 ) {
-    draw_rect(ctx, rect, rltk::WHITE, rltk::BLACK);
+    draw_rect(ctx, rect, rltk::WHITE, rltk::BLACK, Some("Info"));
 
     let text_x = rect.get_x() + 1;
     let mut text_y = rect.get_y() + 1;

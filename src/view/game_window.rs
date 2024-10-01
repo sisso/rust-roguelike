@@ -7,6 +7,7 @@ use crate::state::State;
 use crate::view::camera::Camera;
 use crate::{actions, ai, cfg, utils, view};
 use hecs::{Entity, World};
+use log::log;
 use rltk::{BTerm, Rltk, VirtualKeyCode};
 
 #[derive(Clone, Debug, Default)]
@@ -17,7 +18,7 @@ pub enum SubWindow {
         target: Coord,
     },
     Info {
-        target: Coord,
+        target_cell: Coord,
     },
 }
 
@@ -27,52 +28,50 @@ pub struct GameWindowState {
 }
 
 pub fn run_window(state: &mut State, ctx: &mut Rltk) {
-    let left_colum_width = 10;
-    let bottom_bar_height = 9;
-
-    let game_area = RectI::new(
-        left_colum_width,
-        0,
-        cfg::SCREEN_W - left_colum_width,
-        cfg::SCREEN_H - bottom_bar_height,
-    );
     match &state.window_manage.game_state.sub_window {
         SubWindow::Normal => {
             process_input(state, ctx);
         }
-        SubWindow::Info { target } => {
+        SubWindow::Info {
+            target_cell: target,
+        } => {
             process_info_input(state, ctx);
         }
         _ => {}
     }
 
-    view::draw_map_and_objects(state, ctx, game_area);
-    view::draw_gui(
-        state,
-        ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, bottom_bar_height),
-    );
+    view::draw_default(state, ctx);
 
     match &state.window_manage.game_state.sub_window {
-        SubWindow::Info { target } => {
-            draw_info_at(state, ctx, target.clone(), game_area);
+        SubWindow::Info {
+            target_cell: target,
+        } => {
+            draw_info_at(state, ctx, target.clone());
         }
         _ => {}
     }
 }
 
-fn draw_info_at(state: &mut State, ctx: &mut Rltk, pos: Coord, rect: RectI) {
+fn draw_info_at(state: &mut State, ctx: &mut Rltk, point: Coord) {
     let player_pos = utils::get_position(&state.ecs, state.player.get_avatar_id()).unwrap();
     // TODO: add camera to state
-    let camera = Camera::from_center(player_pos, rect);
-    let marker_pos = camera.world_to_screen(pos);
-    ctx.print_color(marker_pos.x, marker_pos.y, rltk::GRAY, rltk::BLACK, "X");
+    let camera = Camera::from_center(player_pos, state.screen_layout.get_info_rect());
+    let marker_point = camera.world_to_screen(point);
+    log::debug!(
+        "info, player at {:?}, marker at {:?}, screen pos at {:?}",
+        player_pos,
+        point,
+        marker_point
+    );
+    ctx.print_color(marker_point.x, marker_point.y, rltk::GRAY, rltk::BLACK, "X");
 }
 
 fn process_info_input(gs: &mut State, ctx: &mut Rltk) {
     if let Some(dir) = view::read_key_direction(ctx) {
         match &mut gs.window_manage.game_state.sub_window {
-            SubWindow::Info { target: position } => {
+            SubWindow::Info {
+                target_cell: position,
+            } => {
                 *position = *position + dir;
             }
             _ => {
@@ -111,9 +110,9 @@ fn process_input(gs: &mut State, ctx: &mut Rltk) {
         }
         Some(VirtualKeyCode::X) => {
             let player_pos = utils::get_position(&gs.ecs, avatar_id).unwrap();
-            log::info!("switching game window to info");
+            log::info!("switching game window to info at {:?}", player_pos);
             gs.window_manage.game_state.sub_window = SubWindow::Info {
-                target: player_pos.point,
+                target_cell: player_pos.point,
             };
         }
         Some(VirtualKeyCode::F) => {

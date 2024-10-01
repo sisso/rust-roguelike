@@ -2,6 +2,8 @@ use std::ops::{Add, Sub};
 
 pub const ZERO: V2I = V2I { x: 0, y: 0 };
 
+pub type Dimension = V2I;
+
 #[derive(Clone, Copy, PartialEq, Debug, Hash, Eq, PartialOrd, Default)]
 pub struct V2I {
     pub x: i32,

@@ -1,10 +1,11 @@
 use crate::commons::grid::Dir;
 use crate::commons::recti::RectI;
+use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::models::SurfaceTileKind;
 use crate::state::State;
 use crate::view::window::Window;
-use crate::{cfg, ship, Label, Location, Position, Sector, Ship, Surface, P2};
+use crate::{cfg, ship, view, Label, Location, Position, Sector, Ship, Surface, P2};
 use hecs::{Entity, World};
 use log::{info, warn};
 use rltk::{BTerm, Rltk, VirtualKeyCode, RGB};
@@ -571,16 +572,11 @@ fn list_commands(state: &State, ship_id: Entity) -> Vec<MenuOption> {
 }
 
 pub fn draw_cockpit(state: &mut State, ctx: &mut Rltk, cockpit_id: Entity) {
-    super::draw_map_and_objects(state, ctx, RectI::new(0, 0, cfg::SCREEN_W, cfg::SCREEN_H));
+    view::draw_default(state, ctx);
     draw(
         state,
         ctx,
         cockpit_id,
         RectI::new(2, 2, cfg::SCREEN_W - 5, cfg::SCREEN_H - 14),
-    );
-    super::draw_gui(
-        state,
-        ctx,
-        RectI::new(0, cfg::SCREEN_H - 10, cfg::SCREEN_W, 9),
     );
 }

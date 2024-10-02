@@ -15,10 +15,10 @@ pub enum SubWindow {
     #[default]
     Normal,
     Fire {
-        target: Coord,
+        point: Coord,
     },
     Info {
-        target_cell: Coord,
+        point: Coord,
     },
 }
 
@@ -32,9 +32,7 @@ pub fn run_window(state: &mut State, ctx: &mut Rltk) {
         SubWindow::Normal => {
             process_input(state, ctx);
         }
-        SubWindow::Info {
-            target_cell: target,
-        } => {
+        SubWindow::Info { point: target } => {
             process_info_input(state, ctx);
         }
         _ => {}
@@ -43,35 +41,25 @@ pub fn run_window(state: &mut State, ctx: &mut Rltk) {
     view::draw_default(state, ctx);
 
     match &state.window_manage.game_state.sub_window {
-        SubWindow::Info {
-            target_cell: target,
-        } => {
-            draw_info_at(state, ctx, target.clone());
+        SubWindow::Info { point: target } => {
+            draw_info_marker(state, ctx, *target);
         }
         _ => {}
     }
 }
 
-fn draw_info_at(state: &mut State, ctx: &mut Rltk, point: Coord) {
+fn draw_info_marker(state: &mut State, ctx: &mut Rltk, point: Coord) {
     let player_pos = utils::get_position(&state.ecs, state.player.get_avatar_id()).unwrap();
     // TODO: add camera to state
-    let camera = Camera::from_center(player_pos, state.screen_layout.get_info_rect());
+    let camera = Camera::from_center(player_pos, state.screen_layout.get_main_area_rect());
     let marker_point = camera.world_to_screen(point);
-    log::debug!(
-        "info, player at {:?}, marker at {:?}, screen pos at {:?}",
-        player_pos,
-        point,
-        marker_point
-    );
     ctx.print_color(marker_point.x, marker_point.y, rltk::GRAY, rltk::BLACK, "X");
 }
 
 fn process_info_input(gs: &mut State, ctx: &mut Rltk) {
     if let Some(dir) = view::read_key_direction(ctx) {
         match &mut gs.window_manage.game_state.sub_window {
-            SubWindow::Info {
-                target_cell: position,
-            } => {
+            SubWindow::Info { point: position } => {
                 *position = *position + dir;
             }
             _ => {
@@ -112,7 +100,7 @@ fn process_input(gs: &mut State, ctx: &mut Rltk) {
             let player_pos = utils::get_position(&gs.ecs, avatar_id).unwrap();
             log::info!("switching game window to info at {:?}", player_pos);
             gs.window_manage.game_state.sub_window = SubWindow::Info {
-                target_cell: player_pos.point,
+                point: player_pos.point,
             };
         }
         Some(VirtualKeyCode::F) => {

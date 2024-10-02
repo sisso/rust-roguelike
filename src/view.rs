@@ -16,8 +16,9 @@ use crate::models::{ObjectsKind, Position};
 use crate::state::State;
 use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
+use crate::view::game_window::SubWindow;
 use crate::visibility::{Visibility, VisibilityMemory};
-use crate::{actions, cfg};
+use crate::{actions, cfg, utils};
 use crate::{view, P2};
 use hecs::{Entity, World};
 use rltk::{BTerm, Rect, Rltk, TextAlign, VirtualKeyCode, RGB};
@@ -238,39 +239,62 @@ pub fn draw_default(state: &State, ctx: &mut Rltk) {
 }
 
 fn draw_left_column(state: &State, ctx: &mut Rltk) {
-    draw_rect(
+    let avatar_id = state.player.get_avatar_id();
+
+    let mut query = state
+        .ecs
+        .query_one::<(&Position, &EntityActions, &Health)>(avatar_id)
+        .unwrap();
+    let (position, actions, health) = query.get().unwrap();
+
+    let objects_at = find_objects_at(&state.ecs, position);
+
+    draw_left_panel_content(
         ctx,
         state.screen_layout.get_left_rect(),
-        rltk::GRAY,
-        rltk::BLACK,
-        Some("Status"),
+        &objects_at,
+        &map_actions_to_keys(&actions.available)
+            .iter()
+            .map(ViewAction::to_tuple)
+            .collect::<Vec<_>>(),
+        (health.hp, health.max_hp),
     );
 }
 
-fn draw_info_box(state: &State, ctx: &mut BTerm) {
-    for (_avatar_id, (position, actions, health)) in
-        &mut state.ecs.query::<(&Position, &EntityActions, &Health)>()
-    {
-        let gmap = GridRef::find_area(&state.ecs, position.grid_id).unwrap();
+fn draw_info_box(state: &State, ctx: &mut Rltk) {
+    let player_id = state.player.get_avatar_id();
+    let player_pos = utils::get_position(&state.ecs, player_id).unwrap();
 
-        let tile = gmap
-            .get_grid()
-            .get_at_opt(position.point)
-            .unwrap_or_default();
-        let objects_at = find_objects_at(&state.ecs, position);
+    let info_point = match &state.window_manage.game_state.sub_window {
+        SubWindow::Fire { point } => *point,
+        SubWindow::Info { point } => *point,
+        _ => {
+            let avatar_id = state.player.get_avatar_id();
+            let pos = utils::get_position(&state.ecs, avatar_id).unwrap();
+            pos.point
+        }
+    };
 
-        draw_gui_bottom_box(
-            ctx,
-            state.screen_layout.get_info_rect(),
-            tile.tile,
-            &objects_at,
-            &map_actions_to_keys(&actions.available)
-                .iter()
-                .map(ViewAction::to_tuple)
-                .collect::<Vec<_>>(),
-            (health.hp, health.max_hp),
-        );
-    }
+    let gmap = GridRef::find_area(&state.ecs, player_pos.grid_id).unwrap();
+
+    let current_cell = gmap.get_grid().get_at_opt(info_point).unwrap_or_default();
+
+    let tile_str = match current_cell.tile {
+        Tile::Ground => "ground",
+        Tile::Floor => "floor",
+        Tile::Wall => "?",
+        Tile::Space => "space",
+        Tile::OutOfMap => "oom",
+    };
+
+    let rect = state.screen_layout.get_info_rect();
+    draw_rect(ctx, rect, rltk::GRAY, rltk::BLACK, Some("Info"));
+
+    let text_x = rect.get_x() + 1;
+    let mut text_y = rect.get_y() + 1;
+
+    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
+    text_y += 1;
 }
 
 fn draw_log_box(state: &State, ctx: &mut Rltk) {
@@ -323,15 +347,14 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
         .collect()
 }
 
-fn draw_gui_bottom_box(
+fn draw_left_panel_content(
     ctx: &mut Rltk,
     rect: RectI,
-    current_tile: Tile,
     objects: &Vec<(Entity, ObjectsKind)>,
     actions: &Vec<(char, &str)>,
     player_health: (Hp, Hp),
 ) {
-    draw_rect(ctx, rect, rltk::WHITE, rltk::BLACK, Some("Info"));
+    draw_rect(ctx, rect, rltk::WHITE, rltk::BLACK, Some("Player"));
 
     let text_x = rect.get_x() + 1;
     let mut text_y = rect.get_y() + 1;
@@ -346,16 +369,6 @@ fn draw_gui_bottom_box(
         TextAlign::Left,
         None,
     );
-    text_y += 1;
-
-    let tile_str = match current_tile {
-        Tile::Ground => "ground",
-        Tile::Floor => "floor",
-        Tile::Wall => "?",
-        Tile::Space => "space",
-        Tile::OutOfMap => "oom",
-    };
-    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
     text_y += 1;
 
     for (_, k) in objects {

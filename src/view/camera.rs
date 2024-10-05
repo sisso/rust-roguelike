@@ -1,4 +1,4 @@
-use crate::{cfg, commons, P2};
+use crate::P2;
 use hecs::Entity;
 
 use crate::commons::grid;

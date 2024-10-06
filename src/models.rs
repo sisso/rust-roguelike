@@ -37,6 +37,17 @@ pub struct Position {
 }
 
 impl Position {
+    pub fn with_point(&self, point: Coord) -> Self {
+        Position {
+            grid_id: self.grid_id,
+            point,
+        }
+    }
+
+    pub fn new(grid_id: Entity, point: Coord) -> Self {
+        Self { grid_id, point }
+    }
+
     pub fn translate_by(&self, vec: V2I) -> Position {
         Position {
             grid_id: self.grid_id,

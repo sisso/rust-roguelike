@@ -7,21 +7,19 @@ pub mod window;
 
 use crate::actions::{Action, EntityActions};
 use crate::area::{Area, Tile};
-use crate::commons::grid::{BaseGrid, Coord};
+use crate::commons::grid::BaseGrid;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::health::{Health, Hp};
 use crate::models::{ObjectsKind, Position};
 use crate::state::State;
-use crate::utils::find_objects_at;
 use crate::view::camera::Camera;
 use crate::view::game_window::SubWindow;
 use crate::visibility::{Visibility, VisibilityMemory};
-use crate::{actions, cfg, utils};
-use crate::{view, P2};
+use crate::{cfg, utils};
 use hecs::{Entity, World};
-use rltk::{BTerm, Rect, Rltk, TextAlign, VirtualKeyCode, RGB};
+use rltk::{Rltk, TextAlign, VirtualKeyCode, RGB};
 use std::collections::HashSet;
 
 pub type Color = (u8, u8, u8);
@@ -247,7 +245,7 @@ fn draw_left_column(state: &State, ctx: &mut Rltk) {
         .unwrap();
     let (position, actions, health) = query.get().unwrap();
 
-    let objects_at = find_objects_at(&state.ecs, position);
+    let objects_at = utils::find_objects_at(&state.ecs, *position);
 
     draw_left_panel_content(
         ctx,
@@ -265,20 +263,22 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
     let player_id = state.player.get_avatar_id();
     let player_pos = utils::get_position(&state.ecs, player_id).unwrap();
 
-    let info_point = match &state.window_manage.game_state.sub_window {
-        SubWindow::Fire { point } => *point,
-        SubWindow::Info { point } => *point,
+    let info_pos = match &state.window_manage.game_state.sub_window {
+        SubWindow::Fire { point } => player_pos.with_point(*point),
+        SubWindow::Info { point } => player_pos.with_point(*point),
         _ => {
             let avatar_id = state.player.get_avatar_id();
             let pos = utils::get_position(&state.ecs, avatar_id).unwrap();
-            pos.point
+            pos
         }
     };
 
+    // get cell tile
     let gmap = GridRef::find_area(&state.ecs, player_pos.grid_id).unwrap();
-
-    let current_cell = gmap.get_grid().get_at_opt(info_point).unwrap_or_default();
-
+    let current_cell = gmap
+        .get_grid()
+        .get_at_opt(info_pos.point)
+        .unwrap_or_default();
     let tile_str = match current_cell.tile {
         Tile::Ground => "ground",
         Tile::Floor => "floor",
@@ -287,6 +287,10 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
         Tile::OutOfMap => "oom",
     };
 
+    // get objects at cell
+    let objects = utils::find_objects_at(&state.ecs, info_pos);
+
+    // draw
     let rect = state.screen_layout.get_info_rect();
     draw_rect(ctx, rect, rltk::GRAY, rltk::BLACK, Some("Info"));
 
@@ -295,6 +299,23 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
 
     ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
     text_y += 1;
+
+    for (obj_id, kind) in objects {
+        if obj_id == player_id {
+            continue;
+        }
+
+        let kind_str = match kind {
+            ObjectsKind::Door { .. } => "door",
+            ObjectsKind::Engine => "engine",
+            ObjectsKind::Cockpit => "cockpit",
+            ObjectsKind::Player => "player",
+            ObjectsKind::Mob => "mob",
+        };
+
+        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, kind_str);
+        text_y += 1;
+    }
 }
 
 fn draw_log_box(state: &State, ctx: &mut Rltk) {

@@ -62,7 +62,7 @@ pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsKind)>) -> Ve
 
 pub fn run_available_actions_system(world: &mut World) {
     for (_, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
-        let objects_at = find_objects_at(&world, pos);
+        let objects_at = find_objects_at(&world, *pos);
         actions.available = get_available_actions(&objects_at);
     }
 }
@@ -72,7 +72,7 @@ fn run_action_assign_system(world: &mut World, window_manage: &mut WindowManage)
     for (e, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
         match actions.requested.take() {
             Some(Action::Interact) => {
-                let objects_at = find_objects_at(world, &pos);
+                let objects_at = find_objects_at(world, *pos);
                 match objects_at.into_iter().find(|(_, k)| k.can_interact()) {
                     Some((id, _)) => {
                         // change window to cockpit
@@ -184,7 +184,7 @@ fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_
 
         if can_move_into(world, id, &next_pos) {
             // TODO: must support mob attack a player
-            let mob_on_next_cell = find_mobs_at(world, &next_pos);
+            let mob_on_next_cell = find_mobs_at(world, next_pos);
             if let Some(target_id) = mob_on_next_cell.into_iter().next() {
                 buffer.insert_one(id, WantAttack { target_id });
             } else {

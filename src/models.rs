@@ -90,6 +90,13 @@ impl ObjectsKind {
             _ => false,
         }
     }
+
+    pub fn can_pickup(&self) -> bool {
+        match self {
+            ObjectsKind::Item => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -5,6 +5,7 @@ use crate::commons::v2i::V2I;
 use crate::game_log::{GameLog, Msg};
 use crate::gridref::GridRef;
 use crate::health::Health;
+use crate::inventory::Inventory;
 use crate::models::{Label, ObjectsKind, Position};
 use crate::team::Team;
 use crate::utils;
@@ -14,9 +15,13 @@ use rand::rngs::StdRng;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
-    Interact,
+    Interact(Entity),
     Move(V2I),
+    Pickup(Entity),
 }
+
+#[derive(Clone, Debug)]
+pub struct WantPickup(Entity);
 
 #[derive(Clone, Debug)]
 pub struct WantMove {
@@ -53,9 +58,12 @@ pub fn set_current_action(ecs: &mut World, id: Entity, action: Action) {
 
 pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsKind, Label)>) -> Vec<Action> {
     let mut actions = vec![];
-    for (_, kind, _) in objects_at_cell {
+    for (id, kind, _) in objects_at_cell {
         if kind.can_interact() {
-            actions.push(Action::Interact);
+            actions.push(Action::Interact(*id));
+        }
+        if kind.can_pickup() {
+            actions.push(Action::Pickup(*id));
         }
     }
     actions
@@ -72,17 +80,17 @@ fn run_action_assign_system(world: &mut World, window_manage: &mut WindowManage)
     let mut buffer = CommandBuffer::new();
     for (e, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
         match actions.requested.take() {
-            Some(Action::Interact) => {
-                let objects_at = utils::find_objects_at(world, *pos);
-                match objects_at.into_iter().find(|(_, k, _)| k.can_interact()) {
-                    Some((id, _, _)) => {
-                        // change window to cockpit
-                        window_manage.set_window(Window::Cockpit { cockpit_id: id });
-                    }
-                    None => log::warn!("{e:?} try to interact but not object has interaction"),
+            Some(Action::Interact(target_id)) => {
+                if utils::get_kind(world, target_id).can_interact() {
+                    window_manage.set_window(Window::Cockpit {
+                        cockpit_id: target_id,
+                    });
+                } else {
+                    log::warn!("{e:?} try to interact but not object has interaction")
                 }
             }
             Some(Action::Move(dir)) => buffer.insert_one(e, WantMove { dir }),
+            Some(Action::Pickup(id)) => buffer.insert_one(e, WantPickup(id)),
             None => {}
         }
     }
@@ -100,6 +108,31 @@ pub fn run_actions_system(
     run_action_assign_system(world, window_manage);
     run_action_wantmove_system(world, game_log, player_id);
     run_action_attack_system(world, game_log, rng, player_id);
+    run_action_pickup_system(world, game_log, player_id);
+}
+
+fn run_action_pickup_system(world: &mut World, logs: &mut GameLog, player_id: Entity) {
+    let mut buffer = CommandBuffer::new();
+    for (e, (inventory, action, pos)) in
+        &mut world.query::<(&mut Inventory, &WantPickup, &Position)>()
+    {
+        buffer.remove_one::<WantPickup>(e);
+
+        // get target position
+        let Some(target_pos) = utils::get_position(world, action.0) else {
+            log::warn!("fail to pickup item, target has no position");
+            continue;
+        };
+
+        if *pos != target_pos {
+            log::warn!("fail to pickup item, item is not at same position");
+            continue;
+        }
+
+        buffer.remove_one::<Position>(action.0);
+        inventory.items.push(action.0);
+    }
+    buffer.run_on(world);
 }
 
 fn run_action_attack_system(

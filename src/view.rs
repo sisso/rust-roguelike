@@ -370,7 +370,8 @@ impl ViewAction {
 
     fn map_to_keys(action: &Action) -> (char, &'static str) {
         match action {
-            Action::Interact => ('i', "check cockpit"),
+            Action::Interact(_) => ('i', "check cockpit"),
+            Action::Pickup(_) => ('p', "pick up"),
             _ => ('?', "unknown"),
         }
     }

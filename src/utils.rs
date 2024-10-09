@@ -3,6 +3,11 @@ use crate::models::{Label, ObjectsKind, Position};
 use crate::team::Team;
 use hecs::{Entity, World};
 
+pub fn get_kind(world: &World, id: Entity) -> ObjectsKind {
+    let mut q = world.query_one::<&ObjectsKind>(id).unwrap();
+    q.get().unwrap().clone()
+}
+
 pub fn find_objects_at(world: &World, pos: Position) -> Vec<(Entity, ObjectsKind, Label)> {
     let mut result = vec![];
     for (e, (o, p, l)) in world.query::<(&ObjectsKind, &Position, &Label)>().iter() {

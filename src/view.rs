@@ -12,7 +12,7 @@ use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::health::{Health, Hp};
-use crate::models::{ObjectsKind, Position};
+use crate::models::{Label, ObjectsKind, Position};
 use crate::state::State;
 use crate::view::camera::Camera;
 use crate::view::game_window::SubWindow;
@@ -90,6 +90,7 @@ pub struct Renderable {
     pub glyph: rltk::FontCharType,
     pub fg: RGB,
     pub bg: RGB,
+    // bigger show above lower
     pub priority: i32,
 }
 
@@ -300,7 +301,7 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
     ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
     text_y += 1;
 
-    for (obj_id, kind) in objects {
+    for (obj_id, kind, label) in objects {
         if obj_id == player_id {
             continue;
         }
@@ -311,9 +312,15 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
             ObjectsKind::Cockpit => "cockpit",
             ObjectsKind::Player => "player",
             ObjectsKind::Mob => "mob",
+            ObjectsKind::Item => "item",
         };
 
-        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, kind_str);
+        let text = if kind_str == label.name {
+            format!("{}", kind_str)
+        } else {
+            format!("{} ({})", label.name, kind_str)
+        };
+        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, text);
         text_y += 1;
     }
 }
@@ -371,7 +378,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
 fn draw_left_panel_content(
     ctx: &mut Rltk,
     rect: RectI,
-    objects: &Vec<(Entity, ObjectsKind)>,
+    objects: &Vec<(Entity, ObjectsKind, Label)>,
     actions: &Vec<(char, &str)>,
     player_health: (Hp, Hp),
 ) {
@@ -392,14 +399,8 @@ fn draw_left_panel_content(
     );
     text_y += 1;
 
-    for (_, k) in objects {
-        let obj_str = match k {
-            ObjectsKind::Door { .. } => "door",
-            ObjectsKind::Cockpit => "cockpit",
-            _ => continue,
-        };
-
-        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, obj_str);
+    for (_, k, label) in objects {
+        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, &label.name);
         text_y += 1;
     }
 

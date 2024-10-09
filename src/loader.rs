@@ -11,6 +11,8 @@ use crate::commons::v2i::V2I;
 use crate::commons::{grid_string, v2i};
 use crate::gridref::GridRef;
 use crate::health::Health;
+use crate::inventory::Inventory;
+use crate::item::Item;
 use crate::mob::Mob;
 use crate::models::{
     Avatar, Label, Location, ObjectsKind, Position, Sector, SectorBody, Surface, SurfaceTileKind,
@@ -19,12 +21,10 @@ use crate::models::{
 use crate::ship::Ship;
 use crate::state::State;
 use crate::team::Team;
-use crate::view::cockpit_window::CockpitWindowState;
-use crate::view::window::Window;
 use crate::view::Renderable;
 use crate::visibility::{Visibility, VisibilityMemory};
-use crate::{area, cfg, loader, sectors, ship};
-use rltk::{GameState, RGB};
+use crate::{cfg, loader, sectors, ship};
+use rltk::RGB;
 
 pub fn create_sector(world: &mut World) -> Entity {
     world.spawn((Sector::default(),))
@@ -150,6 +150,7 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                     defense: Dice::new(2, 0),
                     damage: Dice::new(1, 0),
                 },
+                Inventory::default(),
             ),
         )
         .unwrap();
@@ -229,6 +230,9 @@ pub fn parse_map_objects(
                         priority: 0,
                     },
                     ObjectsKind::Door { vertical },
+                    Label {
+                        name: "door".to_string(),
+                    },
                 ));
             }
             Some(ObjectsKind::Cockpit) => {
@@ -241,6 +245,9 @@ pub fn parse_map_objects(
                         priority: 0,
                     },
                     ObjectsKind::Cockpit,
+                    Label {
+                        name: "cockpit".to_string(),
+                    },
                 ));
             }
             Some(ObjectsKind::Engine) => {
@@ -253,6 +260,9 @@ pub fn parse_map_objects(
                         priority: 0,
                     },
                     ObjectsKind::Engine,
+                    Label {
+                        name: "engine".to_string(),
+                    },
                 ));
             }
             other => {
@@ -387,12 +397,18 @@ pub fn start_game(state: &mut State, params: &NewGameParams) {
     .expect("fail to load map objects");
 
     // spawn custom objects
-    _ = create_mob(
+    create_mob(
         state,
         Position {
             grid_id: planet_zone_house_grid_id,
             point: house_pos + V2I::new(-10, 0),
         },
+    );
+
+    create_item(
+        state,
+        "gold",
+        Position::new(planet_zone_house_grid_id, house_pos + V2I::new(-15, 0)),
     );
 
     // extra changes
@@ -413,4 +429,21 @@ pub fn start_game(state: &mut State, params: &NewGameParams) {
     }
 
     sectors::update_bodies_list(&mut state.ecs);
+}
+
+pub fn create_item(state: &mut State, label: &str, pos: Position) {
+    state.ecs.spawn((
+        Item::default(),
+        pos,
+        Label {
+            name: label.to_string(),
+        },
+        ObjectsKind::Item,
+        Renderable {
+            glyph: rltk::to_cp437('i'),
+            fg: RGB::named(rltk::BLUE),
+            bg: RGB::named(rltk::BLACK),
+            priority: 0,
+        },
+    ));
 }

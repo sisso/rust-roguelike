@@ -80,6 +80,7 @@ pub enum ObjectsKind {
     Cockpit,
     Player,
     Mob,
+    Item,
 }
 
 impl ObjectsKind {

@@ -17,6 +17,8 @@ pub mod events;
 mod game_log;
 pub mod gridref;
 mod health;
+mod inventory;
+mod item;
 pub mod loader;
 pub mod locations;
 mod mob;

@@ -1,13 +1,13 @@
 use crate::health::Health;
-use crate::models::{ObjectsKind, Position};
+use crate::models::{Label, ObjectsKind, Position};
 use crate::team::Team;
 use hecs::{Entity, World};
 
-pub fn find_objects_at<'a>(world: &World, pos: Position) -> Vec<(Entity, ObjectsKind)> {
+pub fn find_objects_at(world: &World, pos: Position) -> Vec<(Entity, ObjectsKind, Label)> {
     let mut result = vec![];
-    for (e, (o, p)) in world.query::<(&ObjectsKind, &Position)>().iter() {
+    for (e, (o, p, l)) in world.query::<(&ObjectsKind, &Position, &Label)>().iter() {
         if *p == pos {
-            result.push((e.clone(), o.clone()));
+            result.push((e.clone(), o.clone(), l.clone()));
         }
     }
     result

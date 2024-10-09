@@ -5,7 +5,7 @@ use crate::commons::v2i::V2I;
 use crate::game_log::{GameLog, Msg};
 use crate::gridref::GridRef;
 use crate::health::Health;
-use crate::models::{ObjectsKind, Position};
+use crate::models::{Label, ObjectsKind, Position};
 use crate::team::Team;
 use crate::utils;
 use crate::view::window::{Window, WindowManage};
@@ -51,9 +51,9 @@ pub fn set_current_action(ecs: &mut World, id: Entity, action: Action) {
         .requested = Some(action);
 }
 
-pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsKind)>) -> Vec<Action> {
+pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsKind, Label)>) -> Vec<Action> {
     let mut actions = vec![];
-    for (_, kind) in objects_at_cell {
+    for (_, kind, _) in objects_at_cell {
         if kind.can_interact() {
             actions.push(Action::Interact);
         }
@@ -74,8 +74,8 @@ fn run_action_assign_system(world: &mut World, window_manage: &mut WindowManage)
         match actions.requested.take() {
             Some(Action::Interact) => {
                 let objects_at = utils::find_objects_at(world, *pos);
-                match objects_at.into_iter().find(|(_, k)| k.can_interact()) {
-                    Some((id, _)) => {
+                match objects_at.into_iter().find(|(_, k, _)| k.can_interact()) {
+                    Some((id, _, _)) => {
                         // change window to cockpit
                         window_manage.set_window(Window::Cockpit { cockpit_id: id });
                     }

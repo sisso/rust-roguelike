@@ -1,4 +1,6 @@
+use crate::health::Health;
 use crate::models::{ObjectsKind, Position};
+use crate::team::Team;
 use hecs::{Entity, World};
 
 pub fn find_objects_at<'a>(world: &World, pos: Position) -> Vec<(Entity, ObjectsKind)> {
@@ -11,12 +13,14 @@ pub fn find_objects_at<'a>(world: &World, pos: Position) -> Vec<(Entity, Objects
     result
 }
 
-pub fn find_mobs_at<'a>(world: &World, pos: Position) -> Vec<Entity> {
-    find_objects_at(world, pos)
-        .into_iter()
-        .filter(|i| i.1 == ObjectsKind::Mob)
-        .map(|i| i.0)
-        .collect()
+pub fn find_damageable_at<'a>(world: &World, pos: Position, enemies_of: Team) -> Vec<Entity> {
+    let mut result = vec![];
+    for (e, (p, t, _)) in world.query::<(&Position, &Team, &Health)>().iter() {
+        if *p == pos && t.is_enemy(enemies_of) {
+            result.push(e);
+        }
+    }
+    result
 }
 
 pub fn get_position(world: &World, id: Entity) -> Option<Position> {

@@ -18,6 +18,7 @@ use crate::models::{
 };
 use crate::ship::Ship;
 use crate::state::State;
+use crate::team::Team;
 use crate::view::cockpit_window::CockpitWindowState;
 use crate::view::window::Window;
 use crate::view::Renderable;
@@ -117,6 +118,7 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
         .insert(
             avatar_id,
             (
+                Team::Player,
                 Avatar {},
                 Label {
                     name: "player".to_string(),
@@ -155,7 +157,7 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
 
 pub fn create_mob(state: &mut State, position: Position) -> Entity {
     state.ecs.spawn((
-        Avatar {},
+        Team::Mob,
         Label {
             name: "mob".to_string(),
         },

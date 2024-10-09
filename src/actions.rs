@@ -6,7 +6,8 @@ use crate::game_log::{GameLog, Msg};
 use crate::gridref::GridRef;
 use crate::health::Health;
 use crate::models::{ObjectsKind, Position};
-use crate::utils::{find_mobs_at, find_objects_at};
+use crate::team::Team;
+use crate::utils;
 use crate::view::window::{Window, WindowManage};
 use hecs::{CommandBuffer, Entity, World};
 use rand::rngs::StdRng;
@@ -62,7 +63,7 @@ pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsKind)>) -> Ve
 
 pub fn run_available_actions_system(world: &mut World) {
     for (_, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
-        let objects_at = find_objects_at(&world, *pos);
+        let objects_at = utils::find_objects_at(&world, *pos);
         actions.available = get_available_actions(&objects_at);
     }
 }
@@ -72,7 +73,7 @@ fn run_action_assign_system(world: &mut World, window_manage: &mut WindowManage)
     for (e, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
         match actions.requested.take() {
             Some(Action::Interact) => {
-                let objects_at = find_objects_at(world, *pos);
+                let objects_at = utils::find_objects_at(world, *pos);
                 match objects_at.into_iter().find(|(_, k)| k.can_interact()) {
                     Some((id, _)) => {
                         // change window to cockpit
@@ -171,30 +172,33 @@ fn run_action_attack_system(
 }
 
 fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_id: Entity) {
-    let mut query = world.query::<(&WantMove, &Position)>();
-    let candidates = query.iter().map(|(id, (WantMove { dir }, _))| (id, *dir));
+    let mut query = world.query::<(&WantMove, &Position, &Team)>();
+    let candidates = query
+        .iter()
+        .map(|(id, (WantMove { dir }, _, team))| (id, *dir, team));
 
     let mut buffer = CommandBuffer::new();
-    for (id, dir) in candidates {
+    for (id, dir, team) in candidates {
         buffer.remove_one::<WantMove>(id);
+
+        let is_player = id == player_id;
 
         let mut query = world.query_one::<&Position>(id).unwrap();
         let pos = query.get().unwrap();
         let next_pos = pos.translate_by(dir);
 
         if can_move_into(world, id, &next_pos) {
-            // TODO: must support mob attack a player
-            let mob_on_next_cell = find_mobs_at(world, next_pos);
+            let mob_on_next_cell = utils::find_damageable_at(world, next_pos, *team);
             if let Some(target_id) = mob_on_next_cell.into_iter().next() {
                 buffer.insert_one(id, WantAttack { target_id });
             } else {
                 buffer.insert_one(id, next_pos);
-                if id == player_id {
+                if is_player {
                     game_log.push(Msg::PlayerMove);
                 }
             }
         } else {
-            if id == player_id {
+            if is_player {
                 game_log.push(Msg::PlayerFailMove);
             }
         }

@@ -24,6 +24,7 @@ pub mod models;
 pub mod sectors;
 pub mod ship;
 pub mod state;
+mod team;
 pub mod utils;
 pub mod view;
 mod visibility;

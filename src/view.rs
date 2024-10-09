@@ -264,6 +264,7 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
     let player_id = state.player.get_avatar_id();
     let player_pos = utils::get_position(&state.ecs, player_id).unwrap();
 
+    // get current cell or info marker position
     let info_pos = match &state.window_manage.game_state.sub_window {
         SubWindow::Fire { point } => player_pos.with_point(*point),
         SubWindow::Info { point } => player_pos.with_point(*point),
@@ -274,54 +275,65 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
         }
     };
 
-    // get cell tile
-    let gmap = GridRef::find_area(&state.ecs, player_pos.grid_id).unwrap();
-    let current_cell = gmap
-        .get_grid()
-        .get_at_opt(info_pos.point)
-        .unwrap_or_default();
-    let tile_str = match current_cell.tile {
-        Tile::Ground => "ground",
-        Tile::Floor => "floor",
-        Tile::Wall => "?",
-        Tile::Space => "space",
-        Tile::OutOfMap => "oom",
-    };
-
-    // get objects at cell
-    let objects = utils::find_objects_at(&state.ecs, info_pos);
-
-    // draw
+    // draw box
     let rect = state.screen_layout.get_info_rect();
     draw_rect(ctx, rect, rltk::GRAY, rltk::BLACK, Some("Info"));
 
     let text_x = rect.get_x() + 1;
     let mut text_y = rect.get_y() + 1;
 
-    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
-    text_y += 1;
+    // confirm the position is a player know position
+    let is_know = {
+        let mut q = state.ecs.query_one::<&VisibilityMemory>(player_id).unwrap();
+        q.get().unwrap().is_know(info_pos)
+    };
 
-    for (obj_id, kind, label) in objects {
-        if obj_id == player_id {
-            continue;
-        }
-
-        let kind_str = match kind {
-            ObjectsKind::Door { .. } => "door",
-            ObjectsKind::Engine => "engine",
-            ObjectsKind::Cockpit => "cockpit",
-            ObjectsKind::Player => "player",
-            ObjectsKind::Mob => "mob",
-            ObjectsKind::Item => "item",
+    // write info
+    if is_know {
+        // get cell tile
+        let gmap = GridRef::find_area(&state.ecs, player_pos.grid_id).unwrap();
+        let current_cell = gmap
+            .get_grid()
+            .get_at_opt(info_pos.point)
+            .unwrap_or_default();
+        let tile_str = match current_cell.tile {
+            Tile::Ground => "ground",
+            Tile::Floor => "floor",
+            Tile::Wall => "?",
+            Tile::Space => "space",
+            Tile::OutOfMap => "oom",
         };
 
-        let text = if kind_str == label.name {
-            format!("{}", kind_str)
-        } else {
-            format!("{} ({})", label.name, kind_str)
-        };
-        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, text);
+        // get objects at cell
+        let objects = utils::find_objects_at(&state.ecs, info_pos);
+
+        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
         text_y += 1;
+
+        for (obj_id, kind, label) in objects {
+            if obj_id == player_id {
+                continue;
+            }
+
+            let kind_str = match kind {
+                ObjectsKind::Door { .. } => "door",
+                ObjectsKind::Engine => "engine",
+                ObjectsKind::Cockpit => "cockpit",
+                ObjectsKind::Player => "player",
+                ObjectsKind::Mob => "mob",
+                ObjectsKind::Item => "item",
+            };
+
+            let text = if kind_str == label.name {
+                format!("{}", kind_str)
+            } else {
+                format!("{} ({})", label.name, kind_str)
+            };
+            ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, text);
+            text_y += 1;
+        }
+    } else {
+        ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, "?");
     }
 }
 

@@ -7,6 +7,7 @@ use crate::gridref::GridRef;
 use crate::health::Health;
 use crate::inventory::Inventory;
 use crate::models::{Label, ObjectsKind, Position};
+use crate::state::State;
 use crate::team::Team;
 use crate::utils;
 use crate::view::window::{Window, WindowManage};
@@ -18,6 +19,21 @@ pub enum Action {
     Interact(Entity),
     Move(V2I),
     Pickup(Entity),
+}
+
+impl Action {
+    pub fn is_interact(&self) -> bool {
+        match self {
+            Action::Interact(_) => true,
+            _ => false,
+        }
+    }
+    pub fn is_pickup(&self) -> bool {
+        match self {
+            Action::Pickup(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -56,9 +72,17 @@ pub fn set_current_action(ecs: &mut World, id: Entity, action: Action) {
         .requested = Some(action);
 }
 
-pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsKind, Label)>) -> Vec<Action> {
+pub fn get_available_actions(gs: &mut State, avatar_id: Entity) -> Vec<Action> {
+    gs.ecs
+        .get::<&mut EntityActions>(avatar_id)
+        .expect("Entity has no actions")
+        .available
+        .clone()
+}
+
+pub fn compute_available_actions_for(objects_at_cell: &Vec<(Entity, ObjectsKind)>) -> Vec<Action> {
     let mut actions = vec![];
-    for (id, kind, _) in objects_at_cell {
+    for (id, kind) in objects_at_cell {
         if kind.can_interact() {
             actions.push(Action::Interact(*id));
         }
@@ -72,7 +96,7 @@ pub fn get_available_actions(objects_at_cell: &Vec<(Entity, ObjectsKind, Label)>
 pub fn run_available_actions_system(world: &mut World) {
     for (_, (actions, pos)) in &mut world.query::<(&mut EntityActions, &Position)>() {
         let objects_at = utils::find_objects_at(&world, *pos);
-        actions.available = get_available_actions(&objects_at);
+        actions.available = compute_available_actions_for(&objects_at);
     }
 }
 
@@ -128,6 +152,8 @@ fn run_action_pickup_system(world: &mut World, logs: &mut GameLog, player_id: En
             log::warn!("fail to pickup item, item is not at same position");
             continue;
         }
+
+        log::debug!("{:?} pick up {:?}", e, action.0);
 
         buffer.remove_one::<Position>(action.0);
         inventory.items.push(action.0);

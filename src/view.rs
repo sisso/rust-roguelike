@@ -246,7 +246,7 @@ fn draw_left_column(state: &State, ctx: &mut Rltk) {
         .unwrap();
     let (position, actions, health) = query.get().unwrap();
 
-    let objects_at = utils::find_objects_at(&state.ecs, *position);
+    let objects_at = utils::find_objects_at_with_label(&state.ecs, *position);
 
     draw_left_panel_content(
         ctx,
@@ -305,7 +305,7 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
         };
 
         // get objects at cell
-        let objects = utils::find_objects_at(&state.ecs, info_pos);
+        let objects = utils::find_objects_at_with_label(&state.ecs, info_pos);
 
         ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, tile_str);
         text_y += 1;

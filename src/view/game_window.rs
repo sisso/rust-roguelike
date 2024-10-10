@@ -1,4 +1,4 @@
-use crate::actions::Action;
+use crate::actions::{Action, EntityActions};
 use crate::commons::grid::Coord;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
@@ -90,11 +90,18 @@ fn process_input(gs: &mut State, ctx: &mut Rltk) {
 
     if let Some(dir) = view::read_key_direction(ctx) {
         set_action_move(&mut gs.ecs, avatar_id, dir.x, dir.y);
+        return;
     }
+
+    let available_actions = actions::get_available_actions(gs, avatar_id);
 
     match ctx.key {
         Some(VirtualKeyCode::I) => {
-            actions::set_current_action(&mut gs.ecs, avatar_id, Action::Interact);
+            let action = available_actions
+                .into_iter()
+                .find(|i| i.is_interact())
+                .unwrap();
+            actions::set_current_action(&mut gs.ecs, avatar_id, action);
         }
         Some(VirtualKeyCode::X) => {
             let player_pos = utils::get_position(&gs.ecs, avatar_id).unwrap();
@@ -103,8 +110,12 @@ fn process_input(gs: &mut State, ctx: &mut Rltk) {
                 point: player_pos.point,
             };
         }
-        Some(VirtualKeyCode::F) => {
-            // actions::set_current_action(&mut gs.ecs, avatar_id, Action::SearchToShoot);
+        Some(VirtualKeyCode::P) => {
+            let action = available_actions
+                .into_iter()
+                .find(|i| i.is_pickup())
+                .unwrap();
+            actions::set_current_action(&mut gs.ecs, avatar_id, action);
         }
         // VirtualKeyCode::W => gs.camera.y -= 1,
         // VirtualKeyCode::A => gs.camera.x -= 1,

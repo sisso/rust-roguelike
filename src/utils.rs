@@ -23,7 +23,7 @@ pub fn find_objects_at(world: &World, pos: Position) -> Vec<(Entity, ObjectsKind
 
 pub fn find_objects_at_with_label(ecs: &World, pos: Position) -> Vec<(Entity, ObjectsKind, Label)> {
     let objects_at = find_objects_at(ecs, pos);
-    let labels = find_labels(ecs, objects_at.iter().map(|i| i.0).collect());
+    let labels = find_labels(ecs, &objects_at.iter().map(|i| i.0).collect());
     objects_at
         .into_iter()
         .zip(labels.into_iter())
@@ -45,10 +45,10 @@ pub fn get_position(world: &World, id: Entity) -> Option<Position> {
     world.query_one::<&Position>(id).unwrap().get().cloned()
 }
 
-pub fn find_labels(world: &World, ids: Vec<Entity>) -> Vec<Label> {
+pub fn find_labels(world: &World, ids: &Vec<Entity>) -> Vec<Label> {
     let mut result: Vec<Label> = vec![];
     for id in ids {
-        let label = &*world.get::<&Label>(id).unwrap();
+        let label = &*world.get::<&Label>(*id).unwrap();
         result.push(label.clone());
     }
     result

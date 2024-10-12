@@ -52,9 +52,14 @@ pub trait BaseGrid<T> {
         self.set(self.coords_to_index(coord), value);
     }
     fn get(&self, index: i32) -> &T;
+    fn get_mut(&mut self, index: i32) -> &mut T;
     fn get_at(&self, coord: Coord) -> &T {
         assert!(self.is_valid_coords(coord));
         self.get(self.coords_to_index(coord))
+    }
+    fn get_mut_at(&mut self, coord: Coord) -> &mut T {
+        assert!(self.is_valid_coords(coord));
+        self.get_mut(self.coords_to_index(coord))
     }
     fn get_opt(&self, index: i32) -> Option<&T>;
     fn get_at_opt(&self, coord: Coord) -> Option<&T> {
@@ -87,6 +92,12 @@ pub trait BaseGrid<T> {
             .filter(|i| self.is_valid_coords(*i))
             .collect()
     }
+
+    fn get_mut_opt(&mut self, index: i32) -> Option<&mut T> {
+        self.get_mut_at_opt(self.index_to_coords(index))
+    }
+
+    fn get_mut_at_opt(&mut self, coord: Coord) -> Option<&mut T>;
 }
 
 /**
@@ -172,6 +183,30 @@ impl<T> Grid<T> {
         let index = self.coords_to_index(coord);
         if self.is_valid_coords(coord) {
             Some(&self.list[index as usize])
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, index: i32) -> &mut T {
+        assert!(self.is_valid_index(index));
+        &mut self.list[index as usize]
+    }
+
+    pub fn get_mut_opt(&mut self, index: i32) -> Option<&mut T> {
+        self.list.get_mut(index as usize)
+    }
+
+    pub fn get_mut_at(&mut self, coord: Coord) -> &mut T {
+        assert!(self.is_valid_coords(coord));
+        let index = self.coords_to_index(coord);
+        &mut self.list[index as usize]
+    }
+
+    pub fn get_mut_at_opt(&mut self, coord: Coord) -> Option<&mut T> {
+        let index = self.coords_to_index(coord);
+        if self.is_valid_coords(coord) {
+            Some(&mut self.list[index as usize])
         } else {
             None
         }
@@ -399,6 +434,17 @@ impl<T> PGrid<T> {
         self.grid.get_at_opt(local)
     }
 
+    pub fn get_mut_at(&mut self, coord: &Coord) -> &mut T {
+        let local = self.to_local(coord);
+        assert!(self.grid.is_valid_coords(local));
+        self.grid.get_mut_at(local)
+    }
+
+    pub fn get_mut_at_opt(&mut self, coord: &Coord) -> Option<&mut T> {
+        let local = self.to_local(coord);
+        self.grid.get_mut_at_opt(local)
+    }
+
     pub fn is_valid_coords(&self, coord: &Coord) -> bool {
         self.get_rect().is_inside(coord)
     }
@@ -543,6 +589,11 @@ impl<T: GridCell> BaseGrid<T> for NGrid<T> {
         self.get_at_opt(coords).unwrap()
     }
 
+    fn get_mut(&mut self, index: i32) -> &mut T {
+        let coords = self.index_to_coords(index);
+        self.get_mut_at_opt(coords).unwrap()
+    }
+
     fn get_opt(&self, index: i32) -> Option<&T> {
         self.get_at_opt(self.index_to_coords(index))
     }
@@ -551,6 +602,12 @@ impl<T: GridCell> BaseGrid<T> for NGrid<T> {
         let layer_index = self.get_layer(&coord)?;
         let grid = &self.grids[layer_index];
         grid.get_at_opt(&coord)
+    }
+
+    fn get_mut_at_opt(&mut self, coord: Coord) -> Option<&mut T> {
+        let layer_index = self.get_layer(&coord)?;
+        let grid = &mut self.grids[layer_index];
+        grid.get_mut_at_opt(&coord)
     }
 }
 

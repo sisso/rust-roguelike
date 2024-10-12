@@ -4,3 +4,5 @@ use hecs::Entity;
 pub struct Inventory {
     pub items: Vec<Entity>,
 }
+
+impl Inventory {}

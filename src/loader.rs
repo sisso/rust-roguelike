@@ -41,7 +41,7 @@ pub fn create_planet_zone_from(
     tile: Tile,
     buildings: Vec<(V2I, &Grid<Cell>)>,
 ) -> Entity {
-    let mut grid = Grid::new_square(size, || Cell { tile });
+    let mut grid = Grid::new_square(size, || Cell::new(tile));
 
     for (pos, other) in buildings {
         grid.merge(pos, other);
@@ -190,7 +190,7 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
 }
 
 pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
-    let cells = map_ast.iter().map(|e| Cell { tile: e.tile }).collect();
+    let cells = map_ast.iter().map(|e| Cell::new(e.tile)).collect();
     Grid::new_from(map_ast.get_width(), map_ast.get_height(), cells)
 }
 

@@ -68,6 +68,11 @@ impl Area {
     pub fn get_grid(&self) -> &NGrid<Cell> {
         &self.grid
     }
+
+    pub fn get_grid_mut(&mut self) -> &mut NGrid<Cell> {
+        &mut self.grid
+    }
+
     pub fn merge(&mut self, gmap: Area, pos: &P2) {
         self.grid.merge(gmap.grid, pos);
         self.layers.extend(gmap.layers.into_iter());
@@ -85,19 +90,33 @@ impl Area {
         let gmap = Area::new(NGrid::from_grid(pgrid.grid), vec![entity]);
         Some((gmap, pgrid.pos))
     }
+
+    pub fn move_entity(&mut self, id: Entity, from: Position, to: Position) {
+        self.grid
+            .get_mut_at(from.point)
+            .objects
+            .retain(|i| *i != id);
+        self.grid.get_mut_at(to.point).objects.push(id);
+    }
 }
 
-pub const EMPTY_CELL: Cell = Cell { tile: Tile::Space };
+pub const EMPTY_CELL: Cell = Cell {
+    tile: Tile::Space,
+    objects: vec![],
+};
 
-#[derive(Debug, Clone, Default, Copy)]
+#[derive(Debug, Clone)]
 pub struct Cell {
     pub tile: Tile,
-    // pub objects? // how will return ref?
+    pub objects: Vec<Entity>,
 }
 
 impl Cell {
     pub fn new(tile: Tile) -> Self {
-        Cell { tile }
+        Cell {
+            tile,
+            ..Default::default()
+        }
     }
 }
 
@@ -107,9 +126,9 @@ impl commons::grid::GridCell for Cell {
     }
 }
 
-impl Default for &Cell {
+impl Default for Cell {
     fn default() -> Self {
-        &EMPTY_CELL
+        EMPTY_CELL.clone()
     }
 }
 

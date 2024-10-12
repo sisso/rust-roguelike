@@ -13,34 +13,27 @@ pub enum GridRef {
 }
 
 impl GridRef {
-    pub fn find_area(world: &World, id: GridId) -> Option<Ref<Area>> {
+    // for give grid_id, search recursive until find the id of current gmap it belongs
+    pub fn resolve_references(world: &World, id: GridId) -> Option<GridId> {
         let value = world.get::<&GridRef>(id).ok()?;
         match &*value {
-            GridRef::GMap(_) => Some(Ref::map(value, |v| v.get_gmap().unwrap())),
-            GridRef::Ref(ref_id) => GridRef::find_area(world, *ref_id),
+            GridRef::GMap(_) => Some(id),
+            GridRef::Ref(ref_id) => GridRef::resolve_references(world, *ref_id),
         }
     }
 
-    pub fn find_gmap_entity(world: &World, id: GridId) -> Option<GridId> {
-        let mut current_id = id;
-        loop {
-            let current_grid = world.get::<&GridRef>(current_id).ok()?;
-            match &*current_grid {
-                GridRef::Ref(id) => {
-                    current_id = *id;
-                }
-                GridRef::GMap(_) => {
-                    break;
-                }
-            }
+    pub fn find_area(world: &World, grid_id: GridId) -> Option<Ref<Area>> {
+        let real_grid_id = Self::resolve_references(world, grid_id)?;
+        let value = world.get::<&GridRef>(real_grid_id).ok()?;
+        match &*value {
+            GridRef::GMap(_) => Some(Ref::map(value, |i| i.get_gmap().unwrap())),
+            _ => None,
         }
-
-        Some(current_id)
     }
 
-    pub fn find_gmap_mut(world: &World, id: Entity) -> Option<RefMut<Area>> {
-        let current_id = Self::find_gmap_entity(world, id)?;
-        let value = world.get::<&mut GridRef>(current_id).ok()?;
+    pub fn find_gmap_mut(world: &World, grid_id: Entity) -> Option<RefMut<Area>> {
+        let real_grid_id = Self::resolve_references(world, grid_id)?;
+        let value = world.get::<&mut GridRef>(real_grid_id).ok()?;
         match &*value {
             GridRef::GMap(_) => Some(RefMut::map(value, |i| i.get_gmap_mut().unwrap())),
             _ => None,

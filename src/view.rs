@@ -6,12 +6,13 @@ pub mod main_menu_window;
 pub mod window;
 
 use crate::actions::{Action, EntityActions};
-use crate::area::{Area, Tile};
+use crate::area::{Area, Cell, Tile};
 use crate::commons::grid::BaseGrid;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
 use crate::gridref::GridRef;
 use crate::health::{Health, Hp};
+use crate::inventory::Inventory;
 use crate::models::{Label, ObjectsKind, Position};
 use crate::state::State;
 use crate::view::camera::Camera;
@@ -152,7 +153,7 @@ fn draw_map(
 ) {
     for c in camera.list_cells() {
         let cell = gmap.get_grid().get_at_opt(c.world_pos);
-        let tile = cell.unwrap_or_default().tile;
+        let tile = cell.map(|c| c.tile).unwrap_or_default();
 
         // calculate real tile
         let (mut fg, mut bg, mut ch) = match tile {
@@ -234,30 +235,61 @@ pub fn draw_default(state: &State, ctx: &mut Rltk) {
     draw_map_and_objects(state, ctx);
     draw_info_box(&state, ctx);
     draw_log_box(state, ctx);
-    draw_left_column(state, ctx);
+    draw_character_box(state, ctx);
 }
 
-fn draw_left_column(state: &State, ctx: &mut Rltk) {
+fn draw_character_box(state: &State, ctx: &mut Rltk) {
     let avatar_id = state.player.get_avatar_id();
 
-    let mut query = state
-        .ecs
-        .query_one::<(&Position, &EntityActions, &Health)>(avatar_id)
-        .unwrap();
-    let (position, actions, health) = query.get().unwrap();
+    let entity = state.ecs.entity(avatar_id).unwrap();
+    let actions = entity.get::<&EntityActions>().unwrap();
+    let health = entity.get::<&Health>().unwrap();
+    let inventory = entity.get::<&Inventory>().unwrap();
+    let items_labels = utils::find_labels(&state.ecs, &inventory.items);
 
-    let objects_at = utils::find_objects_at_with_label(&state.ecs, *position);
+    let rect = state.screen_layout.get_left_rect();
+    let actions = map_actions_to_keys(&actions.available);
 
-    draw_left_panel_content(
-        ctx,
-        state.screen_layout.get_left_rect(),
-        &objects_at,
-        &map_actions_to_keys(&actions.available)
-            .iter()
-            .map(ViewAction::to_tuple)
-            .collect::<Vec<_>>(),
-        (health.hp, health.max_hp),
+    draw_rect(ctx, rect, rltk::WHITE, rltk::BLACK, Some("Player"));
+
+    let text_x = rect.get_x() + 1;
+    let mut text_y = rect.get_y() + 2;
+
+    ctx.printer(
+        text_x,
+        text_y,
+        format!(
+            "#[gray]HP: #[red]{}#[gray]/#[red]{}",
+            health.hp, health.max_hp
+        ),
+        TextAlign::Left,
+        None,
     );
+    text_y += 1;
+
+    // available actions
+    text_y += 1;
+    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, "Actions");
+    text_y += 1;
+    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, "---------");
+    text_y += 1;
+    for vc in actions {
+        ctx.print_color(text_x, text_y, rltk::RED, rltk::BLACK, vc.ch);
+        ctx.print_color(text_x + 1, text_y, rltk::GRAY, rltk::BLACK, " - ");
+        ctx.print_color(text_x + 4, text_y, rltk::GRAY, rltk::BLACK, vc.label);
+        text_y += 1;
+    }
+
+    // inventory
+    text_y += 1;
+    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, "Inventory");
+    text_y += 1;
+    ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, "---------");
+    text_y += 1;
+    for item in items_labels {
+        ctx.print_color(text_x, text_y, rltk::BLUE, rltk::BLACK, item.name);
+        text_y += 1;
+    }
 }
 
 fn draw_info_box(state: &State, ctx: &mut Rltk) {
@@ -295,8 +327,9 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
         let current_cell = gmap
             .get_grid()
             .get_at_opt(info_pos.point)
+            .map(|c| c.tile)
             .unwrap_or_default();
-        let tile_str = match current_cell.tile {
+        let tile_str = match current_cell {
             Tile::Ground => "ground",
             Tile::Floor => "floor",
             Tile::Wall => "?",
@@ -388,7 +421,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
         .collect()
 }
 
-fn draw_left_panel_content(
+fn draw_character_box_content(
     ctx: &mut Rltk,
     rect: RectI,
     objects: &Vec<(Entity, ObjectsKind, Label)>,

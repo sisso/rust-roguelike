@@ -65,7 +65,7 @@ pub fn run(world: &mut World, game_log: &mut GameLog) {
 
 fn do_ship_launching(world: &mut World, ship_id: Entity, game_log: &mut GameLog) {
     // find ship grid
-    let grid_id = GridRef::find_gmap_entity(world, ship_id).unwrap();
+    let grid_id = GridRef::resolve_references(world, ship_id).unwrap();
 
     // find what body we are landed
     let surface_body_id = Surface::find_surface_body(&world, grid_id).unwrap();

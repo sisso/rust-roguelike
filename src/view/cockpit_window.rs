@@ -26,7 +26,7 @@ impl LocalInfo {
             .get_layer_entity_at(&pos.point)
             .expect("invalid entity at position");
 
-        // check if layer id is a ship, and if it is orbiting a object
+        // check if layer id is a ship, and if it is orbiting an object
         let layer_is_ship = ecs.get::<&Ship>(layer_id).is_ok();
         let (ship_id, orbiting_id) = if layer_is_ship {
             let maybe_orbit_id = ecs.get::<&Location>(layer_id).ok().and_then(|i| match &*i {

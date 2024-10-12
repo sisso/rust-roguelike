@@ -13,6 +13,7 @@ use crate::utils;
 use crate::view::window::{Window, WindowManage};
 use hecs::{CommandBuffer, Entity, World};
 use rand::rngs::StdRng;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
@@ -231,31 +232,40 @@ fn run_action_attack_system(
 }
 
 fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_id: Entity) {
-    let mut query = world.query::<(&WantMove, &Position, &Team)>();
+    let mut query = world.query::<(&WantMove, &mut Position, &Team)>();
     let candidates = query
         .iter()
-        .map(|(id, (WantMove { dir }, _, team))| (id, *dir, team));
+        .map(|(id, (WantMove { dir }, pos, team))| (id, *dir, pos, team));
 
     let mut buffer = CommandBuffer::new();
-    for (id, dir, team) in candidates {
+    for (id, dir, pos, team) in candidates {
         buffer.remove_one::<WantMove>(id);
 
         let is_player = id == player_id;
 
-        let mut query = world.query_one::<&Position>(id).unwrap();
-        let pos = query.get().unwrap();
         let next_pos = pos.translate_by(dir);
 
-        if can_move_into(world, id, &next_pos) {
-            let mob_on_next_cell = utils::find_damageable_at(world, next_pos, *team);
-            if let Some(target_id) = mob_on_next_cell.into_iter().next() {
-                buffer.insert_one(id, WantAttack { target_id });
-            } else {
-                buffer.insert_one(id, next_pos);
-                if is_player {
-                    game_log.push(Msg::PlayerMove);
-                }
-            }
+        let mut area = GridRef::find_gmap_mut(world, next_pos.grid_id).unwrap();
+        let can_move = area
+            .get_grid()
+            .get_at_opt(next_pos.point)
+            .map(|t| t.tile.is_opaque() == false)
+            .unwrap_or(false);
+
+        if can_move {
+            todo!()
+            // let mob_on_next_cell = utils::find_damageable_at(world, next_pos, *team);
+            // if let Some(target_id) = mob_on_next_cell.into_iter().next() {
+            //     buffer.insert_one(id, WantAttack { target_id });
+            // } else {
+            //     buffer.insert_one(id, next_pos);
+            //     if is_player {
+            //         game_log.push(Msg::PlayerMove);
+            //     }
+            // }
+            // let grid_id = area.get_layer_entity_at(&next_pos.point).unwrap();
+            area.move_entity(id, *pos, next_pos);
+            *pos = next_pos;
         } else {
             if is_player {
                 game_log.push(Msg::PlayerFailMove);
@@ -267,10 +277,10 @@ fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_
     buffer.run_on(world);
 }
 
-fn can_move_into(world: &World, e: Entity, pos: &Position) -> bool {
-    let area = GridRef::find_area(world, pos.grid_id).unwrap();
-    area.get_grid()
-        .get_at_opt(pos.point)
-        .map(|t| t.tile.is_opaque() == false)
-        .unwrap_or(false)
-}
+// fn can_move_into(world: &World, e: Entity, pos: &Position) -> bool {
+//     let area = GridRef::find_area(world, pos.grid_id).unwrap();
+//     area.get_grid()
+//         .get_at_opt(pos.point)
+//         .map(|t| t.tile.is_opaque() == false)
+//         .unwrap_or(false)
+// }

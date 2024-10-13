@@ -1,4 +1,5 @@
 use crate::commons::grid::Coord;
+use crate::models::Position;
 use crate::Area;
 use hecs::{Entity, Ref, RefMut, World};
 
@@ -14,16 +15,16 @@ pub enum GridRef {
 
 impl GridRef {
     // for give grid_id, search recursive until find the id of current gmap it belongs
-    pub fn resolve_references(world: &World, id: GridId) -> Option<GridId> {
+    pub fn resolve_gmap_id(world: &World, id: GridId) -> Option<GridId> {
         let value = world.get::<&GridRef>(id).ok()?;
         match &*value {
             GridRef::GMap(_) => Some(id),
-            GridRef::Ref(ref_id) => GridRef::resolve_references(world, *ref_id),
+            GridRef::Ref(ref_id) => GridRef::resolve_gmap_id(world, *ref_id),
         }
     }
 
-    pub fn find_area(world: &World, grid_id: GridId) -> Option<Ref<Area>> {
-        let real_grid_id = Self::resolve_references(world, grid_id)?;
+    pub fn resolve_area(world: &World, grid_id: GridId) -> Option<Ref<Area>> {
+        let real_grid_id = Self::resolve_gmap_id(world, grid_id)?;
         let value = world.get::<&GridRef>(real_grid_id).ok()?;
         match &*value {
             GridRef::GMap(_) => Some(Ref::map(value, |i| i.get_gmap().unwrap())),
@@ -31,13 +32,19 @@ impl GridRef {
         }
     }
 
-    pub fn find_gmap_mut(world: &World, grid_id: Entity) -> Option<RefMut<Area>> {
-        let real_grid_id = Self::resolve_references(world, grid_id)?;
+    pub fn resolve_area_mut(world: &World, grid_id: Entity) -> Option<RefMut<Area>> {
+        let real_grid_id = Self::resolve_gmap_id(world, grid_id)?;
         let value = world.get::<&mut GridRef>(real_grid_id).ok()?;
         match &*value {
             GridRef::GMap(_) => Some(RefMut::map(value, |i| i.get_gmap_mut().unwrap())),
             _ => None,
         }
+    }
+
+    pub fn remove_entity(world: &World, id: Entity, pos: Position) {
+        Self::resolve_area_mut(world, pos.grid_id)
+            .unwrap()
+            .remove_entity(id, pos.point);
     }
 
     pub fn replace(world: &mut World, id: Entity, new_ref: GridRef) -> Option<GridRef> {
@@ -47,7 +54,7 @@ impl GridRef {
     }
 
     pub fn extract(world: &World, from_grid_id: Entity, layer_id: Entity) -> Option<(Area, Coord)> {
-        Self::find_gmap_mut(world, from_grid_id).and_then(|mut gmap| gmap.remove_layer(layer_id))
+        Self::resolve_area_mut(world, from_grid_id).and_then(|mut gmap| gmap.remove_layer(layer_id))
     }
 
     pub fn get_gmap(&self) -> Option<&Area> {

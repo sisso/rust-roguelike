@@ -1,4 +1,8 @@
+use crate::area::Area;
+use crate::commons::grid::Grid;
 use crate::game_log::{GameLog, Msg};
+use crate::gridref::GridRef;
+use crate::models::Position;
 use hecs::{CommandBuffer, World};
 
 pub type Hp = i32;
@@ -12,12 +16,13 @@ pub struct Health {
 
 pub fn run_health_system(world: &mut World, logs: &mut GameLog) {
     let mut buffer = CommandBuffer::new();
-    for (e, health) in &mut world.query::<&mut Health>() {
+    for (e, (health, pos)) in &mut world.query::<(&mut Health, &Position)>() {
         let total = health.pending_damage.iter().sum::<Hp>();
         health.pending_damage.clear();
         health.hp -= total;
 
         if health.hp <= 0 {
+            GridRef::remove_entity(world, e, *pos);
             buffer.despawn(e);
             logs.push(Msg::Died {});
         }

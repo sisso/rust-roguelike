@@ -6,7 +6,7 @@ use crate::game_log::{GameLog, Msg};
 use crate::gridref::GridRef;
 use crate::health::Health;
 use crate::inventory::Inventory;
-use crate::models::{Label, ObjectsKind, Position};
+use crate::models::{BasicEntity, Label, ObjectsKind, Position};
 use crate::state::State;
 use crate::team::Team;
 use crate::utils;
@@ -81,9 +81,9 @@ pub fn get_available_actions(gs: &mut State, avatar_id: Entity) -> Vec<Action> {
         .clone()
 }
 
-pub fn compute_available_actions_for(objects_at_cell: &Vec<(Entity, ObjectsKind)>) -> Vec<Action> {
+pub fn compute_available_actions_for(objects_at_cell: &Vec<BasicEntity>) -> Vec<Action> {
     let mut actions = vec![];
-    for (id, kind) in objects_at_cell {
+    for BasicEntity { id, kind } in objects_at_cell {
         if kind.can_interact() {
             actions.push(Action::Interact(*id));
         }
@@ -144,7 +144,8 @@ fn run_action_pickup_system(world: &mut World, logs: &mut GameLog, player_id: En
         buffer.remove_one::<WantPickup>(e);
 
         // get target position
-        let Some(target_pos) = utils::get_position(world, action.0) else {
+        let item_id = action.0;
+        let Some(target_pos) = utils::get_position(world, item_id) else {
             log::warn!("fail to pickup item, target has no position");
             continue;
         };
@@ -156,8 +157,13 @@ fn run_action_pickup_system(world: &mut World, logs: &mut GameLog, player_id: En
 
         log::debug!("{:?} pick up {:?}", e, action.0);
 
-        buffer.remove_one::<Position>(action.0);
-        inventory.items.push(action.0);
+        buffer.remove_one::<Position>(item_id);
+        inventory.items.push(item_id);
+        GridRef::remove_entity(world, item_id, *pos);
+
+        if player_id == e {
+            logs.push(Msg::PlayerPickup)
+        }
     }
     buffer.run_on(world);
 }
@@ -245,27 +251,29 @@ fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_
 
         let next_pos = pos.translate_by(dir);
 
-        let mut area = GridRef::find_gmap_mut(world, next_pos.grid_id).unwrap();
-        let can_move = area
+        let mut area = GridRef::resolve_area_mut(world, next_pos.grid_id).unwrap();
+        let cell = area
             .get_grid()
             .get_at_opt(next_pos.point)
-            .map(|t| t.tile.is_opaque() == false)
-            .unwrap_or(false);
+            .unwrap_or_default();
+        if cell.is_walkable() {
+            let candidates = cell.find_enemies_of(world, *team);
 
-        if can_move {
-            todo!()
-            // let mob_on_next_cell = utils::find_damageable_at(world, next_pos, *team);
-            // if let Some(target_id) = mob_on_next_cell.into_iter().next() {
-            //     buffer.insert_one(id, WantAttack { target_id });
-            // } else {
-            //     buffer.insert_one(id, next_pos);
-            //     if is_player {
-            //         game_log.push(Msg::PlayerMove);
-            //     }
-            // }
-            // let grid_id = area.get_layer_entity_at(&next_pos.point).unwrap();
-            area.move_entity(id, *pos, next_pos);
-            *pos = next_pos;
+            // let mob_on_next_cell = utils::find_damageable_at(world, &area, next_pos, *team);
+            if let Some(target) = candidates.into_iter().next() {
+                buffer.insert_one(
+                    id,
+                    WantAttack {
+                        target_id: target.id,
+                    },
+                );
+            } else {
+                area.move_object(id, *pos, next_pos);
+                *pos = next_pos;
+                if is_player {
+                    game_log.push(Msg::PlayerMove);
+                }
+            }
         } else {
             if is_player {
                 game_log.push(Msg::PlayerFailMove);
@@ -276,11 +284,3 @@ fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_
     drop(query);
     buffer.run_on(world);
 }
-
-// fn can_move_into(world: &World, e: Entity, pos: &Position) -> bool {
-//     let area = GridRef::find_area(world, pos.grid_id).unwrap();
-//     area.get_grid()
-//         .get_at_opt(pos.point)
-//         .map(|t| t.tile.is_opaque() == false)
-//         .unwrap_or(false)
-// }

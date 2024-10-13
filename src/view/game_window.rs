@@ -97,10 +97,9 @@ fn process_input(gs: &mut State, ctx: &mut Rltk) {
 
     match ctx.key {
         Some(VirtualKeyCode::I) => {
-            let action = available_actions
-                .into_iter()
-                .find(|i| i.is_interact())
-                .unwrap();
+            let Some(action) = available_actions.into_iter().find(|i| i.is_interact()) else {
+                return;
+            };
             actions::set_current_action(&mut gs.ecs, avatar_id, action);
         }
         Some(VirtualKeyCode::X) => {

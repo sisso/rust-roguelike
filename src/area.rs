@@ -1,8 +1,11 @@
 use super::models::*;
+use crate::combat::CombatStats;
 use crate::commons;
 use crate::commons::grid::{BaseGrid, Coord, Grid, NGrid};
 use crate::commons::v2i::V2I;
-use hecs::Entity;
+use crate::gridref::GridId;
+use crate::team::Team;
+use hecs::{Entity, World};
 use rltk::SmallVec;
 use serde::{Deserialize, Serialize};
 
@@ -48,11 +51,13 @@ pub struct Area {
     /// grids on this map, the index must match with layers
     grid: NGrid<Cell>,
     /// entities that own on each grid in this map
-    layers: Vec<Entity>,
+    layers: Vec<GridId>,
 }
 
+impl Area {}
+
 impl Area {
-    pub fn new(grid: NGrid<Cell>, layers: Vec<Entity>) -> Self {
+    pub fn new(grid: NGrid<Cell>, layers: Vec<GridId>) -> Self {
         Self { grid, layers }
     }
 
@@ -60,7 +65,7 @@ impl Area {
         Self::new(NGrid::from_grid(grid), vec![id])
     }
 
-    pub fn get_layer_entity_at(&self, coord: &Coord) -> Option<Entity> {
+    pub fn get_layer_entity_at(&self, coord: &Coord) -> Option<GridId> {
         self.grid
             .get_layer(coord)
             .and_then(|index| self.layers.get(index).cloned())
@@ -78,11 +83,15 @@ impl Area {
         self.layers.extend(gmap.layers.into_iter());
     }
 
+    pub fn contains_layer(&self, grid_id: GridId) -> bool {
+        self.layers.contains(&grid_id)
+    }
+
     pub fn get_layers(&self) -> &Vec<Entity> {
         &self.layers
     }
 
-    pub fn remove_layer(&mut self, entity: Entity) -> Option<(Area, Coord)> {
+    pub fn remove_layer(&mut self, entity: GridId) -> Option<(Area, Coord)> {
         let index = self.layers.iter().position(|i| *i == entity)?;
         self.layers.remove(index);
 
@@ -91,32 +100,83 @@ impl Area {
         Some((gmap, pgrid.pos))
     }
 
-    pub fn move_entity(&mut self, id: Entity, from: Position, to: Position) {
-        self.grid
-            .get_mut_at(from.point)
-            .objects
-            .retain(|i| *i != id);
-        self.grid.get_mut_at(to.point).objects.push(id);
+    pub fn move_object(&mut self, id: Entity, from: Position, to: Position) {
+        let be = self.remove_entity(id, from.point);
+        self.grid.get_mut_at(to.point).objects.push(be);
+    }
+
+    pub fn list_objects_at(&self, point: V2I) -> &Vec<BasicEntity> {
+        let tile = self.get_grid().get_at(point);
+        &tile.objects
+    }
+
+    pub fn clear_objects(&mut self) {
+        for grid in self.grid.get_layers_mut() {
+            for i in 0..grid.grid.len() {
+                grid.grid.get_mut(i as i32).clear();
+            }
+        }
+    }
+
+    pub fn add_object(&mut self, point: V2I, basic_entity: BasicEntity) {
+        self.grid.get_mut_at(point).objects.push(basic_entity);
+    }
+
+    pub fn remove_entity(&mut self, id: Entity, point: Coord) -> BasicEntity {
+        let objects = &mut self.grid.get_mut_at(point).objects;
+        let index = objects
+            .iter()
+            .position(|i| i.id == id)
+            .unwrap_or_else(|| panic!("{:?} not found on previous position {:?}", id, point));
+        objects.swap_remove(index)
     }
 }
 
-pub const EMPTY_CELL: Cell = Cell {
+pub static EMPTY_CELL: Cell = Cell {
     tile: Tile::Space,
     objects: vec![],
 };
 
+pub static EMPTY_BASIC_ENTITY_VEC: Vec<BasicEntity> = vec![];
+
 #[derive(Debug, Clone)]
 pub struct Cell {
     pub tile: Tile,
-    pub objects: Vec<Entity>,
+    pub objects: Vec<BasicEntity>,
 }
 
 impl Cell {
+    pub fn clear(&mut self) {
+        self.objects.clear();
+    }
+
     pub fn new(tile: Tile) -> Self {
         Cell {
             tile,
             ..Default::default()
         }
+    }
+
+    pub fn find_enemies_of(&self, world: &World, attacker_team: Team) -> Vec<BasicEntity> {
+        self.objects
+            .iter()
+            .filter(|be| world.get::<&CombatStats>(be.id).is_ok())
+            .filter(|be| {
+                world
+                    .get::<&Team>(be.id)
+                    .map(|team| team.is_enemy(attacker_team))
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect()
+    }
+
+    pub fn is_opaque(&self) -> bool {
+        self.tile.is_opaque()
+    }
+
+    pub fn is_walkable(&self) -> bool {
+        !self.tile.is_opaque()
     }
 }
 
@@ -129,6 +189,12 @@ impl commons::grid::GridCell for Cell {
 impl Default for Cell {
     fn default() -> Self {
         EMPTY_CELL.clone()
+    }
+}
+
+impl Default for &Cell {
+    fn default() -> Self {
+        &EMPTY_CELL
     }
 }
 

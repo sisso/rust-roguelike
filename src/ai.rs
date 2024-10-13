@@ -35,7 +35,7 @@ pub fn run_ai_mob_system(world: &mut World, player_id: Entity) {
             continue;
         }
 
-        let gmap = GridRef::find_area(world, player_pos.grid_id).unwrap();
+        let gmap = GridRef::resolve_area(world, player_pos.grid_id).unwrap();
 
         let from_index = gmap.get_grid().coords_to_index(pos.point) as usize;
         let to_index = gmap.get_grid().coords_to_index(player_pos.point) as usize;

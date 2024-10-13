@@ -6,7 +6,7 @@ pub mod main_menu_window;
 pub mod window;
 
 use crate::actions::{Action, EntityActions};
-use crate::area::{Area, Cell, Tile};
+use crate::area::{Area, Tile};
 use crate::commons::grid::BaseGrid;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
@@ -133,7 +133,7 @@ fn draw_map_and_objects(state: &State, ctx: &mut Rltk) {
     let camera = Camera::from_center(*avatar_pos, state.screen_layout.get_main_area_rect());
 
     // draw
-    let map = GridRef::find_area(&state.ecs, avatar_pos.grid_id).expect("area not found");
+    let map = GridRef::resolve_area(&state.ecs, avatar_pos.grid_id).expect("area not found");
     draw_map(
         &camera,
         &visibility.visible_tiles,
@@ -245,7 +245,7 @@ fn draw_character_box(state: &State, ctx: &mut Rltk) {
     let actions = entity.get::<&EntityActions>().unwrap();
     let health = entity.get::<&Health>().unwrap();
     let inventory = entity.get::<&Inventory>().unwrap();
-    let items_labels = utils::find_labels(&state.ecs, &inventory.items);
+    let items_labels = utils::find_labels(&state.ecs, inventory.items.iter());
 
     let rect = state.screen_layout.get_left_rect();
     let actions = map_actions_to_keys(&actions.available);
@@ -287,7 +287,7 @@ fn draw_character_box(state: &State, ctx: &mut Rltk) {
     ctx.print_color(text_x, text_y, rltk::GRAY, rltk::BLACK, "---------");
     text_y += 1;
     for item in items_labels {
-        ctx.print_color(text_x, text_y, rltk::BLUE, rltk::BLACK, item.name);
+        ctx.print_color(text_x, text_y, rltk::BLUE, rltk::BLACK, &item.name);
         text_y += 1;
     }
 }
@@ -323,7 +323,7 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
     // write info
     if is_know {
         // get cell tile
-        let gmap = GridRef::find_area(&state.ecs, player_pos.grid_id).unwrap();
+        let gmap = GridRef::resolve_area(&state.ecs, player_pos.grid_id).unwrap();
         let current_cell = gmap
             .get_grid()
             .get_at_opt(info_pos.point)

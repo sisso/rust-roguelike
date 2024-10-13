@@ -20,7 +20,7 @@ struct LocalInfo {
 impl LocalInfo {
     pub fn from(ecs: &World, avatar_id: Entity) -> LocalInfo {
         let pos = ecs.get::<&Position>(avatar_id).expect("position not found");
-        let area = GridRef::find_area(ecs, pos.grid_id).expect("area not found");
+        let area = GridRef::resolve_area(ecs, pos.grid_id).expect("area not found");
 
         let layer_id = area
             .get_layer_entity_at(&pos.point)

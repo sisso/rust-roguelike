@@ -23,7 +23,7 @@ use crate::state::State;
 use crate::team::Team;
 use crate::view::Renderable;
 use crate::visibility::{Visibility, VisibilityMemory};
-use crate::{cfg, loader, sectors, ship};
+use crate::{cfg, loader, sectors, ship, utils};
 use rltk::RGB;
 
 pub fn create_sector(world: &mut World) -> Entity {
@@ -157,7 +157,7 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
 }
 
 pub fn create_mob(state: &mut State, position: Position) -> Entity {
-    state.ecs.spawn((
+    let id = state.ecs.spawn((
         Team::Mob,
         Label {
             name: "mob".to_string(),
@@ -186,7 +186,9 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
             defense: Dice::new(1, 0),
             damage: Dice::new(1, 0),
         },
-    ))
+    ));
+    log::debug!("create mob {:?} at {:?}", id, position);
+    id
 }
 
 pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
@@ -265,9 +267,10 @@ pub fn parse_map_objects(
                     },
                 ));
             }
-            other => {
+            Some(other) => {
                 log::warn!("unknown cell kind {:?}", other);
             }
+            None => {}
         }
     });
 
@@ -429,10 +432,11 @@ pub fn start_game(state: &mut State, params: &NewGameParams) {
     }
 
     sectors::update_bodies_list(&mut state.ecs);
+    utils::reindex_grids_objects(&mut state.ecs);
 }
 
 pub fn create_item(state: &mut State, label: &str, pos: Position) {
-    state.ecs.spawn((
+    let id = state.ecs.spawn((
         Item::default(),
         pos,
         Label {
@@ -446,4 +450,5 @@ pub fn create_item(state: &mut State, label: &str, pos: Position) {
             priority: 0,
         },
     ));
+    log::debug!("create item {:?} {:?}", id, label)
 }

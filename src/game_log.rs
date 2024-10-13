@@ -23,6 +23,7 @@ pub enum Msg {
     ShipLaunch,
     PlayerMove,
     PlayerFailMove,
+    PlayerPickup,
 }
 
 impl Msg {
@@ -57,6 +58,7 @@ impl Msg {
                 hit_roll,
                 hit_require,
             } => format!("defend, roll {} from {}", hit_require, hit_roll),
+            Msg::PlayerPickup => format!("pick up"),
         }
     }
 

@@ -65,7 +65,7 @@ pub fn run(world: &mut World, game_log: &mut GameLog) {
 
 fn do_ship_launching(world: &mut World, ship_id: Entity, game_log: &mut GameLog) {
     // find ship grid
-    let grid_id = GridRef::resolve_references(world, ship_id).unwrap();
+    let grid_id = GridRef::resolve_gmap_id(world, ship_id).unwrap();
 
     // find what body we are landed
     let surface_body_id = Surface::find_surface_body(&world, grid_id).unwrap();
@@ -182,16 +182,18 @@ pub fn do_ship_landing(
 }
 
 fn move_all_objects(world: &World, from_grid_id: Entity, to_grid_id: Entity, to_pos: V2I) {
+    log::debug!(
+        "moving all objects from {:?} into {:?} pos {:?}",
+        from_grid_id,
+        to_grid_id,
+        to_pos
+    );
     for (e, p) in &mut world.query::<&mut Position>() {
         if p.grid_id == from_grid_id {
             let global = recti::to_global(&to_pos, &p.point);
             debug!(
-                "update object {} from {:?} grid {:?} to {:?} at grid {:?}",
-                e.id(),
-                p.point,
-                from_grid_id,
-                global,
-                to_grid_id
+                "- update object {:?} from {:?} grid {:?} to {:?} at grid {:?}",
+                e, p.point, from_grid_id, global, to_grid_id
             );
             p.grid_id = to_grid_id;
             p.point = global;

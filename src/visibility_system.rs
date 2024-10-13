@@ -9,7 +9,7 @@ pub fn run(world: &World) {
     for (_, (viewshed, pos, memory)) in
         &mut world.query::<(&mut Visibility, &Position, Option<&mut VisibilityMemory>)>()
     {
-        let gridmap = GridRef::find_area(world, pos.grid_id).unwrap();
+        let gridmap = GridRef::resolve_area(world, pos.grid_id).unwrap();
 
         viewshed.visible_tiles.clear();
         viewshed.visible_tiles = rltk::field_of_view(

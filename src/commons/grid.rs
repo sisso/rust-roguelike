@@ -278,7 +278,7 @@ impl<T> Grid<T> {
     }
 
     pub fn len(&self) -> usize {
-        return self.list.len();
+        self.list.len()
     }
 }
 
@@ -538,6 +538,10 @@ impl<T: GridCell> NGrid<T> {
         }
 
         found
+    }
+
+    pub fn get_layers_mut(&mut self) -> &mut Vec<PGrid<T>> {
+        &mut self.grids
     }
 
     pub fn from_grid(grid: Grid<T>) -> Self {

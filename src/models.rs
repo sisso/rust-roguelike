@@ -71,6 +71,18 @@ impl Default for GridPosition {
     }
 }
 
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub struct BasicEntity {
+    pub id: Entity,
+    pub kind: ObjectsKind,
+}
+
+impl BasicEntity {
+    pub fn new(entity: Entity, kind: ObjectsKind) -> Self {
+        Self { id: entity, kind }
+    }
+}
+
 /// Quick way to identify an entity without having to check all kinds of components. For simple
 /// components, no other component needs to exists
 #[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]

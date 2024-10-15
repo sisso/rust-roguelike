@@ -1,3 +1,4 @@
+use crate::area::Tile;
 use crate::commons;
 use crate::commons::grid::Coord;
 use crate::commons::v2i::V2I;
@@ -74,11 +75,11 @@ impl Default for GridPosition {
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub struct BasicEntity {
     pub id: Entity,
-    pub kind: ObjectsKind,
+    pub kind: ObjKind,
 }
 
 impl BasicEntity {
-    pub fn new(entity: Entity, kind: ObjectsKind) -> Self {
+    pub fn new(entity: Entity, kind: ObjKind) -> Self {
         Self { id: entity, kind }
     }
 }
@@ -86,8 +87,8 @@ impl BasicEntity {
 /// Quick way to identify an entity without having to check all kinds of components. For simple
 /// components, no other component needs to exists
 #[derive(PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
-pub enum ObjectsKind {
-    Door { vertical: bool },
+pub enum ObjKind {
+    Door { vertical: bool, open: bool },
     Engine,
     Cockpit,
     Player,
@@ -95,18 +96,31 @@ pub enum ObjectsKind {
     Item,
 }
 
-impl ObjectsKind {
+impl ObjKind {
     pub fn can_interact(&self) -> bool {
         match self {
-            ObjectsKind::Cockpit => true,
+            ObjKind::Cockpit => true,
             _ => false,
         }
     }
 
     pub fn can_pickup(&self) -> bool {
         match self {
-            ObjectsKind::Item => true,
+            ObjKind::Item => true,
             _ => false,
+        }
+    }
+
+    pub fn is_opaque(&self) -> bool {
+        match self {
+            ObjKind::Door { open, .. } => !open,
+            _ => false,
+        }
+    }
+
+    pub fn is_walkable(&self) -> bool {
+        match self {
+            _ => true,
         }
     }
 }

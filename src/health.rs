@@ -1,7 +1,5 @@
-use crate::area::Area;
-use crate::commons::grid::Grid;
 use crate::game_log::{GameLog, Msg};
-use crate::gridref::GridRef;
+use crate::gridref::AreaRef;
 use crate::models::Position;
 use hecs::{CommandBuffer, World};
 
@@ -22,7 +20,7 @@ pub fn run_health_system(world: &mut World, logs: &mut GameLog) {
         health.hp -= total;
 
         if health.hp <= 0 {
-            GridRef::remove_entity(world, e, *pos);
+            AreaRef::remove_entity(world, e, *pos);
             buffer.despawn(e);
             logs.push(Msg::Died {});
         }

@@ -10,10 +10,10 @@ use crate::area::{Area, Tile};
 use crate::commons::grid::BaseGrid;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
-use crate::gridref::GridRef;
+use crate::gridref::AreaRef;
 use crate::health::{Health, Hp};
 use crate::inventory::Inventory;
-use crate::models::{Label, ObjectsKind, Position};
+use crate::models::{Label, ObjKind, Position};
 use crate::state::State;
 use crate::view::camera::Camera;
 use crate::view::game_window::SubWindow;
@@ -133,7 +133,7 @@ fn draw_map_and_objects(state: &State, ctx: &mut Rltk) {
     let camera = Camera::from_center(*avatar_pos, state.screen_layout.get_main_area_rect());
 
     // draw
-    let map = GridRef::resolve_area(&state.ecs, avatar_pos.grid_id).expect("area not found");
+    let map = AreaRef::resolve_area(&state.ecs, avatar_pos.grid_id).expect("area not found");
     draw_map(
         &camera,
         &visibility.visible_tiles,
@@ -153,7 +153,7 @@ fn draw_map(
 ) {
     for c in camera.list_cells() {
         let cell = gmap.get_grid().get_at_opt(c.world_pos);
-        let tile = cell.map(|c| c.tile).unwrap_or_default();
+        let tile = cell.map(|c| c.tile()).unwrap_or_default();
 
         // calculate real tile
         let (mut fg, mut bg, mut ch) = match tile {
@@ -323,11 +323,11 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
     // write info
     if is_know {
         // get cell tile
-        let gmap = GridRef::resolve_area(&state.ecs, player_pos.grid_id).unwrap();
+        let gmap = AreaRef::resolve_area(&state.ecs, player_pos.grid_id).unwrap();
         let current_cell = gmap
             .get_grid()
             .get_at_opt(info_pos.point)
-            .map(|c| c.tile)
+            .map(|c| c.tile())
             .unwrap_or_default();
         let tile_str = match current_cell {
             Tile::Ground => "ground",
@@ -349,12 +349,12 @@ fn draw_info_box(state: &State, ctx: &mut Rltk) {
             }
 
             let kind_str = match kind {
-                ObjectsKind::Door { .. } => "door",
-                ObjectsKind::Engine => "engine",
-                ObjectsKind::Cockpit => "cockpit",
-                ObjectsKind::Player => "player",
-                ObjectsKind::Mob => "mob",
-                ObjectsKind::Item => "item",
+                ObjKind::Door { .. } => "door",
+                ObjKind::Engine => "engine",
+                ObjKind::Cockpit => "cockpit",
+                ObjKind::Player => "player",
+                ObjKind::Mob => "mob",
+                ObjKind::Item => "item",
             };
 
             let text = if kind_str == label.name {
@@ -424,7 +424,7 @@ fn map_actions_to_keys(actions: &Vec<Action>) -> Vec<ViewAction> {
 fn draw_character_box_content(
     ctx: &mut Rltk,
     rect: RectI,
-    objects: &Vec<(Entity, ObjectsKind, Label)>,
+    objects: &Vec<(Entity, ObjKind, Label)>,
     actions: &Vec<(char, &str)>,
     player_health: (Hp, Hp),
 ) {

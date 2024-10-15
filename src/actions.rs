@@ -3,17 +3,16 @@ use crate::combat::{CombatResult, CombatStats};
 use crate::commons::grid::BaseGrid;
 use crate::commons::v2i::V2I;
 use crate::game_log::{GameLog, Msg};
-use crate::gridref::GridRef;
+use crate::gridref::AreaRef;
 use crate::health::Health;
 use crate::inventory::Inventory;
-use crate::models::{BasicEntity, Label, ObjectsKind, Position};
+use crate::models::{BasicEntity, Position};
 use crate::state::State;
 use crate::team::Team;
 use crate::utils;
 use crate::view::window::{Window, WindowManage};
 use hecs::{CommandBuffer, Entity, World};
 use rand::rngs::StdRng;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
@@ -159,7 +158,7 @@ fn run_action_pickup_system(world: &mut World, logs: &mut GameLog, player_id: En
 
         buffer.remove_one::<Position>(item_id);
         inventory.items.push(item_id);
-        GridRef::remove_entity(world, item_id, *pos);
+        AreaRef::remove_entity(world, item_id, *pos);
 
         if player_id == e {
             logs.push(Msg::PlayerPickup)
@@ -251,7 +250,7 @@ fn run_action_wantmove_system(world: &mut World, game_log: &mut GameLog, player_
 
         let next_pos = pos.translate_by(dir);
 
-        let mut area = GridRef::resolve_area_mut(world, next_pos.grid_id).unwrap();
+        let mut area = AreaRef::resolve_area_mut(world, next_pos.grid_id).unwrap();
         let cell = area
             .get_grid()
             .get_at_opt(next_pos.point)

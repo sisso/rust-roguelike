@@ -1,6 +1,6 @@
 use crate::commons::grid::BaseGrid;
 use crate::commons::v2i::V2I;
-use crate::gridref::GridRef;
+use crate::gridref::AreaRef;
 use crate::models::Position;
 use crate::visibility::{Visibility, VisibilityMemory};
 use hecs::World;
@@ -9,7 +9,7 @@ pub fn run(world: &World) {
     for (_, (viewshed, pos, memory)) in
         &mut world.query::<(&mut Visibility, &Position, Option<&mut VisibilityMemory>)>()
     {
-        let gridmap = GridRef::resolve_area(world, pos.grid_id).unwrap();
+        let gridmap = AreaRef::resolve_area(world, pos.grid_id).unwrap();
 
         viewshed.visible_tiles.clear();
         viewshed.visible_tiles = rltk::field_of_view(

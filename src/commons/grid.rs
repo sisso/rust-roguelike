@@ -419,13 +419,11 @@ impl<T> PGrid<T> {
 
     pub fn set_at(&mut self, coord: &Coord, value: T) -> T {
         let local = self.to_local(coord);
-        assert!(self.grid.is_valid_coords(local));
         self.grid.set_at(local, value)
     }
 
     pub fn get_at(&self, coord: &Coord) -> &T {
         let local = self.to_local(coord);
-        assert!(self.grid.is_valid_coords(local));
         self.grid.get_at(local)
     }
 
@@ -436,7 +434,6 @@ impl<T> PGrid<T> {
 
     pub fn get_mut_at(&mut self, coord: &Coord) -> &mut T {
         let local = self.to_local(coord);
-        assert!(self.grid.is_valid_coords(local));
         self.grid.get_mut_at(local)
     }
 
@@ -586,6 +583,17 @@ impl<T: GridCell> BaseGrid<T> for NGrid<T> {
         let layer_index = self.get_layer(&coord).unwrap();
         let grid = &mut self.grids[layer_index];
         grid.set_at(&coord, value);
+    }
+
+    fn get_at(&self, coord: Coord) -> &T {
+        let layer_index = self.get_layer(&coord).unwrap();
+        let grid = &self.grids[layer_index];
+        grid.get_at(&coord)
+    }
+    fn get_mut_at(&mut self, coord: Coord) -> &mut T {
+        let layer_index = self.get_layer(&coord).unwrap();
+        let grid = &mut self.grids[layer_index];
+        grid.get_mut_at(&coord)
     }
 
     fn get(&self, index: i32) -> &T {

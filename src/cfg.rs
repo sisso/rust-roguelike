@@ -1,5 +1,5 @@
 use crate::area::Tile;
-use crate::models::ObjectsKind;
+use crate::models::ObjKind;
 use serde::{Deserialize, Serialize};
 
 pub const SHIP_MAP: &str = r"
@@ -42,7 +42,7 @@ pub const SECTOR_SIZE: i32 = 11;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MapParserCfg {
     pub raw_map_tiles: Vec<(char, Tile)>,
-    pub raw_map_objects: Vec<(char, ObjectsKind)>,
+    pub raw_map_objects: Vec<(char, ObjKind)>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -63,12 +63,30 @@ impl Cfg {
             ('!', Tile::Floor),
         ];
 
-        let raw_map_objects: Vec<(char, ObjectsKind)> = vec![
-            ('E', ObjectsKind::Engine),
-            ('-', ObjectsKind::Door { vertical: false }),
-            ('|', ObjectsKind::Door { vertical: true }),
-            ('@', ObjectsKind::Cockpit),
-            ('!', ObjectsKind::Door { vertical: true }),
+        let raw_map_objects: Vec<(char, ObjKind)> = vec![
+            ('E', ObjKind::Engine),
+            (
+                '-',
+                ObjKind::Door {
+                    vertical: false,
+                    open: false,
+                },
+            ),
+            (
+                '|',
+                ObjKind::Door {
+                    vertical: true,
+                    open: false,
+                },
+            ),
+            ('@', ObjKind::Cockpit),
+            (
+                '!',
+                ObjKind::Door {
+                    vertical: true,
+                    open: false,
+                },
+            ),
         ];
 
         Cfg {

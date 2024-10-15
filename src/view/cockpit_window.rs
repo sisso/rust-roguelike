@@ -1,7 +1,7 @@
 use crate::commons::grid::Dir;
 use crate::commons::recti::RectI;
 use crate::commons::v2i::V2I;
-use crate::gridref::GridRef;
+use crate::gridref::AreaRef;
 use crate::models::SurfaceTileKind;
 use crate::state::State;
 use crate::view::window::Window;
@@ -20,7 +20,7 @@ struct LocalInfo {
 impl LocalInfo {
     pub fn from(ecs: &World, avatar_id: Entity) -> LocalInfo {
         let pos = ecs.get::<&Position>(avatar_id).expect("position not found");
-        let area = GridRef::resolve_area(ecs, pos.grid_id).expect("area not found");
+        let area = AreaRef::resolve_area(ecs, pos.grid_id).expect("area not found");
 
         let layer_id = area
             .get_layer_entity_at(&pos.point)

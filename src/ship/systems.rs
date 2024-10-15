@@ -2,7 +2,7 @@ use crate::commons::grid::{BaseGrid, Coord};
 use crate::commons::recti;
 use crate::commons::v2i::V2I;
 use crate::game_log::{GameLog, Msg};
-use crate::gridref::GridRef;
+use crate::gridref::AreaRef;
 use crate::ship::Command;
 use crate::{Location, Position, Sector, SectorBody, Ship, Surface, SurfaceZone, P2};
 use hecs::{Entity, Ref, World};
@@ -65,7 +65,7 @@ pub fn run(world: &mut World, game_log: &mut GameLog) {
 
 fn do_ship_launching(world: &mut World, ship_id: Entity, game_log: &mut GameLog) {
     // find ship grid
-    let grid_id = GridRef::resolve_gmap_id(world, ship_id).unwrap();
+    let grid_id = AreaRef::resolve_gmap_id(world, ship_id).unwrap();
 
     // find what body we are landed
     let surface_body_id = Surface::find_surface_body(&world, grid_id).unwrap();
@@ -75,9 +75,9 @@ fn do_ship_launching(world: &mut World, ship_id: Entity, game_log: &mut GameLog)
 
     // extract ship grid
     let (grid, previous_coords) =
-        GridRef::extract(&world, grid_id, ship_id).expect("fail to extract grid");
+        AreaRef::extract(&world, grid_id, ship_id).expect("fail to extract grid");
     world
-        .insert_one(ship_id, GridRef::GMap(grid))
+        .insert_one(ship_id, AreaRef::Struct(grid))
         .expect("fail to insert gmap");
 
     // move objects inside ship grid back to ship
@@ -124,18 +124,18 @@ pub fn do_ship_landing(
         set_ship_command(world, ship_id, Command::Idle);
 
         // replace ship reference to new target
-        let ship_gmap = match GridRef::replace(world, ship_id, GridRef::Ref(target_id)) {
-            Some(GridRef::GMap(gmap)) => gmap,
+        let ship_gmap = match AreaRef::replace(world, ship_id, AreaRef::Ref(target_id)) {
+            Some(AreaRef::Struct(gmap)) => gmap,
             _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
         };
 
         // get landing zone
         let mut result = world
-            .get::<&mut GridRef>(target_id)
+            .get::<&mut AreaRef>(target_id)
             .expect("fail to get target grid");
 
         let target_gmap = match &mut *result {
-            GridRef::GMap(gmap) => gmap,
+            AreaRef::Struct(gmap) => gmap,
             _ => panic!("unexpected grid_ref for ship_id {:?}", ship_id),
         };
 

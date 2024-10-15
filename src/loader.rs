@@ -9,14 +9,13 @@ use crate::commons::grid::{Grid, NGrid};
 use crate::commons::grid_string::ParseMapError;
 use crate::commons::v2i::V2I;
 use crate::commons::{grid_string, v2i};
-use crate::gridref::GridRef;
+use crate::gridref::AreaRef;
 use crate::health::Health;
 use crate::inventory::Inventory;
 use crate::item::Item;
 use crate::mob::Mob;
 use crate::models::{
-    Avatar, Label, Location, ObjectsKind, Position, Sector, SectorBody, Surface, SurfaceTileKind,
-    P2,
+    Avatar, Label, Location, ObjKind, Position, Sector, SectorBody, Surface, SurfaceTileKind, P2,
 };
 use crate::ship::Ship;
 use crate::state::State;
@@ -57,7 +56,7 @@ pub fn create_planet_zone_from(
             Label {
                 name: format!("zone {}", index),
             },
-            GridRef::GMap(gmap),
+            AreaRef::Struct(gmap),
         ),
     );
 
@@ -106,7 +105,7 @@ pub fn create_ship(
             },
             ship,
             location,
-            GridRef::GMap(ship_gmap),
+            AreaRef::Struct(ship_gmap),
         ),
     );
 
@@ -139,7 +138,7 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
                     available: vec![],
                     requested: None,
                 },
-                ObjectsKind::Player,
+                ObjKind::Player,
                 Health {
                     hp: 10,
                     max_hp: 10,
@@ -154,6 +153,8 @@ pub fn create_avatar(world: &mut World, avatar_id: Entity, position: Position) {
             ),
         )
         .unwrap();
+
+    log::debug!("avatar id: {:?}", avatar_id);
 }
 
 pub fn create_mob(state: &mut State, position: Position) -> Entity {
@@ -179,7 +180,7 @@ pub fn create_mob(state: &mut State, position: Position) -> Entity {
             max_hp: 1,
             ..Default::default()
         },
-        ObjectsKind::Mob,
+        ObjKind::Mob,
         Ai::default(),
         CombatStats {
             attack: Dice::new(1, 0),
@@ -199,7 +200,7 @@ pub fn new_grid_from_ast(map_ast: &MapAst) -> Grid<Cell> {
 #[derive(Debug, Clone)]
 pub struct MapAstCell {
     pub tile: Tile,
-    pub obj: Option<ObjectsKind>,
+    pub obj: Option<ObjKind>,
 }
 
 pub type MapAst = Grid<MapAstCell>;
@@ -221,8 +222,20 @@ pub fn parse_map_objects(
         };
 
         match c.obj {
-            Some(ObjectsKind::Door { vertical }) => {
-                let icon = if vertical { '|' } else { '-' };
+            Some(ObjKind::Door { vertical, open }) => {
+                let icon = if open {
+                    if vertical {
+                        ':'
+                    } else {
+                        '~'
+                    }
+                } else {
+                    if vertical {
+                        '|'
+                    } else {
+                        '-'
+                    }
+                };
                 ecs.spawn((
                     pos,
                     Renderable {
@@ -231,13 +244,13 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     },
-                    ObjectsKind::Door { vertical },
+                    ObjKind::Door { vertical, open },
                     Label {
                         name: "door".to_string(),
                     },
                 ));
             }
-            Some(ObjectsKind::Cockpit) => {
+            Some(ObjKind::Cockpit) => {
                 ecs.spawn((
                     pos,
                     Renderable {
@@ -246,13 +259,13 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     },
-                    ObjectsKind::Cockpit,
+                    ObjKind::Cockpit,
                     Label {
                         name: "cockpit".to_string(),
                     },
                 ));
             }
-            Some(ObjectsKind::Engine) => {
+            Some(ObjKind::Engine) => {
                 ecs.spawn((
                     pos,
                     Renderable {
@@ -261,7 +274,7 @@ pub fn parse_map_objects(
                         bg: RGB::named(rltk::BLACK),
                         priority: 0,
                     },
-                    ObjectsKind::Engine,
+                    ObjKind::Engine,
                     Label {
                         name: "engine".to_string(),
                     },
@@ -378,7 +391,7 @@ pub fn start_game(state: &mut State, params: &NewGameParams) {
     );
     log::debug!("ship id {:?}", ship_id);
 
-    let avatar_entity_id = create_avatar(
+    create_avatar(
         &mut state.ecs,
         state.player.get_avatar_id(),
         Position {
@@ -386,7 +399,6 @@ pub fn start_game(state: &mut State, params: &NewGameParams) {
             point: (spawn_x, spawn_y).into(),
         },
     );
-    log::info!("avatar id: {:?}", avatar_entity_id);
 
     // load objects
     parse_map_objects(&mut state.ecs, v2i::ZERO, ship_id, ship_map_ast)
@@ -442,7 +454,7 @@ pub fn create_item(state: &mut State, label: &str, pos: Position) {
         Label {
             name: label.to_string(),
         },
-        ObjectsKind::Item,
+        ObjKind::Item,
         Renderable {
             glyph: rltk::to_cp437('i'),
             fg: RGB::named(rltk::BLUE),
